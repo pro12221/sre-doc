@@ -369,8 +369,281 @@ if __name__ == '__main__':
     context.load_cert_chain('/certs/tls.crt', '/certs/tls.key')
     app.run(host='0.0.0.0', port=443, ssl_context=context)</code></pre>
 
-        <!-- ==================== 第6节 ==================== -->
-        <h2>6. 制作镜像</h2>
+        <!-- ==================== Validating Webhook 示例 ==================== -->
+        <h2>6. Validating Webhook 代码示例</h2>
+
+        <p>和 Mutating Webhook 不同，Validating Webhook <strong>只做校验、不修改对象</strong>，响应中不需要 <code>patch</code> / <code>patchType</code>，只需要返回 <code>allowed: true/false</code>。</p>
+
+        <p>下面实现一个常见的安全策略：<strong>禁止 Pod 使用 <code>:latest</code> 镜像标签 + 禁止特权容器 + 禁止 hostPath 挂载</strong>。</p>
+
+        <h3>validate_webhook.py</h3>
+<pre><code><span class="code-label">Python</span>from flask import Flask, request, jsonify
+import ssl
+
+app = Flask(__name__)
+
+# ========== 校验规则 ==========
+
+ALLOWED_REGISTRIES = []  # 留空=不限制镜像仓库；填入 ["company.registry.io"] 则只允许该仓库
+
+FORBIDDEN_TAGS = [":latest", ":LATEST", ""]   # 禁止的镜像标签
+
+FORBIDDEN_HOST_PATHS = ["/", "/etc", "/var", "/proc", "/sys", "/dev"]  # 禁止的 hostPath 前缀
+
+
+def validate_pod(pod):
+    """
+    对 Pod 对象执行校验，返回 (allowed, reason)。
+    allowed=True 表示通过，allowed=False 表示拒绝，reason 为拒绝原因。
+    """
+    containers = pod.get('spec', {}).get('containers', [])
+    init_containers = pod.get('spec', {}).get('initContainers', [])
+    all_containers = containers + init_containers
+
+    # ---- 1. 检查镜像标签 ----
+    for container in all_containers:
+        image = container.get('image', '')
+
+        # 检查是否使用了禁止的标签
+        for tag in FORBIDDEN_TAGS:
+            if tag and image.endswith(tag):
+                return False, f"容器 '{container['name']}' 使用了禁止的镜像标签: {image}（不允许 :latest 或无标签）"
+
+        # 检查镜像仓库白名单（如果配置了）
+        if ALLOWED_REGISTRIES:
+            allowed = any(image.startswith(registry) for registry in ALLOWED_REGISTRIES)
+            if not allowed:
+                return False, f"容器 '{container['name']}' 的镜像 '{image}' 不在允许的仓库列表中"
+
+    # ---- 2. 检查特权容器 ----
+    for container in all_containers:
+        security_context = container.get('securityContext', {})
+        if security_context.get('privileged', False):
+            return False, f"容器 '{container['name']}' 使用了特权模式（privileged: true），这是被禁止的"
+
+        if security_context.get('runAsUser', -1) == 0:
+            return False, f"容器 '{container['name']}' 以 root 用户运行（runAsUser: 0），这是被禁止的"
+
+    # ---- 3. 检查 hostPath 挂载 ----
+    volumes = pod.get('spec', {}).get('volumes', [])
+    for volume in volumes:
+        host_path = volume.get('hostPath', {})
+        if host_path:
+            path = host_path.get('path', '')
+            for forbidden in FORBIDDEN_HOST_PATHS:
+                if path == forbidden or path.startswith(forbidden + '/'):
+                    return False, f"Pod 使用了危险的 hostPath 挂载: {path}（禁止挂载宿主机敏感目录）"
+
+    # ---- 4. 检查 hostNetwork / hostPID / hostIPC ----
+    pod_spec = pod.get('spec', {})
+    if pod_spec.get('hostNetwork', False):
+        return False, "Pod 使用了 hostNetwork: true，这是被禁止的"
+    if pod_spec.get('hostPID', False):
+        return False, "Pod 使用了 hostPID: true，这是被禁止的"
+    if pod_spec.get('hostIPC', False):
+        return False, "Pod 使用了 hostIPC: true，这是被禁止的"
+
+    return True, ""
+
+
+# ========== HTTP Handler ==========
+
+@app.route('/validate', methods=['POST'])
+def validate():
+    """
+    处理 Validating Webhook 的请求，对 Pod 对象执行安全策略校验。
+    """
+    admission_review = request.get_json()
+
+    # 验证请求格式
+    if 'request' not in admission_review or 'object' not in admission_review['request']:
+        return jsonify({
+            'kind': 'AdmissionReview',
+            'apiVersion': 'admission.k8s.io/v1',
+            'response': {
+                'allowed': False,
+                'status': {'message': 'Invalid AdmissionReview format'}
+            }
+        })
+
+    req = admission_review['request']
+    pod = req['object']
+
+    # 执行校验
+    allowed, reason = validate_pod(pod)
+
+    if allowed:
+        # 放行：不需要 patch，只返回 allowed: true
+        admission_response = {
+            'kind': 'AdmissionReview',
+            'apiVersion': 'admission.k8s.io/v1',
+            'response': {
+                'uid': req['uid'],
+                'allowed': True
+            }
+        }
+    else:
+        # 拒绝：返回 allowed: false + 拒绝原因
+        admission_response = {
+            'kind': 'AdmissionReview',
+            'apiVersion': 'admission.k8s.io/v1',
+            'response': {
+                'uid': req['uid'],
+                'allowed': False,
+                'status': {
+                    'code': 403,
+                    'message': reason
+                }
+            }
+        }
+
+    print(f"[VALIDATE] allowed={allowed}, reason={reason or 'N/A'}")
+    return jsonify(admission_response)
+
+
+if __name__ == '__main__':
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain('/certs/tls.crt', '/certs/tls.key')
+    app.run(host='0.0.0.0', port=443, ssl_context=context)</code></pre>
+
+        <h3>Mutating vs Validating 代码对比</h3>
+
+        <div class="card" style="display:flex; gap:24px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:240px;">
+            <h3 style="margin-top:0;"><span class="tag tag-mutate">Mutating</span></h3>
+            <ul>
+              <li>需要 <code>patch</code> + <code>patchType</code> 字段</li>
+              <li>返回 Base64 编码的 JSON Patch</li>
+              <li>可以修改对象的任意字段</li>
+              <li>在 Validating 之前执行</li>
+            </ul>
+          </div>
+          <div style="flex:1; min-width:240px;">
+            <h3 style="margin-top:0;"><span class="tag tag-validate">Validating</span></h3>
+            <ul>
+              <li>只需要 <code>allowed: true/false</code></li>
+              <li><strong>不需要</strong> <code>patch</code> 和 <code>patchType</code></li>
+              <li>只能判断放行/拒绝，<strong>不能修改对象</strong></li>
+              <li>在 Mutating 之后执行</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>校验规则说明</h3>
+
+        <table>
+          <thead>
+            <tr><th>规则</th><th>检查内容</th><th>拒绝示例</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tag tag-validate">镜像标签</span></td>
+              <td>禁止 <code>:latest</code> 和无标签镜像</td>
+              <td><code>nginx:latest</code> → 拒绝</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-validate">镜像仓库</span></td>
+              <td>可配置仓库白名单（留空则不限）</td>
+              <td><code>docker.io/nginx</code> → 拒绝（若白名单不含 docker.io）</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-validate">特权容器</span></td>
+              <td>禁止 <code>privileged: true</code> 和 <code>runAsUser: 0</code></td>
+              <td>设置了 <code>securityContext.privileged: true</code> → 拒绝</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-validate">hostPath</span></td>
+              <td>禁止挂载宿主机敏感目录</td>
+              <td><code>hostPath: /var/run/docker.sock</code> → 拒绝</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-validate">host 网络</span></td>
+              <td>禁止 <code>hostNetwork/hostPID/hostIPC</code></td>
+              <td><code>hostNetwork: true</code> → 拒绝</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>ValidatingWebhookConfiguration</h3>
+
+        <p>和 MutatingWebhookConfiguration 结构几乎一样，只是 <code>kind</code> 不同、<code>path</code> 指向 <code>/validate</code>：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: example-validating-webhook
+webhooks:
+  - name: validate.example.webhook.com
+    clientConfig:
+      service:
+        name: webhook-service
+        namespace: default
+        path: "/validate"                 # 指向 /validate 而非 /mutate
+      caBundle: "..."                     # 同一个 CA 证书
+    rules:
+      - operations: ["CREATE", "UPDATE"]  # 创建和更新都校验
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail                   # webhook 不可用时拒绝请求（安全优先）
+    timeoutSeconds: 5</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 failurePolicy 的选择：</strong></p>
+          <p><code>Fail</code> — webhook 不可用时拒绝请求（安全优先，推荐用于安全策略）</p>
+          <p><code>Ignore</code> — webhook 不可用时跳过校验（可用性优先，推荐用于非关键策略）</p>
+          <p>对于安全类校验（禁止特权容器等），应该用 <code>Fail</code>，避免 webhook 故障时不安全的 Pod 悄悄通过。</p>
+        </div>
+
+        <h3>两种 Webhook 部署在一起</h3>
+
+        <p>实际项目中，Mutating 和 Validating 通常部署在<strong>同一个 Service</strong> 里，共用证书和 Pod，只是路径不同：</p>
+
+<pre><code><span class="code-label">Python — 合并版本</span>from flask import Flask, request, jsonify
+import json, ssl, base64
+
+app = Flask(__name__)
+
+# ... create_patch() 和 validate_pod() 的代码同上 ...
+
+@app.route('/mutate', methods=['POST'])
+def mutate():
+    # ... Mutating 逻辑 ...
+
+@app.route('/validate', methods=['POST'])
+def validate():
+    # ... Validating 逻辑 ...
+
+if __name__ == '__main__':
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain('/certs/tls.crt', '/certs/tls.key')
+    app.run(host='0.0.0.0', port=443, ssl_context=context)</code></pre>
+
+        <p>对应的 K8s 资源关系：</p>
+
+        <div class="flow-steps">
+          <div class="flow-step">
+            <strong>1 个 Pod</strong>
+            Flask 应用同时监听 /mutate 和 /validate 两个路径
+          </div>
+          <div class="flow-step">
+            <strong>1 个 Service</strong>
+            webhook-service:443 → 转发到 Pod:443
+          </div>
+          <div class="flow-step">
+            <strong>1 套证书</strong>
+            同一个 TLS 证书，同一个 Secret
+          </div>
+          <div class="flow-step">
+            <strong>2 个 WebhookConfiguration</strong>
+            MutatingWebhookConfiguration（path: /mutate）+ ValidatingWebhookConfiguration（path: /validate）
+          </div>
+        </div>
+
+        <!-- ==================== 第7节 ==================== -->
+        <h2>7. 制作镜像</h2>
 
         <h3>Dockerfile</h3>
 <pre><code><span class="code-label">Dockerfile</span>FROM python:3.9-slim
@@ -384,7 +657,7 @@ CMD ["python", "webhook.py"]</code></pre>
 docker push uhub.service.ucloud.cn/mute-webhook/mute:latest</code></pre>
 
         <!-- ==================== 第7节 ==================== -->
-        <h2>7. 生成证书</h2>
+        <h2>8. 生成证书</h2>
 
 <pre><code><span class="code-label">Shell — gen-webhook-cert.sh</span>#!/bin/bash
 set -e
@@ -453,7 +726,7 @@ ls -la ca.crt webhook.crt webhook.key</code></pre>
         </div>
 
         <!-- ==================== 第8节 ==================== -->
-        <h2>8. MutatingWebhookConfiguration</h2>
+        <h2>9. MutatingWebhookConfiguration</h2>
 
         <p>它就是整个机制的<strong>"关卡规则"</strong>。光有 webhook 程序运行着是不够的，K8s API Server 根本不知道它的存在，也不知道什么时候该把请求转发给它。<code>MutatingWebhookConfiguration</code> 就是告诉 API Server 的那张"通知单"。</p>
 
