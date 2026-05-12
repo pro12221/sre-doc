@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admission Webhook 开发</title>
+<style>
+  :root {
+    --bg: #f8f9fb;
+    --card-bg: #ffffff;
+    --text: #2c3e50;
+    --text-secondary: #5a6a7a;
+    --accent: #3b82f6;
+    --accent-light: #eff6ff;
+    --border: #e2e8f0;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  h1 {
+    font-size: 2em;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    padding-bottom: 16px;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  h2 {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 48px;
+    margin-bottom: 16px;
+    padding-left: 12px;
+    border-left: 4px solid var(--accent);
+  }
+
+  h3 {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 28px;
+    margin-bottom: 12px;
+  }
+
+  p {
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+
+  .card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    border: 1px solid var(--border);
+  }
+
+  .flow-diagram {
+    background: #0f172a;
+    color: #94a3b8;
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 20px 0;
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre;
+  }
+
+  .highlight-box {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+
+  .highlight-box p { margin-bottom: 6px; color: var(--text); }
+  .highlight-box p:last-child { margin-bottom: 0; }
+
+  ul, ol {
+    margin: 12px 0 12px 24px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  strong { color: var(--text); }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .tag-mutate { background: #dbeafe; color: #1d4ed8; }
+  .tag-validate { background: #dcfce7; color: #166534; }
+  .tag-required { background: #fef3c7; color: #92400e; }
+  .tag-optional { background: #f1f5f9; color: #475569; }
+  .tag-conditional { background: #fae8ff; color: #7e22ce; }
+
+  code {
+    background: #f1f5f9;
+    color: #be185d;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    position: relative;
+  }
+
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  .code-label {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.95em;
+  }
+
+  th {
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 16px;
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr:hover td { background: #f8fafc; }
+
+  .flow-steps {
+    counter-reset: step;
+    margin: 20px 0;
+  }
+
+  .flow-step {
+    counter-increment: step;
+    position: relative;
+    padding: 16px 20px 16px 56px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  .flow-step::before {
+    content: counter(step);
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .flow-step strong { display: block; margin-bottom: 4px; }
+
+  .separator {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 24px;
+    margin: 8px 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Admission Webhook 开发</h1>
+
+<!-- ==================== 第1节 ==================== -->
+<h2>1. Admission Webhooks 是什么</h2>
+
+<div class="card">
+  <p>请求链路：</p>
+  <p style="text-align:center; font-size:1.1em; padding: 8px 0;">
+    用户请求 &nbsp;<strong>→</strong>&nbsp;
+    <span style="color:var(--danger); font-weight:600;">Mutating 关卡</span>&nbsp;
+    <strong>→</strong>&nbsp;
+    <span style="color:var(--success); font-weight:600;">Validating 关卡</span>&nbsp;
+    <strong>→</strong>&nbsp; etcd
+  </p>
+</div>
+
+<p>Webhook 指的是中途拦截请求做定制化处理，包含两种类型：</p>
+
+<div class="card" style="display:flex; gap:24px; flex-wrap:wrap;">
+  <div style="flex:1; min-width:200px;">
+    <h3 style="margin-top:0;"><span class="tag tag-mutate">Mutate</span> 修改</h3>
+    <p>截胡请求之后做修改，改完之后扔回原链路。</p>
+  </div>
+  <div style="flex:1; min-width:200px;">
+    <h3 style="margin-top:0;"><span class="tag tag-validate">Validate</span> 校验</h3>
+    <p>对请求的数据做校验，不符合规定的直接扔掉。</p>
+  </div>
+</div>
+
+<div class="highlight-box">
+  <p><strong>💡 Admission 翻译为"准入"</strong>，"入"指的是入到 etcd 数据库中。</p>
+</div>
+
+<!-- ==================== 第2节 ==================== -->
+<h2>2. Webhook 的执行时机</h2>
+
+<p>Admission Webhook 本质是 API Server 的一个 webhook 调用。总结出两种 webhook 的触发时机：</p>
+
+<ol>
+  <li><strong>总体来说</strong>，Admission Webhooks 机制是在 API Server 接收到请求、执行授权检查<strong>后</strong>和将请求持久化到 etcd <strong>之前</strong>触发。</li>
+  <li><strong>详细地看</strong>，Mutating Webhook 在 Validating Webhook <strong>之前</strong>触发，因此可以先对资源进行修改，然后再进行验证。</li>
+</ol>
+
+<!-- ==================== 第3节 ==================== -->
+<h2>3. Admission Webhook 的运行流程</h2>
+
+<p>Pod 创建流程中 Webhook 执行时机：</p>
+
+<div class="flow-diagram">┌─────────────────────────────────────────────────────────────────────┐
+│                        kubectl apply -f pod.yaml                    │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      1. Authentication（认证）                       │
+│                    "你是谁？" — 验证用户/服务身份                      │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      2. Authorization（授权）                        │
+│                    "你能做这件事吗？" — RBAC 检查                      │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+╔═══════════════════════════════════════════════════════════════════════╗
+║                    3. Admission Control（准入控制）                    ║
+║                                                                       ║
+║  ┌─────────────────────────────────────────────────────────────────┐ ║
+║  │  3a. Mutating Admission Webhook  ⚡ 可修改对象                    │ ║
+║  │  ────────────────────────────────────────────────────────────── │ ║
+║  │  • 自动注入 sidecar 容器（如 Istio）                               │ ║
+║  │  • 自动挂载 secret / configmap                                    │ ║
+║  │  • 设置默认 label / annotation                                    │ ║
+║  │  • 修改资源限制（LimitRanger）                                     │ ║
+║  │  • 强制设置 nodeSelector / toleration                              │ ║
+║  └────────────────────────┬────────────────────────────────────────┘ ║
+║                           │  对象可能已被修改                          ║
+║                           ▼                                        ║
+║  ┌─────────────────────────────────────────────────────────────────┐ ║
+║  │  3b. Object Schema Validation  ✅ 对象格式校验                     │ ║
+║  │  ────────────────────────────────────────────────────────────── │ ║
+║  │  • 检查修改后的对象是否符合 API Schema                              │ ║
+║  │  • 必填字段、类型、格式验证                                        │ ║
+║  └────────────────────────┬────────────────────────────────────────┘ ║
+║                           │                                        ║
+║                           ▼                                        ║
+║  ┌─────────────────────────────────────────────────────────────────┐ ║
+║  │  3c. Validating Admission Webhook  ✅ 只能校验，不可修改            │ ║
+║  │  ────────────────────────────────────────────────────────────── │ ║
+║  │  • 检查镜像来源是否合规（只允许公司镜像仓库）                        │ ║
+║  │  • 校验资源配额是否超标                                            │ ║
+║  │  • 检查安全策略（禁止特权容器、禁止 hostPath）                      │ ║
+║  │  • 命名规范检查                                                    │ ║
+║  │  • 拒绝 → 直接返回 403, 整个请求失败                               │ ║
+║  └─────────────────────────────────────────────────────────────────┘ ║
+╚═══════════════════════════════════════════════════════════════════════╝
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    4. Persist to etcd（持久化）                       │
+│                    对象写入 etcd，成为"已确认"状态                      │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    5. Scheduler（调度）                               │
+│                    为 Pod 选择合适的 Node                             │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    6. Kubelet（运行）                                 │
+│                    在目标 Node 上创建并启动容器                        │
+└─────────────────────────────────────────────────────────────────────┘</div>
+
+<!-- ==================== Mutating Webhook 返回格式 ==================== -->
+<h2>4. Mutating Webhook 返回格式</h2>
+
+<p>Mutating Webhook 的返回格式是一个 <code>AdmissionReview</code> 对象，与请求使用相同的类型，只是填充了 <code>response</code> 部分。</p>
+
+<h3>完整结构</h3>
+<pre><code><span class="code-label">JSON</span>{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "response": {
+    "uid": "请求中的 uid，必须原样返回",
+    "allowed": true,
+    "patchType": "JSONPatch",
+    "patch": "Base64 编码的 JSON Patch",
+    "status": {
+      "code": 200,
+      "message": "可选的状态信息"
+    }
+  }
+}</code></pre>
+
+<h3>各字段说明</h3>
+<table>
+  <thead>
+    <tr>
+      <th>字段</th>
+      <th>是否必需</th>
+      <th>说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>uid</code></td>
+      <td><span class="tag tag-required">必需</span></td>
+      <td>从请求中原样复制，API Server 靠它关联请求和响应</td>
+    </tr>
+    <tr>
+      <td><code>allowed</code></td>
+      <td><span class="tag tag-required">必需</span></td>
+      <td><code>true</code> 放行，<code>false</code> 拒绝</td>
+    </tr>
+    <tr>
+      <td><code>patchType</code></td>
+      <td><span class="tag tag-conditional">条件必需</span></td>
+      <td><code>allowed: true</code> 且要修改资源时必须指定，目前只支持 <code>JSONPatch</code></td>
+    </tr>
+    <tr>
+      <td><code>patch</code></td>
+      <td><span class="tag tag-conditional">条件必需</span></td>
+      <td>Base64 编码的 JSON Patch 数组，与 <code>patchType</code> 配对使用</td>
+    </tr>
+    <tr>
+      <td><code>status</code></td>
+      <td><span class="tag tag-optional">可选</span></td>
+      <td>仅在 <code>allowed: false</code> 时有意义，说明拒绝原因</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>三种典型响应</h3>
+
+<h3>① 放行并修改（Mutate）</h3>
+<pre><code><span class="code-label">JSON</span>{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "response": {
+    "uid": "abc-123",
+    "allowed": true,
+    "patchType": "JSONPatch",
+    "patch": "W3sib3AiOiJhZGQiLCJwYXRoIjoiL21ldGFkYXRhL2xhYmVscy9lbnZpcm9ubWVudCIsInZhbHVlIjoicHJvZHVjdGlvbiJ9XQ=="
+  }
+}</code></pre>
+
+<h3>② 直接拒绝</h3>
+<pre><code><span class="code-label">JSON</span>{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "response": {
+    "uid": "abc-123",
+    "allowed": false,
+    "status": {
+      "code": 403,
+      "message": "Pod 不允许使用 latest 标签"
+    }
+  }
+}</code></pre>
+
+<h3>③ 直接放行（不修改）</h3>
+<pre><code><span class="code-label">JSON</span>{
+  "kind": "AdmissionReview",
+  "apiVersion": "admission.k8s.io/v1",
+  "response": {
+    "uid": "abc-123",
+    "allowed": true
+  }
+}</code></pre>
+
+<div class="highlight-box">
+  <p><strong>💡 关于 patch 字段：</strong><code>patch</code> 字段的值是 Base64 编码后的 JSON Patch，解码后就是标准的 RFC 6902 格式：</p>
+</div>
+
+<pre><code><span class="code-label">JSON Patch (RFC 6902)</span>[
+  {"op": "add", "path": "/metadata/labels/environment", "value": "production"}
+]</code></pre>
+
+<!-- ==================== 代码示例 ==================== -->
+<h2>5. 代码示例</h2>
+
+<h3>webhook.py</h3>
+<pre><code><span class="code-label">Python</span>from flask import Flask, request, jsonify  # 导入 Flask 框架、请求处理和 JSON 响应模块
+import json
+import ssl
+import base64
+
+app = Flask(__name__)  # 创建一个 Flask 应用实例
+
+
+def create_patch(metadata):
+    """
+    创建 JSON Patch 以添加 'mutate' 注释。
+    如果 metadata.annotations 不存在，则首先创建该路径。
+    """
+    if 'labels' in metadata:
+        dic = metadata['labels']
+    else:
+        dic = {}
+
+    patch = [
+        # 添加 'labels' 键，如果不存在
+        {'op': 'add', 'path': '/metadata/labels', 'value': dic},
+        # 添加 'environment' 标签
+        {'op': 'add', 'path': '/metadata/labels/environment', 'value': 'production'}
+    ]
+
+    patch_json = json.dumps(patch)
+    patch_base64 = base64.b64encode(patch_json.encode('utf-8')).decode('utf-8')
+    return patch_base64
+
+
+@app.route('/mutate', methods=['POST'])  # https://webhook-service.default.svc:443/mutate
+def mutate():
+    """
+    处理 Mutating Webhook 的请求，对 Pod 对象应用 JSON Patch。
+    """
+    admission_review = request.get_json()  # 从请求中提取 AdmissionReview 对象
+
+    # 验证 AdmissionReview 格式是否正确
+    if 'request' not in admission_review or 'object' not in admission_review['request']:
+        return jsonify({
+            'kind': 'AdmissionReview',
+            'apiVersion': 'admission.k8s.io/v1',
+            'response': {
+                'allowed': False,
+                'status': {'message': 'Invalid AdmissionReview format'}
+            }
+        })
+
+    req = admission_review['request']
+    print('--->', req)
+
+    # 生成 JSON Patch
+    metadata = req['object']['metadata']
+    patch_json = create_patch(metadata)
+
+    # 准备 AdmissionResponse 响应
+    admission_response = {
+        'kind': 'AdmissionReview',
+        'apiVersion': 'admission.k8s.io/v1',
+        'response': {
+            'uid': req['uid'],
+            'allowed': True,
+            'patchType': 'JSONPatch',
+            'patch': patch_json
+        }
+    }
+
+    print(admission_response)
+    return jsonify(admission_response)
+
+
+if __name__ == '__main__':
+    # 加载 SSL 证书和私钥
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain('/certs/tls.crt', '/certs/tls.key')
+
+    # Run the Flask application with SSL
+    app.run(host='0.0.0.0', port=443, ssl_context=context)</code></pre>
+
+<!-- ==================== 制作镜像 ==================== -->
+<h2>6. 制作镜像</h2>
+
+<h3>Dockerfile</h3>
+<pre><code><span class="code-label">Dockerfile</span>FROM python:3.9-slim
+WORKDIR /app
+COPY webhook.py .
+RUN pip install Flask -i https://pypi.tuna.tsinghua.edu.cn/simple
+CMD ["python", "webhook.py"]</code></pre>
+
+<h3>构建 & 推送</h3>
+<pre><code><span class="code-label">Shell</span>docker tag webhook:latest uhub.service.ucloud.cn/mute-webhook/mute:latest
+docker push uhub.service.ucloud.cn/mute-webhook/mute:latest</code></pre>
+
+<!-- ==================== 生成证书 ==================== -->
+<h2>7. 生成证书</h2>
+
+<pre><code><span class="code-label">Shell — gen-webhook-cert.sh</span>#!/bin/bash
+set -e
+SERVICE=webhook-service
+NAMESPACE=default
+SECRET=webhook-certs
+DIR=certs
+
+rm -rf ${DIR}
+mkdir -p ${DIR} && cd ${DIR}
+
+echo "===== 1. 生成 CA ====="
+openssl genrsa -out ca.key 2048
+openssl req -x509 -new -nodes -key ca.key \
+  -subj "/CN=${SERVICE}.${NAMESPACE}.svc" \
+  -days 36500 -out ca.crt
+
+echo "===== 2. 生成 Webhook 服务证书 ====="
+cat > server.cnf &lt;&lt; EOF
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+req_extensions = v3_req
+distinguished_name = dn
+[dn]
+CN = ${SERVICE}.${NAMESPACE}.svc
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = ${SERVICE}
+DNS.2 = ${SERVICE}.${NAMESPACE}
+DNS.3 = ${SERVICE}.${NAMESPACE}.svc
+DNS.4 = ${SERVICE}.${NAMESPACE}.svc.cluster.local
+EOF
+
+openssl genrsa -out webhook.key 2048
+openssl req -new -key webhook.key -out webhook.csr -config server.cnf
+openssl x509 -req -in webhook.csr \
+  -CA ca.crt -CAkey ca.key -CAcreateserial \
+  -out webhook.crt -days 36500 \
+  -extensions v3_req -extfile server.cnf
+
+echo "===== 3. 创建 K8s Secret ====="
+kubectl create secret tls ${SECRET} \
+  --cert=webhook.crt \
+  --key=webhook.key \
+  --namespace=${NAMESPACE} \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+echo ""
+echo "===== 4. caBundle（用于 WebhookConfiguration）====="
+cat ca.crt | base64 | tr -d '\n'
+echo ""
+echo ""
+echo "===== 完成！ ====="
+ls -la ca.crt webhook.crt webhook.key</code></pre>
+
+<div class="highlight-box">
+  <p><strong>执行方式：</strong></p>
+  <p><code>chmod +x gen-webhook-cert.sh</code></p>
+  <p><code>./gen-webhook-cert.sh</code></p>
+  <p>输出里的 <code>caBundle</code> 值直接粘贴到 MutatingWebhookConfiguration 的 <code>caBundle</code> 字段即可。如果需要改服务名或命名空间，改脚本开头的 <code>SERVICE</code> 和 <code>NAMESPACE</code> 变量就行。</p>
+</div>
+
+<!-- ==================== MutatingWebhookConfiguration ==================== -->
+<h2>8. MutatingWebhookConfiguration</h2>
+
+<p>它就是整个机制的<strong>"关卡规则"</strong>。光有 webhook 程序运行着是不够的，K8s API Server 根本不知道它的存在，也不知道什么时候该把请求转发给它。<code>MutatingWebhookConfiguration</code> 就是告诉 API Server 的那张"通知单"。</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: example-mutating-webhook
+webhooks:
+  - name: example.webhook.com          # webhook 的唯一标识名
+    clientConfig:                       # 告诉 API Server 怎么找到你的 webhook
+      service:
+        name: webhook-service           # Service 名
+        namespace: default              # 命名空间
+        path: "/mutate"                 # 请求路径，最终访问 https://webhook-service.default.svc:443/mutate
+      caBundle: "..."                   # CA 证书的 Base64，API Server 用它验证 webhook 的 TLS 证书
+    rules:                              # 什么情况下触发这个 webhook
+      - operations: ["CREATE"]          # 创建资源时触发
+        apiGroups: [""]                 # 核心 API 组（Pod 属于这个组）
+        apiVersions: ["v1"]             # API 版本
+        resources: ["pods"]             # 只对 Pod 生效
+    admissionReviewVersions: ["v1"]     # 支持的 AdmissionReview 版本
+    sideEffects: None                   # 声明 webhook 没有副作用（K8s 要求必须声明）</code></pre>
+
+<h3>关键点逐个解释</h3>
+
+<div class="card">
+  <h3 style="margin-top:0; color: var(--accent);">clientConfig</h3>
+  <p>API Server 怎么找你的 webhook。这里用 Service 方式（集群内部访问），也可以用 URL 方式（外部地址）。</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0; color: var(--accent);">caBundle</h3>
+  <p>为什么需要？因为 API Server 用 HTTPS 调用 webhook，它需要验证 webhook 证书的合法性。<code>caBundle</code> 就是签发 webhook 证书的 CA 证书，API Server 拿它来验证 webhook 的 TLS 证书是否可信。这就是之前用 <code>gen-webhook-cert.sh</code> 生成 <code>ca.crt</code> 并 Base64 编码的原因。</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0; color: var(--accent);">rules</h3>
+  <p>拦截规则。这里配置的是：只有创建 Pod 时才触发，不影响其他资源或其他操作（更新、删除）。</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0; color: var(--accent);">sideEffects: None</h3>
+  <p>告诉 K8s "我这个 webhook 不会产生副作用"，比如不会修改外部系统。这是 K8s v1 的重要要求。</p>
+</div>
+
+<h3>整体流程</h3>
+
+<div class="flow-steps">
+  <div class="flow-step">
+    <strong>用户提交 Pod</strong>
+    API Server 收到请求
+  </div>
+  <div class="flow-step">
+    <strong>匹配规则</strong>
+    检查 MutatingWebhookConfiguration 的 rules，匹配到 "创建 Pod"
+  </div>
+  <div class="flow-step">
+    <strong>定位 Webhook</strong>
+    根据 clientConfig 找到 <code>webhook-service.default.svc:443/mutate</code>
+  </div>
+  <div class="flow-step">
+    <strong>验证证书</strong>
+    用 caBundle 验证 webhook 的 TLS 证书
+  </div>
+  <div class="flow-step">
+    <strong>发送请求</strong>
+    将 Pod 数据封装成 AdmissionReview POST 给 webhook
+  </div>
+  <div class="flow-step">
+    <strong>返回补丁</strong>
+    webhook 返回 JSON Patch（注入 <code>environment=production</code> 标签）
+  </div>
+  <div class="flow-step">
+    <strong>持久化</strong>
+    API Server 应用补丁，Pod 带着新标签存入 etcd
+  </div>
+</div>
+
+<div class="highlight-box">
+  <p>所以脚本里先用 <code>base64 -w 0 ca.crt</code> 把 CA 证书编码，再填入 <code>caBundle</code>，就是把"验证凭据"交给 API Server，让它能安全地连接你的 webhook。</p>
+</div>
+
+</div>
+</body>
+</html>
