@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文章标题 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <!--
+          将当前分类的 nav-item 设为 active：
+          class="nav-item active"
+          其他保持 class="nav-item"
+        -->
+        <a href="../index.html#kubernetes" class="nav-item">
+          <span class="dot" style="background:var(--tag-k8s)"></span>
+          Kubernetes
+          <span class="count">1</span>
+        </a>
+        <a href="../index.html#go" class="nav-item">
+          <span class="dot" style="background:var(--tag-go)"></span>
+          Go
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#python" class="nav-item">
+          <span class="dot" style="background:var(--tag-python)"></span>
+          Python
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#devops" class="nav-item">
+          <span class="dot" style="background:var(--tag-devops)"></span>
+          DevOps
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#linux" class="nav-item">
+          <span class="dot" style="background:var(--tag-linux)"></span>
+          Linux
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#network" class="nav-item">
+          <span class="dot" style="background:var(--tag-network)"></span>
+          Network
+          <span class="count">0</span>
+        </a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
+          <span class="dot" style="background:#24292e"></span>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Tech Notes
+    </div>
+  </aside>
+
+  <!-- ====== Main Content ====== -->
+  <main class="main">
+    <div class="content-wrapper">
+
+      <!-- ===== 新文章从这里开始修改 ===== -->
+
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">分类名</a>
+        </div>
+        <h1>文章标题</h1>
+        <div class="article-meta">
+          <span>
+            <!-- 添加对应的分类标签 -->
+            <span class="tag tag-k8s">Kubernetes</span>
+          </span>
+          <span>2026-05-12</span>
+        </div>
+      </div>
+
+      <div class="article-content">
+
+        <h2>1. 第一个章节</h2>
+
+        <p>在这里写内容...</p>
+
+        <div class="highlight-box">
+          <p><strong>💡 提示：</strong>重要提示放在这里。</p>
+        </div>
+
+<pre><code><span class="code-label">语言</span>// 代码示例放在这里
+console.log("Hello, Tech Notes!");</code></pre>
+
+        <h2>2. 第二个章节</h2>
+
+        <p>继续写内容...</p>
+
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+</script>
+
+</body>
+</html>
