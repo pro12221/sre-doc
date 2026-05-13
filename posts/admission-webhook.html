@@ -299,8 +299,230 @@
   {"op": "add", "path": "/metadata/labels/environment", "value": "production"}
 ]</code></pre>
 
-        <!-- ==================== 第5节 ==================== -->
-        <h2>5. 代码示例</h2>
+        <!-- ==================== 实际请求示例 ==================== -->
+        <h2>5. Webhook 实际收到的请求</h2>
+
+        <p>下面是 <code>kubectl run nginx-pod --image=nginx</code> 时，API Server 发给 webhook 的真实请求（<code>AdmissionReview.request</code> 部分）：</p>
+
+<pre><code><span class="code-label">JSON — AdmissionReview.request</span>{
+  "uid": "244be466-834b-4bf9-ada7-3202343dd453",
+  "kind": {
+    "group": "",
+    "version": "v1",
+    "kind": "Pod"
+  },
+  "resource": {
+    "group": "",
+    "version": "v1",
+    "resource": "pods"
+  },
+  "requestKind": {
+    "group": "",
+    "version": "v1",
+    "kind": "Pod"
+  },
+  "requestResource": {
+    "group": "",
+    "version": "v1",
+    "resource": "pods"
+  },
+  "name": "nginx-pod",
+  "namespace": "default",
+  "operation": "CREATE",
+  "userInfo": {
+    "username": "kubernetes-admin",
+    "groups": [
+      "kubeadm:cluster-admins",
+      "system:authenticated"
+    ]
+  },
+  "object": {
+    "kind": "Pod",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "nginx-pod",
+      "namespace": "default",
+      "creationTimestamp": null,
+      "labels": {
+        "run": "nginx-pod"
+      },
+      "managedFields": [
+        {
+          "manager": "kubectl-run",
+          "operation": "Update",
+          "apiVersion": "v1",
+          "time": "2026-05-13T15:49:36Z",
+          "fieldsType": "FieldsV1",
+          "fieldsV1": {
+            "f:metadata": {
+              "f:labels": {
+                ".": {},
+                "f:run": {}
+              }
+            },
+            "f:spec": {
+              "f:containers": {
+                "k:{\"name\":\"nginx-pod\"}": {
+                  ".": {},
+                  "f:image": {},
+                  "f:imagePullPolicy": {},
+                  "f:name": {},
+                  "f:resources": {},
+                  "f:terminationMessagePath": {},
+                  "f:terminationMessagePolicy": {}
+                }
+              },
+              "f:dnsPolicy": {},
+              "f:enableServiceLinks": {},
+              "f:restartPolicy": {},
+              "f:schedulerName": {},
+              "f:securityContext": {},
+              "f:terminationGracePeriodSeconds": {}
+            }
+          }
+        }
+      ]
+    },
+    "spec": {
+      "volumes": [
+        {
+          "name": "kube-api-access-gc6tc",
+          "projected": {
+            "sources": [
+              {
+                "serviceAccountToken": {
+                  "expirationSeconds": 3607,
+                  "path": "token"
+                }
+              },
+              {
+                "configMap": {
+                  "name": "kube-root-ca.crt",
+                  "items": [
+                    {
+                      "key": "ca.crt",
+                      "path": "ca.crt"
+                    }
+                  ]
+                }
+              },
+              {
+                "downwardAPI": {
+                  "items": [
+                    {
+                      "path": "namespace",
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "defaultMode": 420
+          }
+        }
+      ],
+      "containers": [
+        {
+          "name": "nginx-pod",
+          "image": "nginx",
+          "resources": {},
+          "volumeMounts": [
+            {
+              "name": "kube-api-access-gc6tc",
+              "readOnly": true,
+              "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+            }
+          ],
+          "terminationMessagePath": "/dev/termination-log",
+          "terminationMessagePolicy": "File",
+          "imagePullPolicy": "Always"
+        }
+      ],
+      "restartPolicy": "Always",
+      "terminationGracePeriodSeconds": 30,
+      "dnsPolicy": "ClusterFirst",
+      "serviceAccountName": "default",
+      "serviceAccount": "default",
+      "securityContext": {},
+      "schedulerName": "default-scheduler",
+      "tolerations": [
+        {
+          "key": "node.kubernetes.io/not-ready",
+          "operator": "Exists",
+          "effect": "NoExecute",
+          "tolerationSeconds": 300
+        },
+        {
+          "key": "node.kubernetes.io/unreachable",
+          "operator": "Exists",
+          "effect": "NoExecute",
+          "tolerationSeconds": 300
+        }
+      ],
+      "priority": 0,
+      "enableServiceLinks": true,
+      "preemptionPolicy": "PreemptLowerPriority"
+    },
+    "status": {}
+  },
+  "oldObject": null,
+  "dryRun": false,
+  "options": {
+    "kind": "CreateOptions",
+    "apiVersion": "meta.k8s.io/v1",
+    "fieldManager": "kubectl-run"
+  }
+}</code></pre>
+
+        <h3>关键字段解读</h3>
+
+        <table>
+          <thead>
+            <tr><th>字段</th><th>值</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>uid</code></td>
+              <td><code>244be466-...</code></td>
+              <td>本次准入请求的唯一 ID，webhook 响应中必须原样返回，用于关联请求和响应</td>
+            </tr>
+            <tr>
+              <td><code>operation</code></td>
+              <td><code>CREATE</code></td>
+              <td>操作类型，与 MutatingWebhookConfiguration 中 rules.operations 匹配</td>
+            </tr>
+            <tr>
+              <td><code>userInfo</code></td>
+              <td><code>kubernetes-admin</code></td>
+              <td>发起请求的用户身份，可用于基于角色的策略判断</td>
+            </tr>
+            <tr>
+              <td><code>object</code></td>
+              <td>Pod 完整定义</td>
+              <td>即将创建的 Pod 对象，此时还没有 uid 和 creationTimestamp（准入控制通过后才分配）</td>
+            </tr>
+            <tr>
+              <td><code>oldObject</code></td>
+              <td><code>null</code></td>
+              <td>CREATE 操作时为 null；UPDATE 操作时包含修改前的对象</td>
+            </tr>
+            <tr>
+              <td><code>dryRun</code></td>
+              <td><code>false</code></td>
+              <td>是否为干跑模式（<code>kubectl --dry-run</code>），干跑时 webhook 不应产生副作用</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="highlight-box">
+          <p><strong>💡 注意 uid 的区别：</strong>请求中的 <code>uid</code>（<code>244be466-...</code>）是准入请求的 ID，由 API Server 在准入控制阶段生成；而 Pod 创建完成后 <code>kubectl get pod -o yaml</code> 看到的 <code>uid</code>（如 <code>ef3a96af-...</code>）是 Pod 资源在 etcd 中的唯一标识，是准入通过后才分配的。两者不是同一个东西。</p>
+        </div>
+
+        <!-- ==================== 第6节 ==================== -->
+        <h2>6. 代码示例</h2>
 
         <h3>webhook.py</h3>
 <pre><code><span class="code-label">Python</span>from flask import Flask, request, jsonify
@@ -372,7 +594,7 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=443, ssl_context=context)</code></pre>
 
         <!-- ==================== Validating Webhook 示例 ==================== -->
-        <h2>6. Validating Webhook 代码示例</h2>
+        <h2>7. Validating Webhook 代码示例</h2>
 
         <p>和 Mutating Webhook 不同，Validating Webhook <strong>只做校验、不修改对象</strong>，响应中不需要 <code>patch</code> / <code>patchType</code>，只需要返回 <code>allowed: true/false</code>。</p>
 
@@ -644,8 +866,8 @@ if __name__ == '__main__':
           </div>
         </div>
 
-        <!-- ==================== 第7节 ==================== -->
-        <h2>7. 制作镜像</h2>
+        <!-- ==================== 第8节 ==================== -->
+        <h2>8. 制作镜像</h2>
 
         <h3>Dockerfile</h3>
 <pre><code><span class="code-label">Dockerfile</span>FROM python:3.9-slim
@@ -658,8 +880,8 @@ CMD ["python", "webhook.py"]</code></pre>
 <pre><code><span class="code-label">Shell</span>docker tag webhook:latest uhub.service.ucloud.cn/mute-webhook/mute:latest
 docker push uhub.service.ucloud.cn/mute-webhook/mute:latest</code></pre>
 
-        <!-- ==================== 第7节 ==================== -->
-        <h2>8. 生成证书</h2>
+        <!-- ==================== 第9节 ==================== -->
+        <h2>9. 生成证书</h2>
 
 <pre><code><span class="code-label">Shell — gen-webhook-cert.sh</span>#!/bin/bash
 set -e
@@ -727,8 +949,8 @@ ls -la ca.crt webhook.crt webhook.key</code></pre>
           <p>输出里的 <code>caBundle</code> 值直接粘贴到 MutatingWebhookConfiguration 的 <code>caBundle</code> 字段即可。如果需要改服务名或命名空间，改脚本开头的 <code>SERVICE</code> 和 <code>NAMESPACE</code> 变量就行。</p>
         </div>
 
-        <!-- ==================== 第8节 ==================== -->
-        <h2>9. MutatingWebhookConfiguration</h2>
+        <!-- ==================== 第10节 ==================== -->
+        <h2>10. MutatingWebhookConfiguration</h2>
 
         <p>它就是整个机制的<strong>"关卡规则"</strong>。光有 webhook 程序运行着是不够的，K8s API Server 根本不知道它的存在，也不知道什么时候该把请求转发给它。<code>MutatingWebhookConfiguration</code> 就是告诉 API Server 的那张"通知单"。</p>
 
