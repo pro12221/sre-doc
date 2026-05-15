@@ -9,6 +9,10 @@ concurrency:
   group: "deploy"
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  deployments: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -21,4 +25,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy . --project-name sre-note --branch main
+          command: pages deploy . --project-name sre-doc --branch main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
