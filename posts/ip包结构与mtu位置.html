@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IP包结构与MTU位置 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <a href="../index.html#kubernetes" class="nav-item">
+          <span class="dot" style="background:var(--tag-k8s)"></span>
+          Kubernetes
+          <span class="count">2</span>
+        </a>
+        <a href="../index.html#go" class="nav-item">
+          <span class="dot" style="background:var(--tag-go)"></span>
+          Go
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#python" class="nav-item">
+          <span class="dot" style="background:var(--tag-python)"></span>
+          Python
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#devops" class="nav-item">
+          <span class="dot" style="background:var(--tag-devops)"></span>
+          DevOps
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#linux" class="nav-item">
+          <span class="dot" style="background:var(--tag-linux)"></span>
+          Linux
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#network" class="nav-item active">
+          <span class="dot" style="background:var(--tag-network)"></span>
+          Network
+          <span class="count">1</span>
+        </a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
+          <span class="dot" style="background:#24292e"></span>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Tech Notes
+    </div>
+  </aside>
+
+  <!-- ====== Main Content ====== -->
+  <main class="main">
+    <div class="content-wrapper">
+
+      <!-- Article Header -->
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#network">Network</a>
+        </div>
+        <h1>IP包结构与MTU位置</h1>
+        <div class="article-meta">
+          <span><span class="tag tag-network">Network</span></span>
+          <span>2026-05-15</span>
+        </div>
+      </div>
+
+      <!-- Article Content -->
+      <div class="article-layout">
+
+        <div class="article-content">
+
+        <h2>1. IP 数据包结构（IPv4 Header）</h2>
+
+        <p>一个 IPv4 包的头部固定 20 字节（无选项时），结构如下：</p>
+
+        <div class="flow-diagram"> 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|Version|  IHL  |Type of Service|          Total Length         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|         Identification        |Flags|      Fragment Offset    |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|  Time to Live |    Protocol   |         Header Checksum       |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                       Source Address                          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Destination Address                        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Options                    |    Padding    |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+</div>
+
+        <table>
+          <thead>
+            <tr><th>字段</th><th>长度</th><th>含义</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Version</td>
+              <td>4 bit</td>
+              <td>版本号，IPv4 = 4</td>
+            </tr>
+            <tr>
+              <td>IHL</td>
+              <td>4 bit</td>
+              <td>头部长度（单位 4 字节），最小 5（即 20 字节）</td>
+            </tr>
+            <tr>
+              <td>TOS / DSCP</td>
+              <td>8 bit</td>
+              <td>服务质量 / 差分服务</td>
+            </tr>
+            <tr>
+              <td><strong>Total Length</strong></td>
+              <td><strong>16 bit</strong></td>
+              <td><strong>整个 IP 包长度（头部 + 数据），最大 65535 字节</strong></td>
+            </tr>
+            <tr>
+              <td>Identification</td>
+              <td>16 bit</td>
+              <td>分片标识，同一包的分片共享同一 ID</td>
+            </tr>
+            <tr>
+              <td>Flags</td>
+              <td>3 bit</td>
+              <td>DF（禁止分片）、MF（还有更多分片）</td>
+            </tr>
+            <tr>
+              <td>Fragment Offset</td>
+              <td>13 bit</td>
+              <td>分片偏移（单位 8 字节）</td>
+            </tr>
+            <tr>
+              <td>TTL</td>
+              <td>8 bit</td>
+              <td>每经一跳减 1，归零则丢弃</td>
+            </tr>
+            <tr>
+              <td>Protocol</td>
+              <td>8 bit</td>
+              <td>上层协议：6=TCP, 17=UDP, 1=ICMP</td>
+            </tr>
+            <tr>
+              <td>Header Checksum</td>
+              <td>16 bit</td>
+              <td>头部校验和</td>
+            </tr>
+            <tr>
+              <td>Source Address</td>
+              <td>32 bit</td>
+              <td>源 IP</td>
+            </tr>
+            <tr>
+              <td>Destination Address</td>
+              <td>32 bit</td>
+              <td>目的 IP</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>关键点：<strong>Total Length 是整个 IP 包的长度，而 MTU 限制了它不能超过链路层的最大值。</strong></p>
+
+        <hr>
+
+        <h2>2. MTU 在哪里</h2>
+
+        <p>MTU（Maximum Transmission Unit）是<strong>数据链路层</strong>的概念，限制的是<strong>一个帧（frame）的 payload 大小</strong>，也就是 IP 包（含头部）的最大长度。</p>
+
+        <h3>各链路层的典型 MTU</h3>
+
+        <table>
+          <thead>
+            <tr><th>链路类型</th><th>MTU</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>以太网（Ethernet）</strong></td>
+              <td><strong>1500 字节</strong>（最常见）</td>
+            </tr>
+            <tr>
+              <td>IEEE 802.3</td>
+              <td>1492 字节</td>
+            </tr>
+            <tr>
+              <td>PPPoE</td>
+              <td>1492 字节（减去 8 字节 PPPoE 头）</td>
+            </tr>
+            <tr>
+              <td>Wi-Fi (802.11)</td>
+              <td>2304 字节</td>
+            </tr>
+            <tr>
+              <td>Loopback</td>
+              <td>65535 字节</td>
+            </tr>
+            <tr>
+              <td>Jumbo Frame（某些数据中心）</td>
+              <td>9000 字节</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>MTU 在协议栈中的位置</h3>
+
+        <div class="flow-diagram">┌──────────────────────────┐
+│       Application        │
+├──────────────────────────┤
+│    TCP / UDP (头部)       │
+├──────────────────────────┤
+│    IP Header (20B)       │  ← Total Length 字段记录整个 IP 包长度
+│    IP Payload             │
+├──────────────────────────┤  ← MTU 限制切在这里：IP包总长 ≤ MTU
+│  Ethernet Header (14B)   │
+│  Ethernet Payload (=IP包) │  ← 帧的 payload 就是整个 IP 包
+│  Ethernet FCS (4B)       │
+└──────────────────────────┘</div>
+
+        <p><strong>MTU 限制的是以太网帧的 payload 部分</strong>，即 IP 包（含 IP 头）最大 1500 字节。以太网帧头 14 字节 + FCS 4 字节不在 MTU 范围内。</p>
+
+        <h3>超过 MTU 会怎样？</h3>
+
+        <ol>
+          <li><strong>DF=0（允许分片）</strong>：IP 层将包切片，每片 ≤ MTU，到目的端重组</li>
+          <li><strong>DF=1（禁止分片）</strong>：路由器丢弃包，回送 <strong>ICMP Fragmentation Needed</strong>（Type 3, Code 4），触发 <strong>PMTUD（Path MTU Discovery）</strong></li>
+        </ol>
+
+        <h3>Linux 上查看/设置 MTU</h3>
+
+<pre><code><span class="code-label">Bash</span># 查看所有接口 MTU
+ip link show
+
+# 查看特定接口
+ip link show eth0
+
+# 修改 MTU（临时）
+sudo ip link set eth0 mtu 9000
+
+# 永久修改（Netplan / NetworkManager 视发行版而定）</code></pre>
+
+        <h3>内核代码层面（Linux）</h3>
+
+        <p>MTU 定义在 <code>net_device</code> 结构体中：</p>
+
+<pre><code><span class="code-label">C</span>// include/linux/netdevice.h
+struct net_device {
+    unsigned int    mtu;        // 接口 MTU 值
+    unsigned short  type;       // 接口类型 (ARPHRD_ETHER 等)
+    unsigned short  hard_header_len; // L2 头部长度
+    ...
+};</code></pre>
+
+        <p>初始化时各驱动设置默认 MTU：</p>
+        <ul>
+          <li>以太网驱动：<code>dev->mtu = 1500</code>（如 <code>drivers/net/ethernet/intel/e1000/e1000_main.c</code>）</li>
+          <li>Loopback：<code>dev->mtu = 65535</code></li>
+        </ul>
+
+        <hr>
+
+        <p><strong>总结</strong>：IP 包头部 20 字节起，Total Length 记录整包长度；MTU 是链路层对帧 payload 的限制（以太网 1500 字节），IP 包超过 MTU 就要分片或触发 PMTUD。</p>
+
+        <hr>
+
+        <h2>3. 封装过程（从上到下）</h2>
+
+        <p>假设你发一条 HTTP 请求 <code>"Hello"</code>：</p>
+
+        <div class="flow-diagram">应用层:  "Hello"
+           │
+           ▼ 加上 HTTP 头
+应用层:  [HTTP头 | Hello]
+           │
+           ▼ 整体当作 TCP 的"数据"，加上 TCP 头
+传输层:  [TCP头 | [HTTP头 | Hello]]
+           │
+           ▼ 整体当作 IP 的"数据"，加上 IP 头
+网络层:  [IP头 | [TCP头 | [HTTP头 | Hello]]]
+           │
+           ▼ 整体当作以太网的"数据"，加上帧头帧尾
+链路层:  [以太网头 | [IP头 | [TCP头 | [HTTP头 | Hello]]] | FCS]</div>
+
+        <p><strong>每一层看"数据"的定义不同：</strong></p>
+
+        <table>
+          <thead>
+            <tr><th>层</th><th>它说的"数据"是什么</th><th>它的头部</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>链路层</td>
+              <td>整个 IP 包（IP头+TCP头+HTTP头+Hello）</td>
+              <td>以太网头 14B</td>
+            </tr>
+            <tr>
+              <td>网络层</td>
+              <td>TCP段（TCP头+HTTP头+Hello）</td>
+              <td>IP头 20B</td>
+            </tr>
+            <tr>
+              <td>传输层</td>
+              <td>应用数据（HTTP头+Hello）</td>
+              <td>TCP头 20B</td>
+            </tr>
+            <tr>
+              <td>应用层</td>
+              <td>Hello</td>
+              <td>HTTP头</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>所以 <strong>"Hello" 这份数据从头到尾都在，只是被一层层包起来了</strong>。三层不是没有数据，而是三层把自己的头部加在最外面，里面包裹的就是上层的全部内容。</p>
+
+        <h2>4. MTU 限制的是什么</h2>
+
+        <div class="flow-diagram">←─────────── MTU 1500 ──────────→
+┌────────┬────────┬──────┬───────┐
+│以太网头 │  IP头   │TCP头 │Hello  │
+│ 14B    │ 20B    │20B   │1460B  │
+└────────┴────────┴──────┴───────┘
+│← 不算 →│←──── 这些全算 ────→│</div>
+
+        <ul>
+          <li><strong>MTU 1500 限制的是以太网帧的 payload</strong>，也就是从 IP 头开始往后所有内容的总长度</li>
+          <li>以太网头（14B）和 FCS（4B）<strong>不算在 MTU 里</strong></li>
+          <li>所以应用层实际能用的最大载荷 = 1500 - 20(IP头) - 20(TCP头) = <strong>1460 字节</strong>（这叫 MSS）</li>
+        </ul>
+
+        <h2>5. 一个常见误解</h2>
+
+        <p>你可能是这么想的：</p>
+
+        <div class="flow-diagram">❌ 错误理解：各层平分空间
+┌──────────┬──────────┬──────────┬──────────┐
+│ 二层占的  │ 三层占的  │ 四层占的  │ 应用层   │
+└──────────┴──────────┴──────────┴──────────┘</div>
+
+        <p>实际是：</p>
+
+        <div class="flow-diagram">✅ 正确理解：层层嵌套
+┌──────────────────────────────────────────┐
+│ 二层头 │ ┌──────────────────────────┐    │
+│        │ │ 三层头 │ ┌────────────┐  │    │
+│        │ │        │ │四层头│Hello│  │    │
+│        │ │        │ └────────────┘  │    │
+│        │ └──────────────────────────┘    │
+└──────────────────────────────────────────┘</div>
+
+        <p><strong>"Hello" 这份数据在每一层都存在，只是从各层的视角来看，它被包在不同的头部里面。</strong></p>
+
+      </div>
+      <!-- /article-content -->
+
+        <!-- TOC (auto-generated by JS) -->
+        <aside class="toc-container" id="toc-container">
+          <div class="toc-title">目录</div>
+          <ul class="toc-list" id="toc-list"></ul>
+        </aside>
+
+      </div>
+      <!-- /article-layout -->
+
+    </div>
+  </main>
+
+</div>
+
+<!-- Mobile TOC button + panel -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+// ===== Auto-generate TOC from h2/h3 =====
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var mobilePanel = document.getElementById('toc-mobile-panel');
+      if (mobilePanel) mobilePanel.classList.remove('show');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  // Scroll spy
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  updateActiveToc();
+})();
+</script>
+
+</body>
+</html>
