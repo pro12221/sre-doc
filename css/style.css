@@ -27,6 +27,7 @@
   --tag-devops: #e535ab;
   --tag-linux: #fcc624;
   --tag-network: #f97316;
+  --tag-ai: #8b5cf6;
 
   /* Layout — fluid sidebar */
   --sidebar-width: 220px;
@@ -304,6 +305,7 @@ a:hover { color: var(--accent-hover); }
 .tag-devops    { background: #fce4ec; color: var(--tag-devops); }
 .tag-linux     { background: #fff9c4; color: #a16207; }
 .tag-network   { background: #fff7ed; color: var(--tag-network); }
+.tag-ai        { background: #f3f0ff; color: var(--tag-ai); }
 .tag-mutate    { background: #dbeafe; color: #1d4ed8; }
 .tag-validate  { background: #dcfce7; color: #166534; }
 .tag-required  { background: #fef3c7; color: #92400e; }
