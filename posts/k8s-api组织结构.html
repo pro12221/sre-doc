@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>k8s API组织结构 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <a href="../index.html#kubernetes" class="nav-item active">
+          <span class="dot" style="background:var(--tag-k8s)"></span>
+          Kubernetes
+          <span class="count">3</span>
+        </a>
+        <a href="../index.html#go" class="nav-item">
+          <span class="dot" style="background:var(--tag-go)"></span>
+          Go
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#python" class="nav-item">
+          <span class="dot" style="background:var(--tag-python)"></span>
+          Python
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#devops" class="nav-item">
+          <span class="dot" style="background:var(--tag-devops)"></span>
+          DevOps
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#linux" class="nav-item">
+          <span class="dot" style="background:var(--tag-linux)"></span>
+          Linux
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#network" class="nav-item">
+          <span class="dot" style="background:var(--tag-network)"></span>
+          Network
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#ai" class="nav-item">
+          <span class="dot" style="background:var(--tag-ai)"></span>
+          AI
+          <span class="count">0</span>
+        </a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
+          <span class="dot" style="background:#24292e"></span>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Tech Notes
+    </div>
+  </aside>
+
+  <!-- ====== Main Content ====== -->
+  <main class="main">
+    <div class="content-wrapper">
+
+      <!-- Article Header -->
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">Kubernetes</a>
+        </div>
+        <h1>k8s API组织结构</h1>
+        <div class="article-meta">
+          <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
+          <span>2026-05-16</span>
+        </div>
+      </div>
+
+      <!-- Article Content -->
+      <div class="article-layout">
+
+        <div class="article-content">
+
+        <p>对外提供基于 RESTful 的接口，封装了对 ETCD 的操作。</p>
+
+        <h2>1. list-watch 机制</h2>
+
+        <p>Watch：客户端发起一次请求，说"有变化了告诉我，没变化就保持这个连接"。然后这个连接会一直挂着，直到真正有事件发生，服务端才主动推送。没有变化的时候，网络上几乎没有流量，API Server 也几乎不做什么事。</p>
+
+        <p>假设一个 1000 个 Node 的集群，每个 Node 上的 kubelet 要同步 Pod 状态。</p>
+
+        <p><strong>轮询（每2秒一次）：</strong></p>
+
+        <ul>
+          <li>每秒请求数：1000 / 2 = 500 req/s</li>
+          <li>每天请求数：500 × 3600 × 24 = 4320 万次！绝大部分是"没变化"</li>
+          <li>API Server 要处理这 4320 万次几乎无用的请求，还要查 etcd</li>
+        </ul>
+
+        <p><strong>Watch（长连接）：</strong></p>
+
+        <ul>
+          <li>请求数：每个 kubelet 建立 1 个 Watch 连接。总共 1000 个长连接</li>
+          <li>每天请求数：建立连接时 1 次 List，然后 0 次额外查询。只有当 Pod 被调度、容器退出、健康检查失败等事件发生时，才会有通知（每天可能也就几百上千次事件）</li>
+          <li>API Server 只处理了几次 List 和少量事件推送</li>
+        </ul>
+
+        <p>连接可能断开：网络抖动、API Server 重启、空闲超时等。解决方案：客户端需要重连。</p>
+
+        <p>可能错过事件：如果 Watch 连接断开了一段时间，重新连接后，那段时间内发生的事件就丢了。如果只用 Watch，就会导致状态不一致。</p>
+
+        <div class="highlight-box">
+          <p><strong>💡 List-Watch 策略：</strong>先 List（列举）：客户端启动时，执行一次 LIST 操作，拿到某个资源（如 Pods）的当前完整快照（加一个 ResourceVersion，比如 RV=100）。再 Watch（监听）：然后发起 WATCH 请求，参数 <code>?resourceVersion=100</code>，告诉服务器："从版本 100 之后开始，有任何变化就通知我。" 断线重连：如果 Watch 断开，客户端会记录最后一个收到的 ResourceVersion（比如 RV=150），然后重新 LIST（可选，或直接 Watch from RV=151）。</p>
+        </div>
+
+        <h2>2. API 的组织形式</h2>
+
+        <p>API 资源按三个核心维度组织：<strong>Group（组）、Version（版本）、Resource（资源）</strong>，通常缩写为 GVR。</p>
+
+        <h3>2.1 API Group — 逻辑分组</h3>
+
+        <p>API 资源按功能域划分为不同的 Group，避免所有资源挤在一个扁平命名空间里。</p>
+
+        <table>
+          <thead>
+            <tr><th>组</th><th>路径</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>核心组（Core/Legacy）</strong></td>
+              <td><code>/api/v1</code></td>
+              <td>最早的一批资源，没有 Group 名。Pod、Service、ConfigMap、Secret、Node、Namespace 等都在这里</td>
+            </tr>
+            <tr>
+              <td><strong>命名组（Named Group）</strong></td>
+              <td><code>/apis/{group}/{version}</code></td>
+              <td>按功能域组织，如 <code>apps</code>、<code>batch</code>、<code>networking.k8s.io</code>、<code>rbac.authorization.k8s.io</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>核心组没有 Group 名，访问路径是 <code>/api/v1</code>；命名组统一走 <code>/apis/{group}/{version}</code>，这也是为什么你在 <code>kubectl get --raw</code> 时会看到两种路径前缀。</p>
+
+        <h3>2.2 Version — 版本演进</h3>
+
+        <p>每个 Group 下可以有多个版本同时存在，遵循明确的成熟度阶梯：</p>
+
+<pre><code><span class="code-label">Version</span>v1alpha1 → v1beta1 → v1</code></pre>
+
+        <table>
+          <thead>
+            <tr><th>阶段</th><th>含义</th><th>稳定性</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>alpha</code>（如 <code>v1alpha1</code>）</td>
+              <td>实验性，默认禁用，API 可能随时删除或变更</td>
+              <td>❌</td>
+            </tr>
+            <tr>
+              <td><code>beta</code>（如 <code>v1beta1</code>）</td>
+              <td>默认启用，API 契约较稳定但仍有变数，不保证向后兼容</td>
+              <td>⚠️</td>
+            </tr>
+            <tr>
+              <td><code>stable</code>（如 <code>v1</code>）</td>
+              <td>正式发布，API 契约保证向后兼容</td>
+              <td>✅</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>同一个资源可以在多个版本间并存，apiserver 负责在不同版本间做转换（conversion），存储层统一用一个"存储版本"写入 etcd。这意味着你可以用 <code>v1</code> 创建，用 <code>v1beta1</code> 读取，apiserver 透明地做转换。</p>
+
+        <h3>2.3 Resource — 具体资源类型</h3>
+
+        <p>每个 Group + Version 下包含若干 Resource，Resource 本身还区分：</p>
+
+        <ul>
+          <li><strong>资源名（Resource Name）</strong>：如 <code>deployments</code>、<code>pods</code>（复数形式，也是 API 路径的一部分）</li>
+          <li><strong>Kind</strong>：如 <code>Deployment</code>、<code>Pod</code>（出现在 YAML 的 <code>kind</code> 字段）</li>
+          <li><strong>Scope</strong>：Namespaced（命名空间级，如 Pod）或 Cluster-scoped（集群级，如 Node）</li>
+        </ul>
+
+        <p>完整的 API 路径结构：</p>
+
+<pre><code><span class="code-label">Path</span>/apis/{group}/{version}/namespaces/{namespace}/{resource}/{name}</code></pre>
+
+        <p>举例：</p>
+
+<pre><code><span class="code-label">Path</span>/apis/apps/v1/namespaces/default/deployments/my-app</code></pre>
+
+        <p>这表示 <code>apps</code> 组、<code>v1</code> 版本、<code>default</code> 命名空间下的 <code>deployments</code> 资源、名为 <code>my-app</code>。</p>
+
+        <p>核心组路径略有不同（少了 <code>/apis/{group}</code> 这一层）：</p>
+
+<pre><code><span class="code-label">Path</span>/api/v1/namespaces/default/pods/my-pod</code></pre>
+
+        <h2>3. kubectl proxy 与直接访问 6443</h2>
+
+        <p>直接访问 6443 其实<strong>可以</strong>，只是你通常没有做对认证。</p>
+
+        <h3>3.1 直接 curl 6443 会遇到什么</h3>
+
+<pre><code><span class="code-label">Shell</span># 直接打——拒绝，因为没带客户端证书，TLS 握手就失败
+curl https://&lt;api-server-ip&gt;:6443/api/v1/pods
+
+# 即使 TLS 过了，没带 Token 也被 401
+curl -k https://&lt;api-server-ip&gt;:6443/api/v1/pods
+# → Unauthorized</code></pre>
+
+        <p>要直接访问，你需要自己拼齐三样东西：</p>
+
+<pre><code><span class="code-label">Shell</span># 用 kubeconfig 里的信息手动构造请求
+curl --cacert /path/to/ca.crt \
+     --cert /path/to/client.crt \
+     --key /path/to/client.key \
+     https://&lt;api-server-ip&gt;:6443/api/v1/namespaces/default/pods
+
+# 或者用 Bearer Token
+curl --cacert /path/to/ca.crt \
+     -H "Authorization: Bearer &lt;your-token&gt;" \
+     https://&lt;api-server-ip&gt;:6443/api/v1/namespaces/default/pods</code></pre>
+
+        <p>这完全可行，只是繁琐——你要自己管理证书路径、Token、CA 验证。</p>
+
+        <h3>3.2 kubectl proxy 做了什么</h3>
+
+        <p><code>kubectl proxy</code> 在本地起一个 HTTP 代理（默认 <code>127.0.0.1:8001</code>），它自动帮你做了以下事情：</p>
+
+        <table>
+          <thead>
+            <tr><th>你要自己做的</th><th>kubectl proxy 自动处理的</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>从 kubeconfig 读取 CA 证书</td>
+              <td>✅ 自动加载</td>
+            </tr>
+            <tr>
+              <td>从 kubeconfig 读取客户端证书/Token</td>
+              <td>✅ 自动附加到每个请求</td>
+            </tr>
+            <tr>
+              <td>处理 TLS 证书验证</td>
+              <td>✅ 自动验证服务端证书</td>
+            </tr>
+            <tr>
+              <td>拼接 API 路径（<code>/api/v1/...</code>）</td>
+              <td>✅ 你只需 <code>/api/v1/pods</code></td>
+            </tr>
+            <tr>
+              <td>处理 APIServer 的 401/403 重试</td>
+              <td>✅ 自动</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>所以开了 proxy 之后，请求变得极简：</p>
+
+<pre><code><span class="code-label">Shell</span># 无需任何证书和 Token——proxy 全帮你加了
+curl http://127.0.0.1:8001/api/v1/namespaces/default/pods</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 注意：</strong>协议变成了 HTTP（不是 HTTPS），因为 TLS 终止在 proxy → apiserver 这一段，你到 proxy 之间是明文。这也是为什么 proxy 默认只绑 <code>127.0.0.1</code>——只允许本机访问，避免 Token 泄露。</p>
+        </div>
+
+        <h3>3.3 什么时候必须用 proxy</h3>
+
+        <p>严格来说，<strong>从来不是必须的</strong>。但有两个场景它特别方便：</p>
+
+        <ol>
+          <li><strong>Webhook 开发调试</strong>——你在本地跑一个 Webhook 服务，apiserver 需要回调你。但 apiserver 在集群里，你的开发机没有集群内网络可达的地址。<code>kubectl proxy</code> 不解决这个问题，但 <code>kubectl port-forward</code> 或 <code>ngrok</code> 可以。</li>
+          <li><strong>浏览器访问 API</strong>——浏览器没法方便地携带客户端证书和 Bearer Token。<code>kubectl proxy</code> 让你用浏览器直接 <code>http://localhost:8001</code> 浏览 API 资源。</li>
+        </ol>
+
+        <h3>3.4 一句话总结</h3>
+
+        <p>直接访问 6443 完全可以，只是你要自己带证书和 Token。<code>kubectl proxy</code> 是一个<strong>认证代理</strong>，把 kubeconfig 里的身份信息自动注入每个请求，让你用简单的 HTTP 调用访问 API。它不是网络代理，是认证代理。</p>
+
+        </div>
+        <!-- /article-content -->
+
+        <!-- TOC (auto-generated by JS) -->
+        <aside class="toc-container" id="toc-container">
+          <div class="toc-title">目录</div>
+          <ul class="toc-list" id="toc-list"></ul>
+        </aside>
+
+      </div>
+      <!-- /article-layout -->
+
+    </div>
+  </main>
+
+</div>
+
+<!-- Mobile TOC button + panel -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+// ===== Auto-generate TOC from h2/h3 =====
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var mobilePanel = document.getElementById('toc-mobile-panel');
+      if (mobilePanel) mobilePanel.classList.remove('show');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  // Scroll spy
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  updateActiveToc();
+})();
+</script>
+
+</body>
+</html>

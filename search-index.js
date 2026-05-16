@@ -102,5 +102,13 @@ window.SEARCH_INDEX = [
     category: "devops",
     date: "2026-05-16",
     url: "posts/静态站点自动部署实战.html"
+  },
+  {
+    title: "k8s API组织结构",
+    desc: "Kubernetes API 组织形式详解：Group/Version/Resource 三层结构、list-watch 机制、kubectl proxy 认证代理原理与直接访问 6443 的区别。",
+    tags: ["kubernetes", "network"],
+    category: "kubernetes",
+    date: "2026-05-16",
+    url: "posts/k8s-api组织结构.html"
   }
 ];
