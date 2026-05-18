@@ -118,5 +118,13 @@ window.SEARCH_INDEX = [
     category: "go",
     date: "2026-05-17",
     url: "posts/go值接收者与指针接收者.html"
+  },
+  {
+    title: "如何理解接口",
+    desc: "Go 接口底层双指针结构解析：接口赋值即装箱、类型断言即拆箱、空接口 any 的无条件准入、反射对 type/data 指针的运行时探查，以及 Go 面向对象的组合哲学。",
+    tags: ["go"],
+    category: "go",
+    date: "2026-05-18",
+    url: "posts/如何理解接口.html"
   }
 ];

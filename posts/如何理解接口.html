@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>如何理解接口 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <a href="../index.html#kubernetes" class="nav-item">
+          <span class="dot" style="background:var(--tag-k8s)"></span>
+          Kubernetes
+          <span class="count">3</span>
+        </a>
+        <a href="../index.html#go" class="nav-item active">
+          <span class="dot" style="background:var(--tag-go)"></span>
+          Go
+          <span class="count">2</span>
+        </a>
+        <a href="../index.html#python" class="nav-item">
+          <span class="dot" style="background:var(--tag-python)"></span>
+          Python
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#devops" class="nav-item">
+          <span class="dot" style="background:var(--tag-devops)"></span>
+          DevOps
+          <span class="count">1</span>
+        </a>
+        <a href="../index.html#linux" class="nav-item">
+          <span class="dot" style="background:var(--tag-linux)"></span>
+          Linux
+          <span class="count">1</span>
+        </a>
+        <a href="../index.html#network" class="nav-item">
+          <span class="dot" style="background:var(--tag-network)"></span>
+          Network
+          <span class="count">1</span>
+        </a>
+        <a href="../index.html#ai" class="nav-item">
+          <span class="dot" style="background:var(--tag-ai)"></span>
+          AI
+          <span class="count">8</span>
+        </a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
+          <span class="dot" style="background:#24292e"></span>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Tech Notes
+    </div>
+  </aside>
+
+  <!-- ====== Main Content ====== -->
+  <main class="main">
+    <div class="content-wrapper">
+
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#go">Go</a>
+        </div>
+        <h1>如何理解接口</h1>
+        <div class="article-meta">
+          <span>
+            <span class="tag tag-go">Go</span>
+          </span>
+          <span>2026-05-18</span>
+        </div>
+      </div>
+
+      <div class="article-layout">
+
+        <div class="article-content">
+
+        <p>Go 接口是类型系统的核心机制。理解接口的关键在于看清它在内存中的真实结构——一个 (type, data) 双指针盒子，以及围绕这个盒子展开的赋值、断言、空接口和反射操作。</p>
+
+        <h2>1. 接口</h2>
+
+        <p>接口值 = 两个指针的盒子。一个接口变量在底层长这样：</p>
+
+        <div class="flow-diagram">
+<pre>
+┌─────────────────┬──────────────┐
+│  type pointer    │ data pointer │
+│  (指向类型描述)    │ (指向实际数据) │
+└─────────────────┴──────────────┘
+</pre>
+        </div>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import "fmt"
+
+type Shaper interface {
+	Area() float32
+}
+
+type Square struct {
+	side float32
+}
+
+func (sq *Square) Area() float32 {
+	return sq.side * sq.side
+}
+
+func main() {
+	sq1 := new(Square)
+	sq1.side = 5
+
+	var areaIntf Shaper
+	areaIntf = sq1
+	// shorter,without separate declaration:
+	// areaIntf := Shaper(sq1)
+	// or even:
+	// areaIntf := sq1
+	fmt.Printf("The square has area: %f\n", areaIntf.Area())
+}</code></pre>
+
+        <p>当你写 <code>areaIntf = sq1</code> 时，Go 做了两件事：</p>
+        <ol>
+          <li>检查 <code>*Square</code> 是否实现了 <code>Shaper</code> 接口（有没有 <code>Area() float32</code> 方法？有。✓）</li>
+          <li>装箱：把类型信息和方法表塞进第一个槽位，把 <code>sq1</code> 的地址塞进第二个槽位</li>
+        </ol>
+
+        <p>所以赋值不是"变成"，而是<strong>包装</strong>——你把一个具体值装进了一个接口盒子。</p>
+
+        <h3>1.1 用一个比喻</h3>
+
+        <p>接口就像一个快递箱（上面写着"只接收有 Area 方法的物品"）。<code>*Square</code> 是一个实物，它碰巧有 Area 方法，所以可以被放进这个箱子。放进去之后，你只能通过箱子上的标签（<code>Area()</code>）来操作它，但箱子里装的始终是那个 <code>*Square</code>。</p>
+
+        <h3>1.2 为什么不会抽象到无法理解</h3>
+
+        <p>接口值不是"什么都能装"，它有严格的准入条件：</p>
+
+<pre><code><span class="code-label">Go</span>var areaIntf Shaper
+areaIntf = sq1      // ✓ *Square 有 Area() 方法，准入
+
+type Circle struct{ radius float32 }
+var c Circle
+areaIntf = &c       // ✗ 编译错误！Circle 没有 Area() 方法</code></pre>
+
+        <p>编译器在赋值时就做了类型检查，不是运行时才报错。所以你可以把接口赋值理解为：<strong>一次编译期验证 + 一次运行时包装</strong>。</p>
+
+        <h2>2. 类型断言</h2>
+
+        <p>接口值 = (type pointer, data pointer)。类型断言就是反向操作——从盒子里把东西掏出来。</p>
+
+        <h3>2.1 从装箱到拆箱</h3>
+
+<pre><code><span class="code-label">Go</span>areaIntf = sq1          // 装箱：*Square → Shaper
+sq2 := areaIntf.(*Square)  // 拆箱：Shaper → *Square</code></pre>
+
+        <p>赋值是把具体值<strong>装进</strong>接口盒子，类型断言是把接口盒子里的东西<strong>拿出来</strong>，同时告诉你"我确信里面装的是这个类型"。</p>
+
+        <p>赋值时：</p>
+        <div class="flow-diagram">
+<pre>
+*Square{side:5}  ──装入──▶  ┌──────────┬───────────┐
+                             │ type:    │ data:     │
+                             │ *Square  │ → {5}     │
+                             └──────────┴───────────┘
+                             这是 areaIntf (Shaper 类型)
+</pre>
+        </div>
+
+        <p>断言时：</p>
+        <div class="flow-diagram">
+<pre>
+                             ┌──────────┬───────────┐
+areaIntf.(*Square)  ◀──掏出──│ type:    │ data:     │
+                             │ *Square  │ → {5}     │
+                             └──────────┴───────────┘
+</pre>
+        </div>
+
+        <p>就是看一眼 type pointer 指向的类型，如果是 <code>*Square</code>，就把 data pointer 返回给你；如果不是，报错。</p>
+
+        <h3>2.2 两种语法，对应两种心态</h3>
+
+        <p><strong>心态一：我很确定</strong></p>
+
+<pre><code><span class="code-label">Go</span>sq2 := areaIntf.(*Square)   // 如果不是 *Square，直接 panic
+sq2.side = 10               // 拿出来了，随便用</code></pre>
+
+        <p><strong>心态二：我不确定，先看看</strong></p>
+
+<pre><code><span class="code-label">Go</span>sq2, ok := areaIntf.(*Square)  // ok=true 说明确实是，ok=false 说明不是
+if ok {
+    sq2.side = 10
+} else {
+    fmt.Println("里面不是 *Square")
+}</code></pre>
+
+        <p>第二种和 map 取值的 <code>v, ok := m[key]</code> 完全一样的套路。</p>
+
+        <h3>2.3 为什么需要断言？</h3>
+
+        <p>因为一旦装进接口盒子，你<strong>只能调用接口定义的方法</strong>：</p>
+
+<pre><code><span class="code-label">Go</span>areaIntf.Area()      // ✓ Shaper 接口有这个方法
+areaIntf.side        // ✗ 编译错误！Shaper 没有 side 字段</code></pre>
+
+        <p>接口把具体类型藏起来了。你想要回 <code>side</code> 字段？先断言拿出来：</p>
+
+<pre><code><span class="code-label">Go</span>sq2 := areaIntf.(*Square)
+sq2.side             // ✓ 拿出来了，*Square 有 side</code></pre>
+
+        <h3>2.4 类型断言 vs 类型转换</h3>
+
+        <p>这两个容易混，但本质不同：</p>
+
+<pre><code><span class="code-label">Go</span>// 类型转换：我知道两种具体类型之间的关系，主动变换
+var a int32 = 10
+b := int64(a)           // int32 → int64，数据真的变了
+
+// 类型断言：接口盒子里本来就是这个类型，我只是拿出来
+var i interface{} = &Square{side: 5}
+sq := i.(*Square)       // 没有任何数据变换，只是"揭开盖子"</code></pre>
+
+        <p>转换是<strong>变形</strong>，断言是<strong>揭盖</strong>。</p>
+
+        <h2>3. 空接口</h2>
+
+        <p>普通接口有准入条件，空接口没有准入条件：</p>
+
+<pre><code><span class="code-label">Go</span>type Shaper interface {
+    Area() float32    // 必须有 Area 方法才能装进来
+}
+
+interface{}          // 没有任何方法要求 → 任何类型都能装进来</code></pre>
+
+        <p>因为准入条件是零，所以<strong>所有类型都满足空接口</strong>——这是唯一一个"无条件放行"的接口。</p>
+
+        <h3>3.1 语法演变</h3>
+
+<pre><code><span class="code-label">Go</span>// Go 1.18 之前
+var x interface{} = 42
+
+// Go 1.18 之后，alias 写法，完全等价
+var x any = 42</code></pre>
+
+        <p><code>any</code> 就是 <code>interface{}</code> 的别名，仅此而已。以后建议用 <code>any</code>，更短更好读。</p>
+
+        <h3>3.2 装进去容易，用起来只能当"未知物体"</h3>
+
+<pre><code><span class="code-label">Go</span>var x any = &Square{Side: 5}
+
+x.Area()    // ✗ 编译错误！any 没有定义 Area 方法
+x.side      // ✗ 编译错误！any 没有定义 side 字段
+
+sq := x.(*Square)
+sq.Area()   // ✓ 拿出来了，*Square 有 Area
+sq.side     // ✓</code></pre>
+
+        <h3>3.3 实际用途</h3>
+
+        <p><strong>1. fmt.Println — 它不知道你会传什么</strong></p>
+
+<pre><code><span class="code-label">Go</span>func Println(a ...any) (n int, err error)
+
+fmt.Println(42)
+fmt.Println("hello")
+fmt.Println(&Square{side: 5})
+fmt.Println(1, "two", 3.0, true)    // 全装进 []any</code></pre>
+
+        <p><strong>2. JSON 解析 — 运行时才知道类型</strong></p>
+
+<pre><code><span class="code-label">Go</span>var data any
+json.Unmarshal([]byte(`{"name":"tom","age":18}`), &data)
+
+m := data.(map[string]any)
+fmt.Println(m["name"])  // tom</code></pre>
+
+        <p><strong>3. map 存混合类型</strong></p>
+
+<pre><code><span class="code-label">Go</span>config := map[string]any{
+    "port":    8080,
+    "debug":   true,
+    "host":    "localhost",
+    "timeout": 30.5,
+}</code></pre>
+
+        <h3>3.4 type switch — 批量断言的语法糖</h3>
+
+<pre><code><span class="code-label">Go</span>func describe(v any) {
+    switch v := v.(type) {
+    case int:
+        fmt.Printf("整数: %d\n", v)
+    case string:
+        fmt.Printf("字符串: %s\n", v)
+    case *Square:
+        fmt.Printf("正方形，边长: %f\n", v.side)
+    default:
+        fmt.Printf("未知类型: %T\n", v)
+    }
+}</code></pre>
+
+        <p>每个 <code>case</code> 分支里，<code>v</code> 自动变成断言后的具体类型，不需要再手动 <code>.(Type)</code>。</p>
+
+        <h2>4. 反射</h2>
+
+        <p>接口值里藏着 (type, data) 两个指针——反射就是<strong>用代码去读这两个指针里的信息</strong>。</p>
+
+        <p>类型断言有一个前提：你编译期就得知道里面是什么类型。但如果你真的不知道呢？反射就是：在运行时动态地探查一个值的类型信息和值信息。</p>
+
+<pre><code><span class="code-label">Go</span>接口值内部的 type pointer  →  reflect.TypeOf(x)
+接口值内部的 data pointer  →  reflect.ValueOf(x)</code></pre>
+
+        <h3>4.1 最小可运行示例</h3>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+type Square struct {
+    Side float32
+}
+
+func (sq *Square) Area() float32 {
+    return sq.Side * sq.Side
+}
+
+func main() {
+    sq := &Square{Side: 5}
+    var x any = sq
+
+    t := reflect.TypeOf(x)
+    v := reflect.ValueOf(x)
+    fmt.Println("类型名:", t.Name())           // Square
+    fmt.Println("种类:", t.Kind())             // ptr（指针）
+    fmt.Println("指向的类型:", t.Elem().Name()) // Square
+    fmt.Println("值:", v)                       // &{5}
+    fmt.Println("能调的方法数:", v.NumMethod())    // 1
+}</code></pre>
+
+        <h3>4.2 Kind —— 比 Type 更基础的概念</h3>
+
+        <p><code>Type</code> 是具体类型名（<code>Square</code>、<code>int</code>），<code>Kind</code> 是底层种类（<code>struct</code>、<code>ptr</code>、<code>int</code>）：</p>
+
+<pre><code><span class="code-label">Go</span>type MyInt int
+
+var x MyInt = 42
+
+reflect.TypeOf(x).Name()   // "MyInt"   —— 你起的名字
+reflect.TypeOf(x).Kind()   // int       —— 底层是什么</code></pre>
+
+        <p>Kind 是有限的枚举：<code>bool, int, int8, int16, int32, int64, uint, uint8, ..., float32, float64, string, array, slice, map, struct, ptr, func, interface, chan, ...</code></p>
+
+        <p><strong>先看 Kind，再决定怎么处理——这是反射的基本套路。</strong></p>
+
+        <h3>4.3 反射的三大能力</h3>
+
+        <p><strong>1. 读取信息（最常用）</strong></p>
+
+<pre><code><span class="code-label">Go</span>sq := &Square{Side: 5}
+v := reflect.ValueOf(sq).Elem()   // Elem() 解一层指针，等价于 *sq
+
+for i := 0; i &lt; v.NumField(); i++ {
+    field := v.Type().Field(i)
+    value := v.Field(i)
+    fmt.Printf("%s = %v (kind: %s)\n", field.Name, value, value.Kind())
+}
+// 输出: Side = 5 (kind: float32)</code></pre>
+
+        <p><strong>2. 修改值（需要指针）</strong></p>
+
+<pre><code><span class="code-label">Go</span>sq := &Square{Side: 5}
+v := reflect.ValueOf(sq).Elem()   // 必须传指针再 Elem，才能修改
+sideField := v.FieldByName("Side")
+sideField.SetFloat(100)            // 修改了 sq.Side
+fmt.Println(sq.Side)               // 100</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 为什么必须传指针？</strong>因为 <code>reflect.ValueOf(x)</code> 是值拷贝。你改拷贝没有意义。传指针再 <code>Elem()</code> 才能定位到原数据——这和你写函数参数要传指针才能修改是同一个道理。</p>
+        </div>
+
+<pre><code><span class="code-label">Go</span>// ✗ 改不了
+v := reflect.ValueOf(Square{Side: 5})
+v.FieldByName("Side").SetFloat(100)  // panic! 不可寻址
+
+// ✓ 能改
+v := reflect.ValueOf(&Square{Side: 5}).Elem()
+v.FieldByName("Side").SetFloat(100)  // ok</code></pre>
+
+        <p>整个链条画出来：</p>
+
+<pre><code><span class="code-label">Go</span>sq := &Square{Side: 5}
+
+reflect.ValueOf(sq)              // 拿到 *Square 的 Value
+         .Elem()                  // 等价于 *sq，拿到 Square 的 Value
+         .FieldByName("Side")    // 找到 Side 字段
+         .SetFloat(100)          // 修改，影响原数据
+
+// 等价的普通代码：
+(*sq).Side = 100</code></pre>
+
+        <p><strong>3. 调用方法</strong></p>
+
+<pre><code><span class="code-label">Go</span>sq := &Square{Side: 5}
+v := reflect.ValueOf(sq)
+
+result := v.MethodByName("Area").Call(nil)  // nil = 无参数
+fmt.Println(result[0].Float())               // 25</code></pre>
+
+        <h3>4.4 为什么说反射慢？</h3>
+
+<pre><code><span class="code-label">Go</span>// 直接调用：编译期已经确定函数地址，直接跳转
+sq.Area()
+
+// 反射调用：运行时要查方法名 → 找方法表 → 找函数地址 → 再调用
+v.MethodByName("Area").Call(nil)</code></pre>
+
+        <p>多出来的步骤就是性能代价。所以反射只用在<strong>编译期真的不知道类型</strong>的场景（JSON 解析、ORM、配置映射），不要在热路径上用。</p>
+
+        <h2>5. Go 中的面向对象</h2>
+
+        <p>Go 有面向对象，但没有类和继承。它用三样东西替代了传统 OOP 的整套体系。</p>
+
+        <h3>5.1 struct + method = class</h3>
+
+        <p>传统 OOP 把数据和方法绑在一起，Go 把它们分开写，再用 receiver 关联：</p>
+
+<pre><code><span class="code-label">Go</span>type Dog struct {
+    Name string
+}
+
+func (d Dog) Speak() {
+    fmt.Println(d.Name + ": woof")
+}
+
+d := Dog{Name: "Rex"}
+d.Speak()   // Rex: woof</code></pre>
+
+        <p>方法可以随时、在任意文件里添加。数据定义一次，方法可以分散在各处。</p>
+
+        <h3>5.2 嵌入 = 组合，不是继承</h3>
+
+<pre><code><span class="code-label">Go</span>type Animal struct {
+    Name string
+}
+
+func (a Animal) Speak() string {
+    return a.Name + " speaks"
+}
+
+type Dog struct {
+    Animal          // 嵌入：Dog 包含了一个 Animal
+    Breed string
+}
+
+d := Dog{Animal: Animal{Name: "Rex"}, Breed: "Husky"}
+fmt.Println(d.Name)     // Rex
+fmt.Println(d.Speak())  // Rex speaks</code></pre>
+
+        <p>但<strong>本质是组合</strong>：</p>
+
+        <div class="flow-diagram">
+<pre>
+继承：Dog 是一种 Animal        → Dog IS-A Animal
+嵌入：Dog 里面有一个 Animal    → Dog HAS-A Animal
+</pre>
+        </div>
+
+        <p>方法覆盖是<strong>遮蔽</strong>，不是多态：</p>
+
+<pre><code><span class="code-label">Go</span>func (d Dog) Speak() string {
+    return d.Name + " barks"    // 遮蔽了 Animal 的 Speak
+}
+
+d := Dog{Animal: Animal{Name: "Rex"}, Breed: "Husky"}
+d.Speak()               // "Rex barks" —— 用 Dog 的
+d.Animal.Speak()        // "Rex speaks" —— 仍能调用被遮蔽的版本</code></pre>
+
+        <p>Go 支持多重嵌入，且不会出现菱形继承问题——每个嵌入都是独立的实例。</p>
+
+        <h3>5.3 接口隐式满足 = 最大的设计差异</h3>
+
+<pre><code><span class="code-label">Go</span>type Speaker interface {
+    Speak() string
+}
+
+type Dog struct{ Name string }
+func (d Dog) Speak() string { return d.Name + " barks" }
+
+var s Speaker = Dog{Name: "Rex"}
+fmt.Println(s.Speak())   // Rex barks</code></pre>
+
+        <p><strong>鸭子类型</strong>：如果它走起来像鸭子、叫起来像鸭子，那它就是鸭子。不需要声明"我是鸭子"。</p>
+
+        <h3>5.4 receiver 选值还是指针</h3>
+
+<pre><code><span class="code-label">Go</span>type Counter struct{ Count int }
+
+func (c Counter) Increment1() {    // 值 receiver：操作副本
+    c.Count++
+}
+
+func (c *Counter) Increment2() {   // 指针 receiver：操作原数据
+    c.Count++
+}
+
+c := Counter{Count: 0}
+c.Increment1()
+fmt.Println(c.Count)   // 0，没变
+c.Increment2()
+fmt.Println(c.Count)   // 1，变了</code></pre>
+
+        <p>选择规则：<strong>要修改就用指针，不修改就用值。</strong> 如果拿不准，统一用指针。</p>
+
+        <h3>5.5 封装靠大小写，不靠 class</h3>
+
+<pre><code><span class="code-label">Go</span>type User struct {
+    Name  string    // 大写：包外可见（public）
+    email string    // 小写：包内可见（private）
+}</code></pre>
+
+        <p>封装的单位是<strong>包</strong>，不是类。</p>
+
+        <h3>5.6 没有构造函数，用工厂函数</h3>
+
+<pre><code><span class="code-label">Go</span>func NewUser(name, email string) *User {
+    return &User{Name: name, email: email}
+}
+
+u := NewUser("Tom", "tom@example.com")</code></pre>
+
+        <h3>5.7 整体思维模型</h3>
+
+        <div class="flow-diagram">
+<pre>
+传统 OOP 的世界：
+  类 ──继承──▶ 类 ──implements──▶ 接口
+  (数据+方法绑在一起，单向树状继承)
+
+Go 的世界：
+  struct ──嵌入──▶ struct    (组合，平面的)
+  struct ──receiver──▶ method (数据和行为分离)
+  struct ──隐式满足──▶ interface (鸭子类型，不需要声明)
+</pre>
+        </div>
+
+        <p>Go 的设计哲学是<strong>组合优于继承</strong>。没有继承树，没有虚函数表，没有 super 调用。一切关系都是平面的：你包含什么，你就能用什么；你有什么方法，你就满足了什么接口。</p>
+
+      </div>
+
+        <!-- TOC (auto-generated by JS) -->
+        <aside class="toc-container" id="toc-container">
+          <div class="toc-title">目录</div>
+          <ul class="toc-list" id="toc-list"></ul>
+        </aside>
+
+      </div>
+      <!-- /article-layout -->
+
+    </div>
+  </main>
+
+</div>
+
+<!-- Mobile TOC button + panel -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+// ===== Auto-generate TOC from h2/h3 =====
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var mobilePanel = document.getElementById('toc-mobile-panel');
+      if (mobilePanel) mobilePanel.classList.remove('show');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  // Scroll spy
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  updateActiveToc();
+})();
+</script>
+
+</body>
+</html>
