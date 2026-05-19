@@ -126,5 +126,13 @@ window.SEARCH_INDEX = [
     category: "go",
     date: "2026-05-18",
     url: "posts/如何理解接口.html"
+  },
+  {
+    title: "K8s权限管理",
+    desc: "Kubernetes 权限管理全流程：RBAC 核心对象与判定逻辑、用户证书创建与 CSR 审批、kubeconfig 文件结构解析、ServiceAccount 机制及命名空间 SA 与全局权限的区别。",
+    tags: ["kubernetes", "devops"],
+    category: "kubernetes",
+    date: "2026-05-20",
+    url: "posts/k8s权限管理.html"
   }
 ];
