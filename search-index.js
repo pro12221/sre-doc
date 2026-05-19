@@ -134,5 +134,13 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-05-20",
     url: "posts/k8s权限管理.html"
+  },
+  {
+    title: "Security Context和Linux Capabilities详解",
+    desc: "Kubernetes Security Context 核心机制：Linux Capabilities 四组集合与传递规则、Pod/容器级安全配置字段详解、最小权限配置范式与 Pod Security Standards 三个安全级别。",
+    tags: ["kubernetes", "linux"],
+    category: "kubernetes",
+    date: "2026-05-20",
+    url: "posts/security-context和linux-capabilities详解.html"
   }
 ];
