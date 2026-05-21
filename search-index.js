@@ -142,5 +142,13 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-05-20",
     url: "posts/security-context和linux-capabilities详解.html"
+  },
+  {
+    title: "Kubernetes Service原理",
+    desc: "Kubernetes Service 原理详解：conntrack 连接跟踪与不对称路径问题、iptables/ipvs 两种模式下数据包流转全链路、四种 Service 类型及 Headless Service 使用场景。",
+    tags: ["kubernetes", "linux", "network"],
+    category: "kubernetes",
+    date: "2026-05-21",
+    url: "posts/kubernetes-service原理.html"
   }
 ];
