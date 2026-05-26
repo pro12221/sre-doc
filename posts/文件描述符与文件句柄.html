@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件描述符与文件句柄 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <a href="../index.html#kubernetes" class="nav-item"><span class="dot" style="background:var(--tag-k8s)"></span>Kubernetes<span class="count">6</span></a>
+        <a href="../index.html#go" class="nav-item"><span class="dot" style="background:var(--tag-go)"></span>Go<span class="count">2</span></a>
+        <a href="../index.html#python" class="nav-item"><span class="dot" style="background:var(--tag-python)"></span>Python<span class="count">0</span></a>
+        <a href="../index.html#devops" class="nav-item"><span class="dot" style="background:var(--tag-devops)"></span>DevOps<span class="count">1</span></a>
+        <a href="../index.html#linux" class="nav-item active"><span class="dot" style="background:var(--tag-linux)"></span>Linux<span class="count">2</span></a>
+        <a href="../index.html#network" class="nav-item"><span class="dot" style="background:var(--tag-network)"></span>Network<span class="count">1</span></a>
+        <a href="../index.html#ai" class="nav-item"><span class="dot" style="background:var(--tag-ai)"></span>AI<span class="count">8</span></a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank"><span class="dot" style="background:#24292e"></span>GitHub</a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">&copy; 2026 Tech Notes</div>
+  </aside>
+
+  <main class="main">
+    <div class="content-wrapper">
+
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#linux">Linux</a>
+        </div>
+        <h1>文件描述符与文件句柄</h1>
+        <div class="article-meta">
+          <span><span class="tag tag-linux">Linux</span><span class="tag tag-python">Python</span></span>
+          <span>2026-05-26</span>
+        </div>
+      </div>
+
+      <div class="article-layout">
+        <div class="article-content">
+
+        <h2>1. 示例现象</h2>
+
+        <p>下面的 Python 程序通过 <code>os.open()</code> 打开 <code>test.txt</code>，写入内容后保持进程运行 60 秒，方便从 <code>/proc</code> 观察这个进程持有哪些文件描述符。</p>
+
+<pre><code><span class="code-label">python</span>#!/usr/bin/env python3
+import os
+import time
+
+# 打开一个文件，获取文件描述符
+fd = os.open('test.txt', os.O_RDWR | os.O_CREAT, 0o644)
+print(f"文件描述符: {fd}")
+
+# 写入一些内容
+os.write(fd, b'Hello Rocky Linux!\n')
+
+# 获取当前进程ID
+pid = os.getpid()
+print(f"当前进程PID: {pid}")
+print(f"查看 /proc/{pid}/fd/ 目录来确认文件描述符")
+
+# 保持进程运行以便观察
+print("进程将在60秒后退出，现在可以查看/proc目录...")
+time.sleep(60)
+
+os.close(fd)</code></pre>
+
+        <p>运行后输出：</p>
+
+<pre><code><span class="code-label">text</span>文件描述符: 3
+当前进程PID: 517211
+查看 /proc/517211/fd/ 目录来确认文件描述符
+进程将在60秒后退出，现在可以查看/proc目录...</code></pre>
+
+        <p>在另一个终端查看 <code>/proc/517211/fd/</code>：</p>
+
+<pre><code><span class="code-label">text</span>0 -&gt; /dev/pts/0
+1 -&gt; /dev/pts/0
+2 -&gt; /dev/pts/0
+3 -&gt; /root/python_pj/test.txt</code></pre>
+
+        <p>这说明当前进程已经打开了 4 个文件描述符：<code>0</code>、<code>1</code>、<code>2</code> 是进程启动时默认打开的标准输入、标准输出、标准错误，<code>3</code> 是程序通过 <code>os.open()</code> 打开的 <code>test.txt</code>。</p>
+
+        <h2>2. 文件描述符是什么</h2>
+
+        <p>文件描述符（File Descriptor，FD）是 Linux 进程内部用来引用“已打开文件”的整数编号。它不是文件路径，也不是文件本身，而是当前进程文件描述符表里的一个索引。</p>
+
+        <p>可以把当前进程的文件描述符表理解成：</p>
+
+<pre><code><span class="code-label">text</span>进程 517211 的文件描述符表
+
+0 -&gt; /dev/pts/0                # stdin
+1 -&gt; /dev/pts/0                # stdout
+2 -&gt; /dev/pts/0                # stderr
+3 -&gt; /root/python_pj/test.txt  # os.open() 打开的文件</code></pre>
+
+        <p>当程序执行：</p>
+
+<pre><code><span class="code-label">python</span>os.write(3, b'Hello Rocky Linux!\n')</code></pre>
+
+        <p>内核会先在当前进程的文件描述符表里查找 <code>3</code>，然后找到它对应的已打开文件对象，最后把数据写入这个对象背后的文件。</p>
+
+        <h2>3. 为什么第一个自定义文件描述符通常是 3</h2>
+
+        <p>Linux 进程启动时通常默认占用 3 个文件描述符：</p>
+
+        <table>
+          <thead><tr><th>FD</th><th>名称</th><th>含义</th><th>示例指向</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>stdin</td><td>标准输入</td><td><code>/dev/pts/0</code></td></tr>
+            <tr><td>1</td><td>stdout</td><td>标准输出</td><td><code>/dev/pts/0</code></td></tr>
+            <tr><td>2</td><td>stderr</td><td>标准错误</td><td><code>/dev/pts/0</code></td></tr>
+          </tbody>
+        </table>
+
+        <p>所以程序自己打开的第一个文件，通常会拿到最小可用编号 <code>3</code>。如果关闭 <code>3</code> 后再打开新文件，内核也可能复用这个编号。</p>
+
+        <h2>4. /proc/PID/fd 看到的是什么</h2>
+
+        <p><code>/proc/&lt;PID&gt;/fd/</code> 是 Linux 暴露给用户态的进程文件描述符视图。目录里的每个数字都是该进程的一个文件描述符，并以符号链接形式指向它当前关联的对象。</p>
+
+<pre><code><span class="code-label">bash</span>ls -l /proc/517211/fd/</code></pre>
+
+        <p>看到：</p>
+
+<pre><code><span class="code-label">text</span>3 -&gt; /root/python_pj/test.txt</code></pre>
+
+        <p>表示的是：</p>
+
+<pre><code><span class="code-label">text</span>PID 517211 这个进程的 3 号文件描述符，当前关联到 /root/python_pj/test.txt。</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 提示：</strong>文件描述符不只会指向普通文件，也可以指向目录、终端、管道、socket、设备文件、eventfd、timerfd、inotify fd、epoll fd 等对象。比如 Web 服务中经常能在 <code>/proc/&lt;PID&gt;/fd/</code> 里看到 <code>socket:[inode]</code>。</p>
+        </div>
+
+        <h2>5. 文件句柄是什么</h2>
+
+        <p>“文件句柄”是一个更通用的说法，在不同系统和语言里含义不完全一样。在 Linux 语境下，可以把它理解为内核中表示“已打开文件”的对象，也就是内核的 open file object。</p>
+
+        <p>文件描述符和文件句柄的关系可以简化为：</p>
+
+        <div class="flow-diagram">用户进程
+  fd = 3
+    |
+    v
+进程文件描述符表
+  3 -&gt; 内核打开文件对象（文件句柄 / open file object）
+           |
+           v
+        inode / 文件系统对象</div>
+
+        <p>文件描述符只是进程看到的整数编号；内核打开文件对象才保存真正的打开状态，例如：</p>
+
+        <ul>
+          <li>当前读写偏移量</li>
+          <li>打开模式：只读、只写、读写</li>
+          <li>文件状态标志：<code>O_APPEND</code>、<code>O_NONBLOCK</code> 等</li>
+          <li>引用计数</li>
+          <li>指向 inode 或其他内核对象的指针</li>
+        </ul>
+
+        <h2>6. 路径、文件描述符、文件句柄、inode 的区别</h2>
+
+        <table>
+          <thead><tr><th>概念</th><th>视角</th><th>表现形式</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td>文件路径</td><td>文件系统视角</td><td><code>/root/python_pj/test.txt</code></td><td>用来定位并打开文件</td></tr>
+            <tr><td>文件描述符</td><td>进程视角</td><td>整数，例如 <code>3</code></td><td>进程用它告诉内核要操作哪个已打开对象</td></tr>
+            <tr><td>文件句柄 / 打开文件对象</td><td>内核视角</td><td>内核数据结构</td><td>保存打开模式、偏移量、引用计数等状态</td></tr>
+            <tr><td>inode</td><td>文件系统底层</td><td>inode 编号</td><td>表示磁盘上的真实文件对象</td></tr>
+          </tbody>
+        </table>
+
+        <p>一个常见误区是把路径等同于文件本身。实际上路径只是找到文件的名字；文件打开以后，进程主要通过文件描述符操作内核中的打开文件对象。</p>
+
+        <h2>7. 文件描述符是进程级别的</h2>
+
+        <p>文件描述符编号不是系统全局唯一的，而是每个进程各自维护一套。</p>
+
+<pre><code><span class="code-label">text</span>进程 A:
+3 -&gt; /tmp/a.log
+
+进程 B:
+3 -&gt; /var/log/messages</code></pre>
+
+        <p>同样是 <code>3</code>，在不同进程里可能指向完全不同的对象。因此描述一个文件描述符时，必须同时包含 PID 和 FD，例如 <code>/proc/517211/fd/3</code>。</p>
+
+        <h2>8. 文件删除后 FD 为什么还可能有效</h2>
+
+        <p>如果进程已经打开了文件：</p>
+
+<pre><code><span class="code-label">text</span>3 -&gt; /root/python_pj/test.txt</code></pre>
+
+        <p>另一个终端执行：</p>
+
+<pre><code><span class="code-label">bash</span>rm /root/python_pj/test.txt</code></pre>
+
+        <p>只要原进程还没有关闭 fd，文件内容仍然可能存在，进程也仍然可以继续读写。此时 <code>/proc/&lt;PID&gt;/fd/</code> 里可能看到：</p>
+
+<pre><code><span class="code-label">text</span>3 -&gt; /root/python_pj/test.txt (deleted)</code></pre>
+
+        <p>原因是路径被删除了，但 inode 仍然被内核打开文件对象引用。只有当最后一个引用它的文件描述符关闭后，内核才会真正释放相关文件数据。磁盘空间“删除后不释放”的问题，经常就是进程仍持有 deleted 文件的 fd。</p>
+
+        <p>排查命令：</p>
+
+<pre><code><span class="code-label">bash</span>lsof | grep deleted</code></pre>
+
+        <h2>9. os.open() 与 Python open() 的区别</h2>
+
+        <p><code>os.open()</code> 更接近 Linux 系统调用，返回的是底层文件描述符整数：</p>
+
+<pre><code><span class="code-label">python</span>fd = os.open('test.txt', os.O_RDWR | os.O_CREAT, 0o644)
+print(fd)  # 例如 3</code></pre>
+
+        <p>普通 <code>open()</code> 返回的是 Python 文件对象：</p>
+
+<pre><code><span class="code-label">python</span>f = open('test.txt', 'w')
+print(f.fileno())</code></pre>
+
+        <p>Python 文件对象内部仍然包装了一个底层 fd，可以通过 <code>fileno()</code> 取出。</p>
+
+        <p>关系如下：</p>
+
+        <div class="flow-diagram">Python file object
+    |
+    v
+文件描述符 fd
+    |
+    v
+内核打开文件对象
+    |
+    v
+inode / 文件</div>
+
+        <h2>10. 总结</h2>
+
+        <p>文件路径用于打开文件，文件描述符用于在打开后操作文件，文件句柄则是内核中保存打开状态的对象。</p>
+
+        <div class="flow-diagram">Python 程序调用 os.open()
+    ↓
+内核打开 /root/python_pj/test.txt
+    ↓
+给当前进程分配 fd 3
+    ↓
+/proc/517211/fd/3 显示这个 fd 指向 test.txt
+    ↓
+os.write(3, ...) 通过 fd 3 写入文件
+    ↓
+os.close(3) 关闭这个文件描述符</div>
+
+        <div class="highlight-box">
+          <p><strong>核心理解：</strong>文件路径是用来打开文件的；文件描述符是打开之后用来操作文件的；文件句柄是内核中保存打开状态的对象。</p>
+        </div>
+
+      </div>
+
+        <aside class="toc-container" id="toc-container">
+          <div class="toc-title">目录</div>
+          <ul class="toc-list" id="toc-list"></ul>
+        </aside>
+
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var mobilePanel = document.getElementById('toc-mobile-panel');
+      if (mobilePanel) mobilePanel.classList.remove('show');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  updateActiveToc();
+})();
+</script>
+
+</body>
+</html>

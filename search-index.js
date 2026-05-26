@@ -25,7 +25,7 @@ window.SEARCH_INDEX = [
   },
   {
     title: "Harness Engineering 是什么",
-    desc: "当 AI 智能体取代人类成为代码主要生产者时，工程师从"写代码"转向"设计环境、明确意图、构建反馈回路"，让智能体可靠执行——人类掌舵，智能体执行。",
+    desc: "当 AI 智能体取代人类成为代码主要生产者时，工程师从'写代码'转向'设计环境、明确意图、构建反馈回路'，让智能体可靠执行——人类掌舵，智能体执行。",
     tags: ["ai"],
     category: "ai",
     date: "2026-05-15",
@@ -150,5 +150,13 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-05-21",
     url: "posts/kubernetes-service原理.html"
+  },
+  {
+    title: "文件描述符与文件句柄",
+    desc: "Linux 文件描述符与文件句柄总结：通过 Python os.open 示例观察 /proc/PID/fd，理解 FD、打开文件对象、inode 与路径的关系。",
+    tags: ["linux", "python"],
+    category: "linux",
+    date: "2026-05-26",
+    url: "posts/文件描述符与文件句柄.html"
   }
 ];
