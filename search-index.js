@@ -158,5 +158,13 @@ window.SEARCH_INDEX = [
     category: "linux",
     date: "2026-05-26",
     url: "posts/文件描述符与文件句柄.html"
+  },
+  {
+    title: "VXLAN 与 GRE 的区别",
+    desc: "云数据中心 Overlay 网络补充：从设计目标、封装结构、VNI/Key、ECMP、NAT、防火墙、MTU 与典型场景讲透 VXLAN 和 GRE 的区别。",
+    tags: ["network"],
+    category: "network",
+    date: "2026-05-29",
+    url: "posts/vxlan-与-gre的区别.html"
   }
 ];
