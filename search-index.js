@@ -174,5 +174,13 @@ window.SEARCH_INDEX = [
     category: "network",
     date: "2026-05-30",
     url: "posts/云计算网络架构演进.html"
+  },
+  {
+    title: "Ingress 三种部署模式与底层原理",
+    desc: "Kubernetes Ingress 详解：Deployment/DaemonSet+HostNetwork/NodePort 三种部署模式对比、Nginx Ingress Controller 控制循环与 Lua Balancer 原理、TLS 终止与完整请求链路。",
+    tags: ["kubernetes", "network"],
+    category: "kubernetes",
+    date: "2026-05-30",
+    url: "posts/Ingress三种部署模式与底层原理.html"
   }
 ];
