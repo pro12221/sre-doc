@@ -166,5 +166,13 @@ window.SEARCH_INDEX = [
     category: "network",
     date: "2026-05-29",
     url: "posts/vxlan-与-gre的区别.html"
+  },
+  {
+    title: "云计算网络架构演进",
+    desc: "从经典网络到 VPC、从软件转发到软硬一体化、从数据中心到云边端一体：AWS/阿里云/UCloud 三大厂商网络架构演进与 SDN、VXLAN、eBPF、DPU 核心技术全解析。",
+    tags: ["network", "kubernetes", "devops"],
+    category: "network",
+    date: "2026-05-30",
+    url: "posts/云计算网络架构演进.html"
   }
 ];
