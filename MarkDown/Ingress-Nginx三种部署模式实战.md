@@ -178,7 +178,7 @@ spec:
 **2. 应用部署**
 
 ```bash
-kubectl apply -f mode1-deployment-nodeport.yaml
+kubectl apply -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/mode1-deployment-nodeport/deploy.yaml
 ```
 
 **3. 等待 Pod 就绪**
@@ -193,7 +193,7 @@ kubectl wait --namespace ingress-nginx \
 **4. 部署测试应用并验证**
 
 ```bash
-kubectl apply -f test-ingress.yaml
+kubectl apply -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/test-ingress/deploy.yaml
 
 # 验证：通过任意节点 IP:30080 访问
 curl http://117.50.174.70:30080/demo -H 'Host: test.local'
@@ -222,8 +222,8 @@ demo-ingress   nginx   *       10.103.193.97   80      55s
 ### 清理环境
 
 ```bash
-kubectl delete -f test-ingress.yaml --ignore-not-found
-kubectl delete -f mode1-deployment-nodeport.yaml --ignore-not-found
+kubectl delete -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/test-ingress/deploy.yaml --ignore-not-found
+kubectl delete -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/mode1-deployment-nodeport/deploy.yaml --ignore-not-found
 kubectl delete ns ingress-nginx --ignore-not-found
 kubectl delete clusterrole ingress-nginx ingress-nginx-admission --ignore-not-found
 kubectl delete clusterrolebinding ingress-nginx ingress-nginx-admission --ignore-not-found
@@ -323,7 +323,7 @@ spec:
 **2. 应用部署**
 
 ```bash
-kubectl apply -f mode2-daemonset-hostnetwork.yaml
+kubectl apply -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/mode2-daemonset-hostnetwork/deploy.yaml
 ```
 
 **3. 验证**
@@ -364,8 +364,8 @@ demo-ingress   nginx   *       10.60.177.72,10.60.21.65,10.60.72.252   80      2
 ### 清理环境
 
 ```bash
-kubectl delete -f test-ingress.yaml --ignore-not-found
-kubectl delete -f mode2-daemonset-hostnetwork.yaml --ignore-not-found
+kubectl delete -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/test-ingress/deploy.yaml --ignore-not-found
+kubectl delete -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/mode2-daemonset-hostnetwork/deploy.yaml --ignore-not-found
 kubectl delete ns ingress-nginx --ignore-not-found
 kubectl delete clusterrole ingress-nginx ingress-nginx-admission --ignore-not-found
 kubectl delete clusterrolebinding ingress-nginx ingress-nginx-admission --ignore-not-found
@@ -463,13 +463,13 @@ spec:
 **2. 应用部署**
 
 ```bash
-kubectl apply -f mode3-daemonset-nodeport.yaml
+kubectl apply -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/mode3-daemonset-nodeport/deploy.yaml
 ```
 
 **3. 验证**
 
 ```bash
-kubectl apply -f test-ingress.yaml
+kubectl apply -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/test-ingress/deploy.yaml
 
 # 验证：通过任意节点 IP:30080 访问
 curl http://117.50.174.70:30080/demo -H 'Host: test.local'
@@ -503,8 +503,8 @@ ingress-nginx-controller-rwrf9   1/1     Running   10.244.1.9    node01
 ### 清理环境
 
 ```bash
-kubectl delete -f test-ingress.yaml --ignore-not-found
-kubectl delete -f mode3-daemonset-nodeport.yaml --ignore-not-found
+kubectl delete -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/test-ingress/deploy.yaml --ignore-not-found
+kubectl delete -f https://raw.githubusercontent.com/pro12221/webhook-doc/main/MarkDown/kubernetes/Ingress-nginx/mode3-daemonset-nodeport/deploy.yaml --ignore-not-found
 kubectl delete ns ingress-nginx --ignore-not-found
 kubectl delete clusterrole ingress-nginx ingress-nginx-admission --ignore-not-found
 kubectl delete clusterrolebinding ingress-nginx ingress-nginx-admission --ignore-not-found
