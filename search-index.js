@@ -182,5 +182,13 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-05-30",
     url: "posts/Ingress三种部署模式与底层原理.html"
+  },
+  {
+    title: "Ingress-Nginx 三种部署模式实战",
+    desc: "三节点 K8s 集群实战部署 ingress-nginx 三种模式：Deployment+NodePort、DaemonSet+HostNetwork、DaemonSet+NodePort，含国内镜像适配、验证结果与清理步骤。",
+    tags: ["kubernetes", "network"],
+    category: "kubernetes",
+    date: "2026-05-31",
+    url: "posts/Ingress-Nginx三种部署模式实战.html"
   }
 ];

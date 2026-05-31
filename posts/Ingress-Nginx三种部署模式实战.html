@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingress-Nginx 三种部署模式实战 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <a href="../index.html#kubernetes" class="nav-item active">
+          <span class="dot" style="background:var(--tag-k8s)"></span>
+          Kubernetes
+          <span class="count">8</span>
+        </a>
+        <a href="../index.html#go" class="nav-item">
+          <span class="dot" style="background:var(--tag-go)"></span>
+          Go
+          <span class="count">2</span>
+        </a>
+        <a href="../index.html#python" class="nav-item">
+          <span class="dot" style="background:var(--tag-python)"></span>
+          Python
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#devops" class="nav-item">
+          <span class="dot" style="background:var(--tag-devops)"></span>
+          DevOps
+          <span class="count">1</span>
+        </a>
+        <a href="../index.html#linux" class="nav-item">
+          <span class="dot" style="background:var(--tag-linux)"></span>
+          Linux
+          <span class="count">2</span>
+        </a>
+        <a href="../index.html#network" class="nav-item">
+          <span class="dot" style="background:var(--tag-network)"></span>
+          Network
+          <span class="count">3</span>
+        </a>
+        <a href="../index.html#ai" class="nav-item">
+          <span class="dot" style="background:var(--tag-ai)"></span>
+          AI
+          <span class="count">8</span>
+        </a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
+          <span class="dot" style="background:#24292e"></span>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Tech Notes
+    </div>
+  </aside>
+
+  <!-- ====== Main Content ====== -->
+  <main class="main">
+    <div class="content-wrapper">
+
+      <!-- Article Header -->
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">Kubernetes</a>
+        </div>
+        <h1>Ingress-Nginx 三种部署模式实战</h1>
+        <div class="article-meta">
+          <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
+          <span>2026-05-31</span>
+        </div>
+      </div>
+
+      <!-- Article Content -->
+      <div class="article-layout">
+
+        <div class="article-content">
+
+        <h2>环境信息</h2>
+
+        <table>
+          <thead>
+            <tr><th>项目</th><th>值</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>K8s 版本</td><td>v1.30.2</td></tr>
+            <tr><td>CNI</td><td>Flannel</td></tr>
+            <tr><td>容器运行时</td><td>containerd 2.2.3</td></tr>
+            <tr><td>OS</td><td>Ubuntu 24.04 LTS</td></tr>
+            <tr><td>节点数</td><td>3（1 master + 2 worker）</td></tr>
+          </tbody>
+        </table>
+
+        <p>节点角色与公网 IP：</p>
+
+        <table>
+          <thead>
+            <tr><th>节点名</th><th>角色</th><th>内网 IP</th><th>公网 IP</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>master</td><td>control-plane</td><td>10.60.21.65</td><td>117.50.174.70</td></tr>
+            <tr><td>node01</td><td>worker</td><td>10.60.72.252</td><td>117.50.248.154</td></tr>
+            <tr><td>node02</td><td>worker</td><td>10.60.177.72</td><td>117.50.180.164</td></tr>
+          </tbody>
+        </table>
+
+        <h2>国内镜像说明</h2>
+
+        <p><code>registry.k8s.io</code> 在国内无法直接访问，需要替换为阿里云镜像：</p>
+
+        <table>
+          <thead>
+            <tr><th>原始镜像</th><th>替换镜像</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>registry.k8s.io/ingress-nginx/controller:v1.8.1</td><td>registry.cn-hangzhou.aliyuncs.com/google_containers/nginx-ingress-controller:v1.8.1</td></tr>
+            <tr><td>registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.4.0</td><td>registry.cn-hangzhou.aliyuncs.com/google_containers/kube-webhook-certgen:v1.4.0</td></tr>
+          </tbody>
+        </table>
+
+        <h2>测试应用</h2>
+
+        <p>每种模式部署完成后，使用以下 YAML 创建测试后端和 Ingress 规则进行验证：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+      - name: demo
+        image: registry.cn-hangzhou.aliyuncs.com/google_containers/echoserver:1.10
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app-svc
+  namespace: default
+spec:
+  selector:
+    app: demo-app
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /demo
+        pathType: Prefix
+        backend:
+          service:
+            name: demo-app-svc
+            port:
+              number: 80</code></pre>
+
+        <h2>模式一：Deployment + NodePort</h2>
+
+        <h3>架构图</h3>
+
+        <div class="flow-diagram">          ┌─────────────────┐
+          │  External LB    │
+          │  (可选)          │
+          └────────┬────────┘
+                   │
+          ┌────────▼────────┐
+          │  Service        │
+          │  type: NodePort │
+          │  80:30080/TCP   │
+          │  443:30443/TCP  │
+          └────────┬────────┘
+                   │
+      ┌────────────▼────────────┐
+      │  Ingress Controller Pod  │
+      │  (Deployment 副本=2)     │
+      └─────────────────────────┘</div>
+
+        <h3>部署步骤</h3>
+
+        <p><strong>1. 创建完整资源清单</strong></p>
+
+        <p>核心差异点：</p>
+        <ul>
+          <li>工作负载类型为 <code>Deployment</code>，<code>replicas: 2</code></li>
+          <li>Service 类型为 <code>NodePort</code>，指定 <code>nodePort: 30080</code> 和 <code>nodePort: 30443</code></li>
+          <li>启动参数包含 <code>--publish-service</code> 以让 Ingress 资源自动填充地址</li>
+        </ul>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  template:
+    spec:
+      containers:
+      - name: controller
+        image: registry.cn-hangzhou.aliyuncs.com/google_containers/nginx-ingress-controller:v1.8.1
+        args:
+        - /nginx-ingress-controller
+        - --publish-service=$(POD_NAMESPACE)/ingress-nginx-controller
+        - --election-id=ingress-nginx-leader
+        - --controller-class=k8s.io/ingress-nginx
+        - --ingress-class=nginx
+        - --configmap=$(POD_NAMESPACE)/ingress-nginx-controller
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080
+    name: http
+  - port: 443
+    targetPort: 443
+    nodePort: 30443
+    name: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx</code></pre>
+
+        <div class="highlight-box">
+          <p>上述 YAML 仅展示核心差异部分，完整清单还包含 Namespace、SA、RBAC、IngressClass、Admission Webhook 等资源。</p>
+        </div>
+
+        <p><strong>2. 应用部署</strong></p>
+
+<pre><code><span class="code-label">bash</span>kubectl apply -f mode1-deployment-nodeport.yaml</code></pre>
+
+        <p><strong>3. 等待 Pod 就绪</strong></p>
+
+<pre><code><span class="code-label">bash</span>kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/instance=ingress-nginx \
+  --timeout=120s</code></pre>
+
+        <p><strong>4. 部署测试应用并验证</strong></p>
+
+<pre><code><span class="code-label">bash</span>kubectl apply -f test-ingress.yaml
+
+# 验证：通过任意节点 IP:30080 访问
+curl http://117.50.174.70:30080/demo -H 'Host: test.local'
+curl http://117.50.248.154:30080/demo -H 'Host: test.local'
+curl http://117.50.180.164:30080/demo -H 'Host: test.local'</code></pre>
+
+        <h3>验证结果</h3>
+
+<pre><code><span class="code-label">bash</span>$ kubectl get deploy -n ingress-nginx
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+ingress-nginx-controller   2/2     2            2           3m28s
+
+$ kubectl get svc -n ingress-nginx
+NAME                         TYPE        CLUSTER-IP       PORT(S)
+ingress-nginx-controller     NodePort    10.103.193.97    80:30080/TCP,443:30443/TCP
+
+$ kubectl get ingress
+NAME           CLASS   HOSTS   ADDRESS         PORTS   AGE
+demo-ingress   nginx   *       10.103.193.97   80      55s</code></pre>
+
+        <p>三个节点均通过 30080 端口正常响应 echoserver 页面。</p>
+
+        <h3>清理环境</h3>
+
+<pre><code><span class="code-label">bash</span>kubectl delete -f test-ingress.yaml --ignore-not-found
+kubectl delete -f mode1-deployment-nodeport.yaml --ignore-not-found
+kubectl delete ns ingress-nginx --ignore-not-found
+kubectl delete clusterrole ingress-nginx ingress-nginx-admission --ignore-not-found
+kubectl delete clusterrolebinding ingress-nginx ingress-nginx-admission --ignore-not-found
+kubectl delete validatingwebhookconfiguration ingress-nginx-admission --ignore-not-found
+kubectl delete ingressclass nginx --ignore-not-found</code></pre>
+
+        <h2>模式二：DaemonSet + HostNetwork</h2>
+
+        <h3>架构图</h3>
+
+        <div class="flow-diagram">┌─────────────────────────────────────────────┐
+│                  Node 1                      │
+│  ┌────────────────────────────────────┐     │
+│  │  Ingress Controller Pod            │     │
+│  │  hostNetwork: true                 │     │
+│  │  监听 0.0.0.0:80 / 0.0.0.0:443    │     │
+│  └────────────────────────────────────┘     │
+└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│                  Node 2                      │
+│  ┌────────────────────────────────────┐     │
+│  │  Ingress Controller Pod            │     │
+│  │  hostNetwork: true                 │     │
+│  │  监听 0.0.0.0:80 / 0.0.0.0:443    │     │
+│  └────────────────────────────────────┘     │
+└─────────────────────────────────────────────┘</div>
+
+        <h3>部署步骤</h3>
+
+        <p><strong>1. 创建完整资源清单</strong></p>
+
+        <p>核心差异点：</p>
+        <ul>
+          <li>工作负载类型为 <code>DaemonSet</code></li>
+          <li>Pod 配置 <code>hostNetwork: true</code> 和 <code>dnsPolicy: ClusterFirstWithHostNet</code></li>
+          <li>添加 <code>tolerations</code> 允许调度到 control-plane 节点</li>
+          <li>Service 类型为 <code>ClusterIP</code>（不需要 NodePort，直接访问宿主机端口）</li>
+          <li>启动参数移除 <code>--publish-service</code>，添加 <code>--report-node-internal-ip-address</code></li>
+          <li><strong>注意</strong>：宿主机 80/443 端口不能被占用</li>
+        </ul>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  template:
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: controller
+        image: registry.cn-hangzhou.aliyuncs.com/google_containers/nginx-ingress-controller:v1.8.1
+        args:
+        - /nginx-ingress-controller
+        - --election-id=ingress-nginx-leader
+        - --controller-class=k8s.io/ingress-nginx
+        - --ingress-class=nginx
+        - --configmap=$(POD_NAMESPACE)/ingress-nginx-controller
+        - --report-node-internal-ip-address
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  - port: 443
+    targetPort: 443
+    name: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx</code></pre>
+
+        <p><strong>2. 应用部署</strong></p>
+
+<pre><code><span class="code-label">bash</span>kubectl apply -f mode2-daemonset-hostnetwork.yaml</code></pre>
+
+        <p><strong>3. 验证</strong></p>
+
+<pre><code><span class="code-label">bash</span># 检查 Pod：注意 IP 为节点 IP（hostNetwork 模式）
+kubectl get pods -n ingress-nginx -o wide
+
+# 直接访问节点 80 端口（无需指定 NodePort）
+curl http://117.50.174.70/demo -H 'Host: test.local'
+curl http://117.50.248.154/demo -H 'Host: test.local'
+curl http://117.50.180.164/demo -H 'Host: test.local'</code></pre>
+
+        <h3>验证结果</h3>
+
+<pre><code><span class="code-label">bash</span>$ kubectl get ds -n ingress-nginx
+NAME                       DESIRED   CURRENT   READY   NODE SELECTOR
+ingress-nginx-controller   3         3         3       kubernetes.io/os=linux
+
+$ kubectl get pods -n ingress-nginx -o wide
+NAME                             READY   STATUS    IP             NODE
+ingress-nginx-controller-4x7gr   1/1     Running   10.60.21.65    master
+ingress-nginx-controller-btrr2   1/1     Running   10.60.177.72   node02
+ingress-nginx-controller-skqdr   1/1     Running   10.60.72.252   node01
+
+$ kubectl get ingress
+NAME           CLASS   HOSTS   ADDRESS                                 PORTS   AGE
+demo-ingress   nginx   *       10.60.177.72,10.60.21.65,10.60.72.252   80      29s</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 关键观察：</strong></p>
+          <ul>
+            <li>Pod IP = 节点内网 IP（hostNetwork 直接使用宿主机网络命名空间）</li>
+            <li>Ingress ADDRESS 列出所有节点 IP</li>
+            <li>三个节点均通过 80 端口直接响应</li>
+          </ul>
+        </div>
+
+        <h3>清理环境</h3>
+
+<pre><code><span class="code-label">bash</span>kubectl delete -f test-ingress.yaml --ignore-not-found
+kubectl delete -f mode2-daemonset-hostnetwork.yaml --ignore-not-found
+kubectl delete ns ingress-nginx --ignore-not-found
+kubectl delete clusterrole ingress-nginx ingress-nginx-admission --ignore-not-found
+kubectl delete clusterrolebinding ingress-nginx ingress-nginx-admission --ignore-not-found
+kubectl delete validatingwebhookconfiguration ingress-nginx-admission --ignore-not-found
+kubectl delete ingressclass nginx --ignore-not-found</code></pre>
+
+        <h2>模式三：DaemonSet + NodePort</h2>
+
+        <h3>架构图</h3>
+
+        <div class="flow-diagram">┌──────────────────────────────────┐
+│            Node 1                │
+│  ┌────────────────────────┐     │
+│  │  Ingress Controller    │     │
+│  │  containerPort: 80     │     │
+│  └────────────────────────┘     │
+│        ↑ NodePort 30080         │
+└──────────────────────────────────┘
+┌──────────────────────────────────┐
+│            Node 2                │
+│  ┌────────────────────────┐     │
+│  │  Ingress Controller    │     │
+│  │  containerPort: 80     │     │
+│  └────────────────────────┘     │
+│        ↑ NodePort 30080         │
+└──────────────────────────────────┘</div>
+
+        <h3>部署步骤</h3>
+
+        <p><strong>1. 创建完整资源清单</strong></p>
+
+        <p>核心差异点：</p>
+        <ul>
+          <li>工作负载类型为 <code>DaemonSet</code>（每节点一个副本）</li>
+          <li>Service 类型为 <code>NodePort</code>（通过 iptables DNAT 转发）</li>
+          <li>添加 <code>tolerations</code> 允许调度到 control-plane 节点</li>
+          <li>启动参数包含 <code>--publish-service</code></li>
+        </ul>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  template:
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: controller
+        image: registry.cn-hangzhou.aliyuncs.com/google_containers/nginx-ingress-controller:v1.8.1
+        args:
+        - /nginx-ingress-controller
+        - --publish-service=$(POD_NAMESPACE)/ingress-nginx-controller
+        - --election-id=ingress-nginx-leader
+        - --controller-class=k8s.io/ingress-nginx
+        - --ingress-class=nginx
+        - --configmap=$(POD_NAMESPACE)/ingress-nginx-controller
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080
+    name: http
+  - port: 443
+    targetPort: 443
+    nodePort: 30443
+    name: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx</code></pre>
+
+        <p><strong>2. 应用部署</strong></p>
+
+<pre><code><span class="code-label">bash</span>kubectl apply -f mode3-daemonset-nodeport.yaml</code></pre>
+
+        <p><strong>3. 验证</strong></p>
+
+<pre><code><span class="code-label">bash</span>kubectl apply -f test-ingress.yaml
+
+# 验证：通过任意节点 IP:30080 访问
+curl http://117.50.174.70:30080/demo -H 'Host: test.local'
+curl http://117.50.248.154:30080/demo -H 'Host: test.local'
+curl http://117.50.180.164:30080/demo -H 'Host: test.local'</code></pre>
+
+        <h3>验证结果</h3>
+
+<pre><code><span class="code-label">bash</span>$ kubectl get ds -n ingress-nginx
+NAME                       DESIRED   CURRENT   READY   NODE SELECTOR
+ingress-nginx-controller   3         3         3       kubernetes.io/os=linux
+
+$ kubectl get svc -n ingress-nginx
+NAME                         TYPE        CLUSTER-IP      PORT(S)
+ingress-nginx-controller     NodePort    10.107.6.100    80:30080/TCP,443:30443/TCP
+
+$ kubectl get pods -n ingress-nginx -o wide
+NAME                             READY   STATUS    IP            NODE
+ingress-nginx-controller-7pct9   1/1     Running   10.244.2.10   node02
+ingress-nginx-controller-mlpkc   1/1     Running   10.244.0.10   master
+ingress-nginx-controller-rwrf9   1/1     Running   10.244.1.9    node01</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 关键观察：</strong></p>
+          <ul>
+            <li>Pod IP 为 Pod 网段 IP（非 hostNetwork，经过 iptables DNAT）</li>
+            <li>DaemonSet 在 3 个节点各运行 1 个副本</li>
+            <li>三个节点均通过 30080 端口正常响应</li>
+          </ul>
+        </div>
+
+        <h3>清理环境</h3>
+
+<pre><code><span class="code-label">bash</span>kubectl delete -f test-ingress.yaml --ignore-not-found
+kubectl delete -f mode3-daemonset-nodeport.yaml --ignore-not-found
+kubectl delete ns ingress-nginx --ignore-not-found
+kubectl delete clusterrole ingress-nginx ingress-nginx-admission --ignore-not-found
+kubectl delete clusterrolebinding ingress-nginx ingress-nginx-admission --ignore-not-found
+kubectl delete validatingwebhookconfiguration ingress-nginx-admission --ignore-not-found
+kubectl delete ingressclass nginx --ignore-not-found</code></pre>
+
+        <h2>三种模式实测对比</h2>
+
+        <table>
+          <thead>
+            <tr><th>维度</th><th>Deployment + NodePort</th><th>DaemonSet + HostNetwork</th><th>DaemonSet + NodePort</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>工作负载</td><td>Deployment (replicas=2)</td><td>DaemonSet</td><td>DaemonSet</td></tr>
+            <tr><td>Service</td><td>NodePort (30080/30443)</td><td>ClusterIP</td><td>NodePort (30080/30443)</td></tr>
+            <tr><td>Pod 网络模式</td><td>普通容器网络</td><td>hostNetwork: true</td><td>普通容器网络</td></tr>
+            <tr><td>访问端口</td><td>节点IP:30080</td><td>节点IP:80</td><td>节点IP:30080</td></tr>
+            <tr><td>Pod IP</td><td>Pod 网段 (10.244.x.x)</td><td>节点 IP (10.60.x.x)</td><td>Pod 网段 (10.244.x.x)</td></tr>
+            <tr><td>副本数</td><td>手动设置 (2)</td><td>自动=节点数 (3)</td><td>自动=节点数 (3)</td></tr>
+            <tr><td>NAT 跳数</td><td>多一跳 (iptables DNAT)</td><td>零跳 (直达)</td><td>多一跳 (iptables DNAT)</td></tr>
+            <tr><td>源 IP 保留</td><td>需配置 externalTrafficPolicy</td><td>天然保留</td><td>需配置 externalTrafficPolicy</td></tr>
+            <tr><td>端口冲突</td><td>无 (使用高端口)</td><td>有 (占用80/443)</td><td>无 (使用高端口)</td></tr>
+            <tr><td>弹性伸缩</td><td>支持 HPA</td><td>跟随节点数</td><td>跟随节点数</td></tr>
+            <tr><td>适用场景</td><td>云上生产、流量波动大</td><td>裸金属、性能敏感</td><td>裸金属、端口受限</td></tr>
+          </tbody>
+        </table>
+
+        <h3>命令速查</h3>
+
+<pre><code><span class="code-label">bash</span># 查看控制器状态
+kubectl get pods -n ingress-nginx -o wide
+
+# 查看 Service
+kubectl get svc -n ingress-nginx
+
+# 查看 Ingress 规则
+kubectl get ingress -A
+
+# 查看 Nginx 配置（进入 Pod）
+kubectl exec -n ingress-nginx -it &lt;pod-name&gt; -- cat /etc/nginx/nginx.conf
+
+# 查看 Controller 日志
+kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx
+
+# 强制 reload
+kubectl exec -n ingress-nginx -it &lt;pod-name&gt; -- nginx -s reload</code></pre>
+
+      </div>
+
+        <!-- TOC (auto-generated by JS) -->
+        <aside class="toc-container" id="toc-container">
+          <div class="toc-title">目录</div>
+          <ul class="toc-list" id="toc-list"></ul>
+        </aside>
+
+      </div>
+      <!-- /article-layout -->
+
+    </div>
+  </main>
+
+</div>
+
+<!-- Mobile TOC button + panel -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+// ===== Auto-generate TOC from h2/h3 =====
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var mobilePanel = document.getElementById('toc-mobile-panel');
+      if (mobilePanel) mobilePanel.classList.remove('show');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  // Scroll spy
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  updateActiveToc();
+})();
+</script>
+
+</body>
+</html>
