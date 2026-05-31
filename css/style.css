@@ -537,6 +537,10 @@ a:hover { color: var(--accent-hover); }
 .article-header .article-meta .tag { margin-right: 6px; }
 
 /* ============ Article Content ============ */
+.article-content {
+  overflow-x: hidden;
+  min-width: 0;
+}
 .article-content h2 {
   font-size: 20px;
   font-weight: 600;
