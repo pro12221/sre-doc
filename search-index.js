@@ -190,5 +190,13 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-05-31",
     url: "posts/Ingress-Nginx三种部署模式实战.html"
+  },
+  {
+    title: "Ingress-Nginx 高阶用法与流量控制",
+    desc: "Ingress-Nginx 金丝雀/蓝绿/灰度/滚动发布全攻略：基于权重、请求头、Cookie、正则的流量控制，TLS 站点构建与 cert-manager 自动证书，流量镜像与生产实战组合案例。",
+    tags: ["kubernetes", "network"],
+    category: "kubernetes",
+    date: "2026-05-31",
+    url: "posts/Ingress-Nginx高阶用法与流量控制.html"
   }
 ];

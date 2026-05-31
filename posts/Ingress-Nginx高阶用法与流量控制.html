@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingress-Nginx 高阶用法与流量控制 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <a href="../index.html#kubernetes" class="nav-item active">
+          <span class="dot" style="background:var(--tag-k8s)"></span>
+          Kubernetes
+          <span class="count">9</span>
+        </a>
+        <a href="../index.html#go" class="nav-item">
+          <span class="dot" style="background:var(--tag-go)"></span>
+          Go
+          <span class="count">2</span>
+        </a>
+        <a href="../index.html#python" class="nav-item">
+          <span class="dot" style="background:var(--tag-python)"></span>
+          Python
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#devops" class="nav-item">
+          <span class="dot" style="background:var(--tag-devops)"></span>
+          DevOps
+          <span class="count">1</span>
+        </a>
+        <a href="../index.html#linux" class="nav-item">
+          <span class="dot" style="background:var(--tag-linux)"></span>
+          Linux
+          <span class="count">2</span>
+        </a>
+        <a href="../index.html#network" class="nav-item">
+          <span class="dot" style="background:var(--tag-network)"></span>
+          Network
+          <span class="count">3</span>
+        </a>
+        <a href="../index.html#ai" class="nav-item">
+          <span class="dot" style="background:var(--tag-ai)"></span>
+          AI
+          <span class="count">8</span>
+        </a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
+          <span class="dot" style="background:#24292e"></span>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Tech Notes
+    </div>
+  </aside>
+
+  <!-- ====== Main Content ====== -->
+  <main class="main">
+    <div class="content-wrapper">
+
+      <!-- Article Header -->
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">Kubernetes</a>
+        </div>
+        <h1>Ingress-Nginx 高阶用法与流量控制</h1>
+        <div class="article-meta">
+          <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
+          <span>2026-05-31</span>
+        </div>
+      </div>
+
+      <!-- Article Content -->
+      <div class="article-layout">
+
+        <div class="article-content">
+
+        <h2>前置说明</h2>
+
+        <table>
+          <thead>
+            <tr><th>项目</th><th>值</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Ingress-Nginx 版本</td><td>≥ 0.21.0（Canary 特性要求）</td></tr>
+            <tr><td>K8s 版本</td><td>≥ 1.19（networking.k8s.io/v1）</td></tr>
+            <tr><td>Canary 功能</td><td>从 0.21.0 引入，0.30.0 后趋于稳定</td></tr>
+          </tbody>
+        </table>
+
+        <p>Ingress-Nginx 的 Canary 功能通过一组专用的 Annotation 实现，<strong>不需要安装额外组件</strong>，只需在 Ingress 资源上添加对应注解即可。核心思路是：创建两条 Ingress 规则指向同一域名，一条为主版本（stable），一条为金丝雀版本（canary），Controller 根据注解决定流量分配比例。</p>
+
+        <hr>
+
+        <h2>金丝雀发布（Canary Release）</h2>
+
+        <h3>核心注解一览</h3>
+
+        <table>
+          <thead>
+            <tr><th>注解</th><th>类型</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>nginx.ingress.kubernetes.io/canary</code></td><td>"true"/"false"</td><td><strong>必须</strong>，标记此 Ingress 为金丝雀</td></tr>
+            <tr><td><code>nginx.ingress.kubernetes.io/canary-weight</code></td><td>数字（0-100）</td><td>按权重分配流量百分比</td></tr>
+            <tr><td><code>nginx.ingress.kubernetes.io/canary-by-header</code></td><td>字符串</td><td>按请求头路由，值为 <code>always</code> 走金丝雀，<code>never</code> 走主版本</td></tr>
+            <tr><td><code>nginx.ingress.kubernetes.io/canary-by-header-value</code></td><td>字符串</td><td>自定义请求头的匹配值（需配合 canary-by-header）</td></tr>
+            <tr><td><code>nginx.ingress.kubernetes.io/canary-by-header-pattern</code></td><td>字符串</td><td>PCRE 正则匹配请求头值（canary-by-header-value 优先）</td></tr>
+            <tr><td><code>nginx.ingress.kubernetes.io/canary-by-cookie</code></td><td>字符串</td><td>按 Cookie 路由，值为 <code>always</code> 走金丝雀，<code>never</code> 走主版本</td></tr>
+            <tr><td><code>nginx.ingress.kubernetes.io/canary-weight-total</code></td><td>数字</td><td>权重总量，默认 100</td></tr>
+          </tbody>
+        </table>
+
+        <h3>优先级规则</h3>
+
+        <div class="flow-diagram">canary-by-header &gt; canary-by-cookie &gt; canary-weight</div>
+
+        <p>请求到达后的匹配逻辑：</p>
+
+        <ol>
+          <li>先检查 <code>canary-by-header</code>——如果请求头匹配，直接路由（不管权重和 Cookie）</li>
+          <li>再检查 <code>canary-by-cookie</code>——如果 Cookie 匹配，直接路由（不管权重）</li>
+          <li>最后按 <code>canary-weight</code> 比例随机分配</li>
+        </ol>
+
+        <p>这意味着：<strong>精确匹配（header/cookie）始终优先于模糊分配（weight）</strong>。</p>
+
+        <hr>
+
+        <h3>场景一：基于权重的金丝雀发布</h3>
+
+        <p>最简单的金丝雀方式——将一定比例的流量随机导入新版本。</p>
+
+        <p><strong>架构图：</strong></p>
+
+        <div class="flow-diagram">                    ┌──────────────────┐
+                    │   Ingress-Nginx   │
+                    │   Controller      │
+                    └────────┬─────────┘
+                             │
+               ┌─────────────┼─────────────┐
+               │ 90%         │ 10%         │
+        ┌──────▼──────┐  ┌──▼───────────┐
+        │ Production  │  │   Canary     │
+        │ Service     │  │   Service    │
+        │ (v1 稳定版)  │  │  (v2 新版本)  │
+        └─────────────┘  └──────────────┘</div>
+
+        <p><strong>1. 主版本 Deployment + Service + Ingress：</strong></p>
+
+<pre><code><span class="code-label">YAML</span># 主版本 Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-v1
+  labels:
+    app: myapp
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: v1
+    spec:
+      containers:
+      - name: myapp
+        image: registry.cn-hangzhou.aliyuncs.com/demo/myapp:v1
+        ports:
+        - containerPort: 8080
+        env:
+        - name: VERSION
+          value: "v1"
+---
+# 主版本 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-v1-svc
+spec:
+  selector:
+    app: myapp
+    version: v1
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# 主版本 Ingress（无 canary 注解）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 80</code></pre>
+
+        <p><strong>2. 金丝雀版本 Deployment + Service + Ingress：</strong></p>
+
+<pre><code><span class="code-label">YAML</span># 金丝雀 Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-v2
+  labels:
+    app: myapp
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: v2
+    spec:
+      containers:
+      - name: myapp
+        image: registry.cn-hangzhou.aliyuncs.com/demo/myapp:v2
+        ports:
+        - containerPort: 8080
+        env:
+        - name: VERSION
+          value: "v2"
+---
+# 金丝雀 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-v2-svc
+spec:
+  selector:
+    app: myapp
+    version: v2
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# 金丝雀 Ingress（带 canary 注解）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+        <p><strong>验证：</strong></p>
+
+<pre><code><span class="code-label">bash</span># 发送 20 次请求，观察版本分布
+for i in $(seq 1 20); do
+  curl -s http://myapp.example.com/api/version | grep "version"
+done
+
+# 期望输出：约 18 次 v1，约 2 次 v2
+# v1  v1  v2  v1  v1  v1  v1  v2  v1  v1
+# v1  v1  v1  v1  v2  v1  v1  v1  v1  v1</code></pre>
+
+        <p><strong>渐进式放量流程：</strong></p>
+
+<pre><code><span class="code-label">bash</span># 阶段1：10% 流量到金丝雀
+kubectl annotate ingress myapp-canary nginx.ingress.kubernetes.io/canary-weight=10 --overwrite
+
+# 观察指标无异常后 → 阶段2：30%
+kubectl annotate ingress myapp-canary nginx.ingress.kubernetes.io/canary-weight=30 --overwrite
+
+# 继续观察 → 阶段3：50%
+kubectl annotate ingress myapp-canary nginx.ingress.kubernetes.io/canary-weight=50 --overwrite
+
+# 最终：全量发布（删除 canary ingress，升级主版本镜像，删除金丝雀资源）
+kubectl delete ingress myapp-canary
+kubectl set image deployment/app-v1 myapp=registry.cn-hangzhou.aliyuncs.com/demo/myapp:v2</code></pre>
+
+        <hr>
+
+        <h3>场景二：基于请求头的金丝雀发布</h3>
+
+        <p>通过 HTTP 请求头精确控制哪些请求走金丝雀，适合内部测试或 A/B 测试。</p>
+
+        <p><strong>1. 固定值匹配（canary-by-header）：</strong></p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary-header
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+<pre><code><span class="code-label">bash</span># 请求头 X-Canary: always → 走金丝雀
+curl -H "X-Canary: always" http://myapp.example.com/api/version
+# 返回 v2
+
+# 请求头 X-Canary: never → 走主版本
+curl -H "X-Canary: never" http://myapp.example.com/api/version
+# 返回 v1
+
+# 无请求头或非 always/never → 按其他 canary 规则（如 weight）分配
+curl http://myapp.example.com/api/version
+# 返回 v1（如果没有其他 canary 规则）</code></pre>
+
+        <p><strong>2. 自定义值匹配（canary-by-header + canary-by-header-value）：</strong></p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary-header-custom
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Env"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "staging"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+<pre><code><span class="code-label">bash</span># 自定义值匹配
+curl -H "X-Env: staging" http://myapp.example.com/api/version
+# 返回 v2
+
+# 不匹配的值 → 走主版本
+curl -H "X-Env: production" http://myapp.example.com/api/version
+# 返回 v1</code></pre>
+
+        <p><strong>3. 正则匹配（canary-by-header-pattern）：</strong></p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary-header-regex
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-User-Type"
+    nginx.ingress.kubernetes.io/canary-by-header-pattern: "^(internal|beta|test)$"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+<pre><code><span class="code-label">bash</span># 匹配正则 → 走金丝雀
+curl -H "X-User-Type: internal" http://myapp.example.com/api/version  # v2
+curl -H "X-User-Type: beta" http://myapp.example.com/api/version      # v2
+curl -H "X-User-Type: test" http://myapp.example.com/api/version      # v2
+
+# 不匹配 → 走主版本
+curl -H "X-User-Type: external" http://myapp.example.com/api/version  # v1</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>注意</strong>：当同时设置了 <code>canary-by-header-value</code> 和 <code>canary-by-header-pattern</code> 时，<code>canary-by-header-value</code> 优先，<code>canary-by-header-pattern</code> 会被忽略。如果正则表达式在处理请求时出错，该请求会被视为不匹配。</p>
+        </div>
+
+        <hr>
+
+        <h3>场景三：基于 Cookie 的金丝雀发布</h3>
+
+        <p>通过 Cookie 控制流量分配，可以实现"登录用户走新版本"等场景。一旦用户被标记，后续请求持续走金丝雀版本。</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary-cookie
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-cookie: "use_canary"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+<pre><code><span class="code-label">bash</span># Cookie use_canary=always → 走金丝雀
+curl -b "use_canary=always" http://myapp.example.com/api/version
+# 返回 v2
+
+# Cookie use_canary=never → 走主版本
+curl -b "use_canary=never" http://myapp.example.com/api/version
+# 返回 v1
+
+# 无 Cookie → 按其他 canary 规则分配
+curl http://myapp.example.com/api/version
+# 返回 v1</code></pre>
+
+        <p><strong>浏览器端设置方式：</strong></p>
+
+<pre><code><span class="code-label">javascript</span>// 前端 JS 设置 Cookie，让用户进入金丝雀版本
+document.cookie = "use_canary=always; path=/; max-age=86400";
+
+// 移除 Cookie，回到主版本
+document.cookie = "use_canary=never; path=/; max-age=0";</code></pre>
+
+        <hr>
+
+        <h3>场景四：组合策略——Header + Cookie + Weight</h3>
+
+        <p>实际生产中最常用的方式是组合多种策略：特定人群（Header）强制走金丝雀，已标记用户（Cookie）保持金丝雀，其余流量按权重分配。</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary-combined
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+    nginx.ingress.kubernetes.io/canary-by-cookie: "use_canary"
+    nginx.ingress.kubernetes.io/canary-weight: "20"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+        <p><strong>请求路由流程：</strong></p>
+
+        <div class="flow-diagram">请求到达
+  │
+  ├─ 1. 检查 X-Canary 请求头
+  │     ├─ always → 金丝雀（100%）
+  │     ├─ never  → 主版本（100%）
+  │     └─ 无/其他值 → 继续判断
+  │
+  ├─ 2. 检查 use_canary Cookie
+  │     ├─ always → 金丝雀（100%）
+  │     ├─ never  → 主版本（100%）
+  │     └─ 无/其他值 → 继续判断
+  │
+  └─ 3. 按权重随机分配
+        ├─ 20% → 金丝雀
+        └─ 80% → 主版本</div>
+
+<pre><code><span class="code-label">bash</span># 测试1：Header 强制金丝雀
+curl -H "X-Canary: always" http://myapp.example.com/api/version
+# → v2（Header 匹配，不再检查 Cookie 和权重）
+
+# 测试2：Cookie 强制金丝雀
+curl -b "use_canary=always" http://myapp.example.com/api/version
+# → v2（Cookie 匹配，不再检查权重）
+
+# 测试3：无 Header/Cookie，按权重
+for i in $(seq 1 20); do
+  curl -s http://myapp.example.com/api/version
+done
+# → 约 16 次 v1，约 4 次 v2
+
+# 测试4：Header 强制主版本
+curl -H "X-Canary: never" -b "use_canary=always" http://myapp.example.com/api/version
+# → v1（Header 优先级 &gt; Cookie）</code></pre>
+
+        <hr>
+
+        <h2>蓝绿部署（Blue-Green Deployment）</h2>
+
+        <p>蓝绿部署的核心是<strong>全量切换</strong>：同时运行两套完整环境（蓝/绿），通过修改 Service 的 selector 或 Ingress 的 backend 瞬间切换流量。</p>
+
+        <h3>方式一：修改 Ingress Backend 切换</h3>
+
+<pre><code><span class="code-label">YAML</span># 蓝环境（当前生产）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-blue
+  labels:
+    app: myapp
+    slot: blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: myapp
+        slot: blue
+    spec:
+      containers:
+      - name: myapp
+        image: myapp:v1
+        ports:
+        - containerPort: 8080
+---
+# 绿环境（新版本，待切换）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-green
+  labels:
+    app: myapp
+    slot: green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: myapp
+        slot: green
+    spec:
+      containers:
+      - name: myapp
+        image: myapp:v2
+        ports:
+        - containerPort: 8080
+---
+# 蓝环境 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-blue-svc
+spec:
+  selector:
+    app: myapp
+    slot: blue
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# 绿环境 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-green-svc
+spec:
+  selector:
+    app: myapp
+    slot: green
+  ports:
+  - port: 80
+    targetPort: 8080</code></pre>
+
+        <p><strong>Ingress 切换——蓝环境在线：</strong></p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-blue-svc    # ← 当前指向蓝环境
+            port:
+              number: 80</code></pre>
+
+        <p><strong>一键切换到绿环境：</strong></p>
+
+<pre><code><span class="code-label">bash</span># 修改 Ingress backend，瞬间切换
+kubectl patch ingress myapp-ingress -p '{"spec":{"rules":[{"host":"myapp.example.com","http":{"paths":[{"pathType":"Prefix","path":"/","backend":{"service":{"name":"myapp-green-svc","port":{"number":80}}}}]}}]}}'
+
+# 回滚：再切回蓝环境
+kubectl patch ingress myapp-ingress -p '{"spec":{"rules":[{"host":"myapp.example.com","http":{"paths":[{"pathType":"Prefix","path":"/","backend":{"service":{"name":"myapp-blue-svc","port":{"number":80}}}}]}}]}}'</code></pre>
+
+        <h3>方式二：利用 Canary 注解实现蓝绿</h3>
+
+        <p>利用 <code>canary-weight: 100</code> 实现全量切换，好处是可以通过调整权重实现渐进式过渡。</p>
+
+<pre><code><span class="code-label">YAML</span># 绿环境 Ingress，初始 weight=0（不接收流量）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary-green
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "0"     # 初始不接收流量
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-green-svc
+            port:
+              number: 80</code></pre>
+
+<pre><code><span class="code-label">bash</span># 蓝绿切换：将金丝雀权重设为 100
+kubectl annotate ingress myapp-canary-green \
+  nginx.ingress.kubernetes.io/canary-weight=100 --overwrite
+
+# 回滚：将权重设回 0
+kubectl annotate ingress myapp-canary-green \
+  nginx.ingress.kubernetes.io/canary-weight=0 --overwrite</code></pre>
+
+        <hr>
+
+        <h2>滚动发布与灰度发布</h2>
+
+        <h3>滚动发布（Rolling Update）</h3>
+
+        <p>Kubernetes Deployment 原生支持的发布策略，不需要 Ingress 层介入：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  replicas: 6
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2        # 滚动过程中最多多出 2 个 Pod
+      maxUnavailable: 1   # 滚动过程中最多允许 1 个 Pod 不可用
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    spec:
+      containers:
+      - name: myapp
+        image: myapp:v2    # 更新镜像触发滚动</code></pre>
+
+        <p><strong>滚动发布 vs 金丝雀发布对比：</strong></p>
+
+        <table>
+          <thead>
+            <tr><th>维度</th><th>滚动发布</th><th>金丝雀发布</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>流量控制</td><td>无，新旧 Pod 随机接收</td><td>精确控制流量比例</td></tr>
+            <tr><td>回滚速度</td><td>较慢（需要重新滚动）</td><td>瞬间（删除 canary Ingress）</td></tr>
+            <tr><td>影响范围</td><td>所有用户受影响</td><td>可限定特定用户群体</td></tr>
+            <tr><td>复杂度</td><td>低（K8s 原生）</td><td>中（需配置 Ingress 注解）</td></tr>
+            <tr><td>适用场景</td><td>低风险变更</td><td>高风险变更、需要验证</td></tr>
+          </tbody>
+        </table>
+
+        <h3>灰度发布（Grayscale Release）</h3>
+
+        <p>灰度发布是金丝雀发布的渐进式版本——从小比例流量开始，逐步放大：</p>
+
+        <div class="flow-diagram">5% → 观察 → 10% → 观察 → 30% → 观察 → 50% → 观察 → 100%（全量）
+       ↓              ↓              ↓
+     回滚            回滚           回滚</div>
+
+        <p><strong>自动化灰度脚本示例：</strong></p>
+
+<pre><code><span class="code-label">bash</span>#!/bin/bash
+# grayscale-release.sh
+# 用法: ./grayscale-release.sh &lt;canary-ingress-name&gt; &lt;namespace&gt;
+
+INGRESS=$1
+NS=${2:-default}
+WEIGHTS=(5 10 20 30 50 80 100)
+INTERVAL=300  # 每阶段观察 5 分钟
+
+for w in "${WEIGHTS[@]}"; do
+  echo "[$(date)] 设置金丝雀权重: ${w}%"
+  kubectl annotate ingress ${INGRESS} -n ${NS} \
+    nginx.ingress.kubernetes.io/canary-weight=${w} --overwrite
+
+  echo "[$(date)] 等待 ${INTERVAL}s 观察指标..."
+  sleep ${INTERVAL}
+
+  # 检查错误率（示例：通过 Prometheus 查询）
+  ERROR_RATE=$(curl -s "http://prometheus:9090/api/v1/query?query=sum(rate(http_requests_total{status=~\"5..\"}[5m]))/sum(rate(http_requests_total[5m]))" | jq -r '.data.result[0].value[1]')
+  
+  echo "[$(date)] 当前错误率: ${ERROR_RATE}"
+  
+  # 错误率超过阈值则回滚
+  if (( $(echo "${ERROR_RATE} &gt; 0.05" | bc -l) )); then
+    echo "[$(date)] 错误率超过 5%，回滚！"
+    kubectl annotate ingress ${INGRESS} -n ${NS} \
+      nginx.ingress.kubernetes.io/canary-weight=0 --overwrite
+    exit 1
+  fi
+done
+
+echo "[$(date)] 金丝雀发布完成，全量切换成功"</code></pre>
+
+        <hr>
+
+        <h2>流量镜像（Traffic Mirroring / Shadowing）</h2>
+
+        <p>流量镜像将生产流量的<strong>副本</strong>发送到镜像服务，不影响正常请求的响应。用于预生产环境验证新版本在真实流量下的表现。</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-mirror
+  annotations:
+    nginx.ingress.kubernetes.io/mirror-target: "http://myapp-shadow-svc:80"
+    nginx.ingress.kubernetes.io/mirror-host: "myapp.example.com"
+    nginx.ingress.kubernetes.io/mirror-request-body: "on"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc      # 主流量仍然正常响应
+            port:
+              number: 80</code></pre>
+
+        <table>
+          <thead>
+            <tr><th>注解</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>mirror-target</code></td><td>镜像流量发送的目标 Service 地址</td></tr>
+            <tr><td><code>mirror-host</code></td><td>镜像请求的 Host 头（默认与原始请求相同）</td></tr>
+            <tr><td><code>mirror-request-body</code></td><td>是否镜像请求体，<code>on</code>/<code>off</code>（默认 <code>on</code>）</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>关键特性：</strong></p>
+        <ul>
+          <li>镜像请求的响应会被<strong>丢弃</strong>，不影响原始请求</li>
+          <li>镜像请求与原始请求异步发送，不会增加主请求延迟</li>
+          <li>适合在预发环境用真实流量做压力测试和回归验证</li>
+        </ul>
+
+        <hr>
+
+        <h2>构建 TLS 站点</h2>
+
+        <h3>方式一：手动管理 TLS 证书</h3>
+
+        <p><strong>1. 生成自签名证书（测试用）：</strong></p>
+
+<pre><code><span class="code-label">bash</span># 生成私钥和证书
+openssl req -x509 -nodes -days 365 \
+  -newkey rsa:2048 \
+  -keyout tls.key \
+  -out tls.crt \
+  -subj "/CN=myapp.example.com/O=myapp" \
+  -addext "subjectAltName=DNS:myapp.example.com,DNS:www.myapp.example.com"
+
+# 创建 K8s Secret
+kubectl create secret tls myapp-tls-secret \
+  --key tls.key \
+  --cert tls.crt</code></pre>
+
+        <p><strong>2. 配置 Ingress 启用 TLS：</strong></p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-tls
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - myapp.example.com
+    secretName: myapp-tls-secret     # 引用上面创建的 Secret
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 80</code></pre>
+
+<pre><code><span class="code-label">bash</span># 验证 TLS
+curl -k https://myapp.example.com/api/version
+# -k 跳过自签名证书验证
+
+# 验证证书信息
+openssl s_client -connect myapp.example.com:443 -servername myapp.example.com &lt;/dev/null 2&gt;/dev/null | openssl x509 -noout -text</code></pre>
+
+        <p><strong>3. 自动 HTTP → HTTPS 重定向：</strong></p>
+
+        <p>Ingress 配置了 <code>tls</code> 段后，ingress-nginx 默认会将 HTTP 请求 308 重定向到 HTTPS。可以通过注解控制：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-tls
+  annotations:
+    # 禁用自动 HTTPS 重定向（不推荐生产使用）
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # 强制 HTTPS 重定向（即使没有 TLS 证书，适用于外部 TLS 卸载场景）
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - myapp.example.com
+    secretName: myapp-tls-secret
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 80</code></pre>
+
+        <table>
+          <thead>
+            <tr><th>注解</th><th>默认值</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>ssl-redirect</code></td><td>true（配置 TLS 时）</td><td>有 TLS 配置时自动重定向 HTTP → HTTPS</td></tr>
+            <tr><td><code>force-ssl-redirect</code></td><td>false</td><td>即使没有 TLS 证书也强制重定向（适用于 AWS ELB 等外部 TLS 终止场景）</td></tr>
+          </tbody>
+        </table>
+
+        <hr>
+
+        <h3>方式二：cert-manager 自动证书管理</h3>
+
+        <p>cert-manager 是 Kubernetes 证书管理的标准方案，支持 Let's Encrypt 自动签发和续期。</p>
+
+        <p><strong>1. 安装 cert-manager：</strong></p>
+
+<pre><code><span class="code-label">bash</span># 安装 cert-manager（v1.14+）
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+
+# 验证
+kubectl get pods -n cert-manager
+# NAME                                       READY   STATUS
+# cert-manager-xxxxxx-xxxxx                  1/1     Running
+# cert-manager-cainjector-xxxxxx-xxxxx       1/1     Running
+# cert-manager-webhook-xxxxxx-xxxxx          1/1     Running</code></pre>
+
+        <p><strong>2. 创建 ClusterIssuer（Let's Encrypt）：</strong></p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+# 测试环境 Issuer（不受速率限制，但证书不被浏览器信任）
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@example.com
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - http01:
+        ingress:
+          class: nginx</code></pre>
+
+        <p><strong>3. Ingress 自动签发证书：</strong></p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-auto-tls
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - myapp.example.com
+    secretName: myapp-auto-tls    # cert-manager 自动创建此 Secret
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 80</code></pre>
+
+<pre><code><span class="code-label">bash</span># 查看证书签发状态
+kubectl get certificate
+# NAME               READY   SECRET             AGE
+# myapp-auto-tls     True    myapp-auto-tls     2m
+
+# 查看证书详情
+kubectl describe certificate myapp-auto-tls
+
+# 查看订单状态
+kubectl describe order myapp-auto-tls-xxxxx</code></pre>
+
+        <p><strong>证书自动续期：</strong>cert-manager 会在证书到期前 30 天自动续期，无需人工干预。</p>
+
+        <hr>
+
+        <h3>方式三：TLS Passthrough</h3>
+
+        <p>TLS Passthrough 不在 Ingress Controller 层终止 TLS，而是将加密流量直接透传到后端 Pod，由后端服务自行处理 TLS 握手。</p>
+
+        <p><strong>适用场景：</strong></p>
+        <ul>
+          <li>后端服务需要客户端证书认证（mTLS）</li>
+          <li>gRPC 服务需要端到端加密</li>
+          <li>不信任 Ingress Controller 处理证书</li>
+        </ul>
+
+<pre><code><span class="code-label">bash</span># 启用 SSL Passthrough（需要修改 Ingress Controller 启动参数）
+# 在 ingress-nginx-controller Deployment 中添加：
+# --enable-ssl-passthrough</code></pre>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-ssl-passthrough
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 443      # 后端服务监听 443</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>注意</strong>：TLS Passthrough 会绕过 NGINX 的所有 HTTP 层处理（包括 L7 负载均衡、header 修改、rate limiting），且流量发送到 Service 的 ClusterIP 而非单个 Endpoint，存在性能开销。</p>
+        </div>
+
+        <hr>
+
+        <h3>TLS 安全加固</h3>
+
+        <p>通过 ConfigMap 全局配置 TLS 安全参数：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+data:
+  # TLS 协议版本（仅允许 TLS 1.2 和 1.3）
+  ssl-protocols: "TLSv1.2 TLSv1.3"
+
+  # 加密套件（推荐 Mozilla Modern 配置）
+  ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305"
+
+  # 优先使用服务端密码套件
+  ssl-prefer-server-ciphers: "true"
+
+  # 启用 HSTS（强制浏览器使用 HTTPS）
+  hsts: "true"
+  hsts-max-age: "31536000"           # 1 年
+  hsts-include-subdomains: "true"
+  hsts-preload: "true"
+
+  # OCSP Stapling
+  ssl-ocsp: "true"</code></pre>
+
+        <p>也可以在单个 Ingress 上覆盖：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-tls-hardened
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-ciphers: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+    nginx.ingress.kubernetes.io/ssl-prefer-server-ciphers: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - myapp.example.com
+    secretName: myapp-tls-secret
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 80</code></pre>
+
+        <hr>
+
+        <h3>多域名 TLS（SNI）</h3>
+
+        <p>Ingress-Nginx 通过 SNI（Server Name Indication）支持在同一 IP 上为多个域名提供不同的 TLS 证书：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: multi-domain-tls
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - app1.example.com
+    secretName: app1-tls-secret
+  - hosts:
+    - app2.example.com
+    secretName: app2-tls-secret
+  - hosts:
+    - app3.example.com
+    secretName: app3-tls-secret
+  rules:
+  - host: app1.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: app1-svc
+            port:
+              number: 80
+  - host: app2.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: app2-svc
+            port:
+              number: 80
+  - host: app3.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: app3-svc
+            port:
+              number: 80</code></pre>
+
+        <p><strong>通配符证书：</strong></p>
+
+<pre><code><span class="code-label">YAML</span># 使用通配符证书覆盖所有子域名
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wildcard-tls
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - "*.example.com"
+    secretName: wildcard-tls-secret    # 证书 SAN 包含 *.example.com
+  rules:
+  - host: app1.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: app1-svc
+            port:
+              number: 80
+  - host: app2.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: app2-svc
+            port:
+              number: 80</code></pre>
+
+        <hr>
+
+        <h2>金丝雀与 TLS 组合实战</h2>
+
+        <p>生产环境中，金丝雀发布和 TLS 通常需要组合使用。关键约束：<strong>Canary Ingress 的非 Canary 注解会被忽略，继承主 Ingress 的配置</strong>，包括 TLS 配置。</p>
+
+<pre><code><span class="code-label">YAML</span># 主版本 Ingress（含 TLS）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-prod
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - myapp.example.com
+    secretName: myapp-prod-tls
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 80
+---
+# 金丝雀 Ingress（TLS 配置自动继承，无需重复声明）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "20"
+    # 以下注解在 canary Ingress 中会被忽略，自动继承主 Ingress：
+    # - cert-manager.io/cluster-issuer
+    # - nginx.ingress.kubernetes.io/ssl-redirect
+    # - tls 段配置
+    # 以下注解在 canary Ingress 中生效（例外）：
+    nginx.ingress.kubernetes.io/load-balance: "ewma"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+        <hr>
+
+        <h2>会话亲和性与金丝雀</h2>
+
+        <p>当使用基于 Cookie 的会话亲和性（Session Affinity）时，需要考虑与金丝雀的交互行为。</p>
+
+<pre><code><span class="code-label">YAML</span># 主版本 Ingress 启用会话亲和性
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-prod
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "INGRESSCOOKIE"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v1-svc
+            port:
+              number: 80
+---
+# 金丝雀 Ingress 的会话亲和性行为
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "20"
+    # sticky（默认）：被金丝雀服务过的用户，后续请求持续走金丝雀
+    nginx.ingress.kubernetes.io/affinity-canary-behavior: "sticky"
+    # legacy：忽略会话亲和性，每次请求按权重重新分配
+    # nginx.ingress.kubernetes.io/affinity-canary-behavior: "legacy"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+        <table>
+          <thead>
+            <tr><th>affinity-canary-behavior</th><th>行为</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>sticky</code>（默认）</td><td>一旦用户被路由到金丝雀，后续请求持续走金丝雀</td></tr>
+            <tr><td><code>legacy</code></td><td>忽略会话亲和性，每次请求按权重重新判断</td></tr>
+          </tbody>
+        </table>
+
+        <hr>
+
+        <h2>自定义权重总量</h2>
+
+        <p>默认权重总量为 100，但可以通过 <code>canary-weight-total</code> 修改，实现更精细的权重控制：</p>
+
+<pre><code><span class="code-label">YAML</span>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary-fine
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "1"
+    nginx.ingress.kubernetes.io/canary-weight-total: "1000"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: myapp-v2-svc
+            port:
+              number: 80</code></pre>
+
+        <p>上述配置中，权重总量为 1000，金丝雀权重为 1，即 0.1% 的流量走金丝雀。这在超大规模流量场景下非常有用。</p>
+
+        <hr>
+
+        <h2>已知限制与注意事项</h2>
+
+        <table>
+          <thead>
+            <tr><th>限制</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>每个 Ingress 规则最多一条 Canary</td><td>同一域名+路径只能有一条 Canary Ingress</td></tr>
+            <tr><td>Canary 继承主 Ingress 注解</td><td>Canary Ingress 的非 Canary 注解被忽略（除 load-balance、upstream-hash-by、session-affinity）</td></tr>
+            <tr><td>证书链顺序</td><td>Secret 中证书必须是 leaf → intermediate → root 顺序，否则导入失败</td></tr>
+            <tr><td>SSL Passthrough 性能</td><td>绕过 NGINX 全部 L7 处理，流量发送到 ClusterIP 而非单个 Endpoint</td></tr>
+            <tr><td>权重非精确</td><td>小流量下权重分配可能有偏差，流量越大越接近设定比例</td></tr>
+            <tr><td>Cookie 仅支持 always/never</td><td><code>canary-by-cookie</code> 不支持自定义值，只有 <code>always</code> 和 <code>never</code> 有效</td></tr>
+            <tr><td>正则匹配失败处理</td><td><code>canary-by-header-pattern</code> 正则出错时，请求视为不匹配</td></tr>
+          </tbody>
+        </table>
+
+        <hr>
+
+        <h2>完整实战：TLS + 金丝雀灰度发布</h2>
+
+        <p>将以上所有特性整合为一个完整的实战案例。</p>
+
+        <p><strong>环境：</strong></p>
+        <ul>
+          <li>域名：<code>app.example.com</code></li>
+          <li>主版本：v1，3 副本</li>
+          <li>金丝雀版本：v2，2 副本</li>
+          <li>自动 TLS 证书（cert-manager + Let's Encrypt）</li>
+          <li>灰度策略：内部用户 Header 强制金丝雀 → Cookie 标记用户 → 其余按权重渐进</li>
+        </ul>
+
+<pre><code><span class="code-label">YAML</span># ============ 主版本 ============
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-v1
+  labels:
+    app: myapp
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: v1
+    spec:
+      containers:
+      - name: myapp
+        image: myapp:v1
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-v1-svc
+spec:
+  selector:
+    app: myapp
+    version: v1
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# ============ 金丝雀版本 ============
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-v2
+  labels:
+    app: myapp
+    version: v2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myapp
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: v2
+    spec:
+      containers:
+      - name: myapp
+        image: myapp:v2
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-v2-svc
+spec:
+  selector:
+    app: myapp
+    version: v2
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# ============ 主版本 Ingress（含 TLS） ============
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-prod
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - app.example.com
+    secretName: app-prod-tls
+  rules:
+  - host: app.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: app-v1-svc
+            port:
+              number: 80
+---
+# ============ 金丝雀 Ingress ============
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-canary
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+    nginx.ingress.kubernetes.io/canary-by-cookie: "use_canary"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+    nginx.ingress.kubernetes.io/affinity-canary-behavior: "sticky"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: app.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: app-v2-svc
+            port:
+              number: 80</code></pre>
+
+        <p><strong>发布流程：</strong></p>
+
+<pre><code><span class="code-label">bash</span># Step 1: 部署金丝雀版本，初始 10% 流量
+kubectl apply -f canary-deployment.yaml
+
+# Step 2: 内部测试——通过 Header 验证金丝雀
+curl -H "X-Canary: always" https://app.example.com/api/version
+# → v2
+
+# Step 3: 观察指标，逐步放量
+kubectl annotate ingress app-canary \
+  nginx.ingress.kubernetes.io/canary-weight=30 --overwrite
+
+# Step 4: 继续观察后加大流量
+kubectl annotate ingress app-canary \
+  nginx.ingress.kubernetes.io/canary-weight=50 --overwrite
+
+# Step 5: 全量发布
+# 方案A：将主版本镜像升级到 v2，删除金丝雀
+kubectl set image deployment/app-v1 myapp=myapp:v2
+kubectl delete ingress app-canary
+kubectl delete deployment app-v2
+kubectl delete service app-v2-svc
+
+# 方案B：将金丝雀权重设为 100
+kubectl annotate ingress app-canary \
+  nginx.ingress.kubernetes.io/canary-weight=100 --overwrite
+
+# 回滚：随时将权重设为 0
+kubectl annotate ingress app-canary \
+  nginx.ingress.kubernetes.io/canary-weight=0 --overwrite</code></pre>
+
+        <hr>
+
+        <h2>总结</h2>
+
+        <table>
+          <thead>
+            <tr><th>发布策略</th><th>核心机制</th><th>流量控制粒度</th><th>回滚速度</th><th>适用场景</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>基于权重金丝雀</td><td><code>canary-weight</code></td><td>百分比</td><td>瞬间（改注解）</td><td>通用灰度发布</td></tr>
+            <tr><td>基于请求头金丝雀</td><td><code>canary-by-header</code></td><td>特定请求头</td><td>瞬间</td><td>内部测试、A/B 测试</td></tr>
+            <tr><td>基于 Cookie 金丝雀</td><td><code>canary-by-cookie</code></td><td>特定用户标记</td><td>瞬间</td><td>用户维度灰度</td></tr>
+            <tr><td>组合策略</td><td>Header + Cookie + Weight</td><td>多维度</td><td>瞬间</td><td>生产级灰度</td></tr>
+            <tr><td>蓝绿部署</td><td>Ingress Backend 切换</td><td>全量切换</td><td>瞬间</td><td>零停机发布</td></tr>
+            <tr><td>滚动发布</td><td>Deployment RollingUpdate</td><td>无（Pod 级）</td><td>中等（需回滚滚动）</td><td>低风险变更</td></tr>
+            <tr><td>流量镜像</td><td><code>mirror-target</code></td><td>100% 镜像</td><td>不影响主流量</td><td>预发验证、压力测试</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>最佳实践：</strong></p>
+        <ol>
+          <li><strong>生产环境务必使用组合策略</strong>——Header 用于内部验证，Cookie 用于用户标记，Weight 用于剩余流量</li>
+          <li><strong>TLS 站点优先使用 cert-manager</strong>——自动签发、自动续期，避免证书过期导致的停机</li>
+          <li><strong>灰度发布配合监控</strong>——每个权重阶段观察错误率、延迟、资源使用，超阈值自动回滚</li>
+          <li><strong>金丝雀环境保持 readinessProbe</strong>——确保只有健康的 Pod 接收金丝雀流量</li>
+          <li><strong>会话亲和性设为 sticky</strong>——避免同一用户在金丝雀和主版本之间反复跳转</li>
+          <li><strong>Canary Ingress 只加 Canary 相关注解</strong>——非 Canary 注解会被忽略，应放在主 Ingress 上</li>
+        </ol>
+
+      </div>
+
+        <!-- TOC (auto-generated by JS) -->
+        <aside class="toc-container" id="toc-container">
+          <div class="toc-title">目录</div>
+          <ul class="toc-list" id="toc-list"></ul>
+        </aside>
+
+      </div>
+      <!-- /article-layout -->
+
+    </div>
+  </main>
+
+</div>
+
+<!-- Mobile TOC button + panel -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+// ===== Auto-generate TOC from h2/h3 =====
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var mobilePanel = document.getElementById('toc-mobile-panel');
+      if (mobilePanel) mobilePanel.classList.remove('show');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  // Scroll spy
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  updateActiveToc();
+})();
+</script>
+
+</body>
+</html>
