@@ -198,5 +198,13 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-05-31",
     url: "posts/Ingress-Nginx高阶用法与流量控制.html"
+  },
+  {
+    title: "UCloud Terraform 基础设施自动化",
+    desc: "使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。",
+    tags: ["iac", "devops"],
+    category: "iac",
+    date: "2026-06-01",
+    url: "posts/ucloud-terraform-基础设施自动化.html"
   }
 ];
