@@ -206,5 +206,13 @@ window.SEARCH_INDEX = [
     category: "iac",
     date: "2026-06-01",
     url: "posts/ucloud-terraform-基础设施自动化.html"
+  },
+  {
+    title: "Go 协程与通道",
+    desc: "Go 并发编程核心：goroutine 启动与 WaitGroup 同步、无缓冲/带缓冲 channel、close 与 range 遍历、select 多路复用与超时控制、Worker Pool、Pipeline 等常见并发模式及新手避坑指南。",
+    tags: ["go"],
+    category: "go",
+    date: "2026-06-02",
+    url: "posts/go-协程与通道.html"
   }
 ];

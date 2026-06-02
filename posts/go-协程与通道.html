@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go 协程与通道 - Tech Notes</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
+      <div class="blog-subtitle">技术笔记 · 持续更新</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">分类</div>
+        <a href="../index.html#kubernetes" class="nav-item">
+          <span class="dot" style="background:var(--tag-k8s)"></span>
+          Kubernetes
+          <span class="count">9</span>
+        </a>
+        <a href="../index.html#go" class="nav-item active">
+          <span class="dot" style="background:var(--tag-go)"></span>
+          Go
+          <span class="count">3</span>
+        </a>
+        <a class="nav-item" style="color:var(--text-tertiary)">
+          <span class="dot" style="background:var(--tag-python)"></span>
+          Python
+          <span class="count">0</span>
+        </a>
+        <a href="../index.html#devops" class="nav-item">
+          <span class="dot" style="background:var(--tag-devops)"></span>
+          DevOps
+          <span class="count">1</span>
+        </a>
+        <a href="../index.html#linux" class="nav-item">
+          <span class="dot" style="background:var(--tag-linux)"></span>
+          Linux
+          <span class="count">2</span>
+        </a>
+        <a href="../index.html#network" class="nav-item">
+          <span class="dot" style="background:var(--tag-network)"></span>
+          Network
+          <span class="count">3</span>
+        </a>
+        <a href="../index.html#ai" class="nav-item">
+          <span class="dot" style="background:var(--tag-ai)"></span>
+          AI
+          <span class="count">8</span>
+        </a>
+      </div>
+
+      <div class="nav-section" style="margin-top:16px">
+        <div class="nav-section-title">链接</div>
+        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
+          <span class="dot" style="background:#24292e"></span>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Tech Notes
+    </div>
+  </aside>
+
+  <!-- ====== Main Content ====== -->
+  <main class="main">
+    <div class="content-wrapper">
+
+      <div class="article-header">
+        <div class="breadcrumb">
+          <a href="../index.html">首页</a> / <a href="../index.html#go">Go</a>
+        </div>
+        <h1>Go 协程与通道</h1>
+        <div class="article-meta">
+          <span>
+            <span class="tag tag-go">Go</span>
+          </span>
+          <span>2026-06-02</span>
+        </div>
+      </div>
+
+      <div class="article-layout">
+
+        <div class="article-content">
+
+        <p>这是 Go 最核心、最有魅力的部分。Go 把并发编程变得像写普通代码一样简单。你不需要懂线程、锁、信号量这些复杂概念，只需要理解两个东西：<strong>协程（goroutine）</strong> 和 <strong>通道（channel）</strong>。</p>
+
+        <hr>
+
+        <h2>1. 并发 vs 并行</h2>
+
+        <p>先搞清这两个概念：</p>
+
+        <ul>
+          <li><strong>并发（Concurrency）</strong>：一个人同时应付多件事。比如边做饭边接电话——你在两件事之间来回切换，看起来像同时在做。</li>
+          <li><strong>并行（Parallelism）</strong>：多个人同时各做各的事。比如两个厨师同时炒两道菜——真正的同时。</li>
+        </ul>
+
+        <p>Go 的协程是并发的——多个协程在同一个 CPU 核心上轮流执行。如果有多核，Go 也会让协程真正并行运行。</p>
+
+        <div class="flow-diagram">
+并发：  |---做菜---|---接电话---|---做菜---|
+并行：  |---做菜---|
+        |---炒饭---|  （另一个核心）
+        </div>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：并发是"同时处理多件事"，并行是"同时做多件事"。Go 协程默认并发，多核时自动并行。</p>
+        </div>
+
+        <hr>
+
+        <h2>2. 协程（Goroutine）</h2>
+
+        <h3>2.1 启动一个协程</h3>
+
+        <p>在函数调用前加 <code>go</code>，就变成协程了。就像喊了一声"你去做"，自己不等着结果：</p>
+
+<pre><code><span class="code-label">go</span>func sayHello(name string) {
+    fmt.Printf("你好，%s！\n", name)
+}
+
+func main() {
+    go sayHello("协程")  // 启动协程，不会阻塞
+    sayHello("主函数")   // 主函数自己也在跑
+
+    time.Sleep(time.Second) // 等一下，否则主函数结束程序就退了
+}</code></pre>
+
+        <p>输出可能是（顺序不固定）：</p>
+
+<pre><code>你好，主函数！
+你好，协程！</code></pre>
+
+        <h3>2.2 协程的本质</h3>
+
+        <p>协程比操作系统线程轻量得多：</p>
+        <ul>
+          <li>线程通常占 1MB 栈内存，协程只占 2KB（可动态增长）</li>
+          <li>创建线程需要系统调用，创建协程只是函数调用</li>
+          <li>一台机器轻松跑几十万个协程</li>
+        </ul>
+
+        <h3>2.3 匿名函数协程</h3>
+
+<pre><code><span class="code-label">go</span>go func(msg string) {
+    fmt.Println(msg)
+}("我来自协程")</code></pre>
+
+        <h3>2.4 等协程完成</h3>
+
+        <p><code>time.Sleep</code> 不靠谱（你怎么知道要等多久？）。用 <code>sync.WaitGroup</code> 才是正道：</p>
+
+<pre><code><span class="code-label">go</span>var wg sync.WaitGroup
+
+func worker(id int) {
+    defer wg.Done() // 完成时通知
+    fmt.Printf("工人 %d 开始干活\n", id)
+    time.Sleep(time.Millisecond * time.Duration(rand.Intn(500)))
+    fmt.Printf("工人 %d 干完了\n", id)
+}
+
+func main() {
+    for i := 1; i <= 5; i++ {
+        wg.Add(1)     // 每启动一个协程，计数+1
+        go worker(i)
+    }
+    wg.Wait()         // 等所有协程完成
+    fmt.Println("全部完成")
+}</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：</p>
+          <ul>
+            <li><code>go 函数()</code> 启动协程</li>
+            <li>协程超轻量，可以创建很多</li>
+            <li>用 <code>sync.WaitGroup</code> 等待多个协程完成，不要用 <code>time.Sleep</code></li>
+            <li>主函数退出 = 程序退出 = 所有协程被杀</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <h2>3. 通道（Channel）</h2>
+
+        <h3>3.1 为什么需要通道？</h3>
+
+        <p>多个协程干活，怎么互相传递数据？用共享变量？那得加锁，太麻烦。Go 的方案是：<strong>不要通过共享内存来通信，而要通过通信来共享内存。</strong></p>
+
+        <p>通道就像一根管子——一头塞东西进去，另一头拿出来。先进先出，线程安全。</p>
+
+        <h3>3.2 创建和使用通道</h3>
+
+<pre><code><span class="code-label">go</span>// 创建一个传输 int 的通道
+ch := make(chan int)
+
+// 协程1：发送数据
+go func() {
+    ch &lt;- 42  // 把 42 塞进通道（箭头方向表示数据流向）
+}()
+
+// 协程2（主函数）：接收数据
+value := &lt;-ch  // 从通道取数据
+fmt.Println("收到：", value)  // 输出：收到：42</code></pre>
+
+        <p><code>ch &lt;- value</code> 发送，<code>&lt;-ch</code> 接收，<code>value := &lt;-ch</code> 接收并赋值。</p>
+
+        <h3>3.3 通道的阻塞性</h3>
+
+        <p><strong>无缓冲通道是同步的</strong>——发送方和接收方必须同时就绪：</p>
+
+<pre><code><span class="code-label">go</span>ch := make(chan string)
+
+go func() {
+    ch &lt;- "消息"  // 如果没人接收，这里会一直等待
+}()
+
+msg := &lt;-ch  // 如果没人发送，这里也会一直等待</code></pre>
+
+        <p>这就像打电话——双方都得接听才能通话。</p>
+
+        <h3>3.4 带缓冲的通道</h3>
+
+<pre><code><span class="code-label">go</span>ch := make(chan int, 3)  // 缓冲区大小 3
+
+ch &lt;- 1  // 不阻塞，缓冲区有空间
+ch &lt;- 2  // 不阻塞
+ch &lt;- 3  // 不阻塞
+// ch &lt;- 4  // 阻塞！缓冲区满了，必须等有人取走
+
+fmt.Println(&lt;-ch)  // 1
+fmt.Println(&lt;-ch)  // 2</code></pre>
+
+        <p>带缓冲的通道像邮箱——你可以塞信进去，收信人不用立刻取。满了就塞不下了，空了就取不出来了。</p>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：</p>
+          <ul>
+            <li><code>make(chan T)</code> 无缓冲，<code>make(chan T, n)</code> 缓冲区大小 n</li>
+            <li>无缓冲通道：发送和接收必须同时就绪，否则阻塞</li>
+            <li>带缓冲通道：缓冲区满时发送阻塞，缓冲区空时接收阻塞</li>
+            <li>箭头 <code>&lt;-</code> 指向数据流向：<code>ch &lt;-</code> 发送，<code>&lt;- ch</code> 接收</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <h2>4. 关闭通道和 range 遍历</h2>
+
+        <h3>4.1 关闭通道</h3>
+
+        <p>发送方可以关闭通道，告诉接收方"没有更多数据了"：</p>
+
+<pre><code><span class="code-label">go</span>ch := make(chan int)
+
+go func() {
+    for i := 0; i &lt; 5; i++ {
+        ch &lt;- i
+    }
+    close(ch) // 发送完毕，关闭通道
+}()
+
+// 接收方可以用 range 遍历通道
+for num := range ch {
+    fmt.Println(num) // 输出 0 1 2 3 4
+}</code></pre>
+
+        <p><strong>注意</strong>：</p>
+        <ul>
+          <li>只有发送方应该关闭通道，接收方不要关</li>
+          <li>关闭后的通道不能再发送数据（会 panic）</li>
+          <li>关闭后的通道还可以接收（返回零值和 false）</li>
+          <li>向已关闭的通道发送数据会 panic</li>
+        </ul>
+
+        <h3>4.2 检测通道是否关闭</h3>
+
+<pre><code><span class="code-label">go</span>value, ok := &lt;-ch
+if !ok {
+    fmt.Println("通道已关闭")
+    break
+}</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：</p>
+          <ul>
+            <li>发送方用 <code>close(ch)</code> 关闭通道</li>
+            <li><code>for x := range ch</code> 自动在通道关闭后退出循环</li>
+            <li><code>value, ok := &lt;-ch</code> 中 <code>ok</code> 为 false 表示通道已关闭</li>
+            <li>不要关闭已经关闭的通道，不要向已关闭的通道发送</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <h2>5. select 语句</h2>
+
+        <h3>5.1 多路复用</h3>
+
+        <p><code>select</code> 就像前台接待员——同时盯着多部电话，哪部响了接哪部：</p>
+
+<pre><code><span class="code-label">go</span>ch1 := make(chan string)
+ch2 := make(chan string)
+
+go func() {
+    time.Sleep(1 * time.Second)
+    ch1 &lt;- "来自通道1"
+}()
+
+go func() {
+    time.Sleep(2 * time.Second)
+    ch2 &lt;- "来自通道2"
+}()
+
+for i := 0; i &lt; 2; i++ {
+    select {
+    case msg1 := &lt;-ch1:
+        fmt.Println("收到：", msg1)
+    case msg2 := &lt;-ch2:
+        fmt.Println("收到：", msg2)
+    }
+}</code></pre>
+
+        <p>输出（1秒后先收到通道1，2秒后收到通道2）：</p>
+
+<pre><code>收到：来自通道1
+收到：来自通道2</code></pre>
+
+        <h3>5.2 select 的规则</h3>
+
+        <ol>
+          <li>多个 case 同时就绪，<strong>随机选一个</strong>执行</li>
+          <li>没有 case 就绪，<strong>阻塞等待</strong></li>
+          <li>加了 <code>default</code>，没有 case 就绪时执行 default（不阻塞）</li>
+        </ol>
+
+        <h3>5.3 超时控制</h3>
+
+        <p>用 <code>select</code> + <code>time.After</code> 实现超时：</p>
+
+<pre><code><span class="code-label">go</span>select {
+case result := &lt;-ch:
+    fmt.Println("收到结果：", result)
+case &lt;-time.After(3 * time.Second):
+    fmt.Println("超时了！3秒内没收到数据")
+}</code></pre>
+
+        <p><code>time.After</code> 返回一个通道，在指定时间后会发送当前时间。就像设置一个闹钟——到点了就触发。</p>
+
+        <h3>5.4 定时器（Ticker）</h3>
+
+        <p><code>time.NewTicker</code> 创建周期性触发的定时器：</p>
+
+<pre><code><span class="code-label">go</span>ticker := time.NewTicker(1 * time.Second)
+defer ticker.Stop()
+
+for i := 0; i &lt; 5; i++ {
+    &lt;-ticker.C  // 每秒收到一次
+    fmt.Println("滴答", i+1)
+}</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：</p>
+          <ul>
+            <li><code>select</code> 同时监听多个通道，哪个先有数据就处理哪个</li>
+            <li>多个同时就绪时随机选一个</li>
+            <li><code>time.After(duration)</code> 实现超时控制</li>
+            <li><code>time.NewTicker(duration)</code> 创建周期定时器</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <h2>6. 协程中的 panic 恢复</h2>
+
+        <p>如果协程里的 panic 没人 recover，整个程序会崩溃。所以每个重要协程都应该自己兜底：</p>
+
+        <h3>6.1 safeGo：安全的协程启动器</h3>
+
+<pre><code><span class="code-label">go</span>func safeGo(fn func()) {
+    go func() {
+        defer func() {
+            if r := recover(); r != nil {
+                log.Println("协程 panic 恢复：", r)
+            }
+        }()
+        fn()
+    }()
+}</code></pre>
+
+        <p><code>safeGo</code> 封装了 <code>go</code> 关键字，自动给每个协程加上 recover 保护。协程里即使 panic，也不会拖垮整个程序。</p>
+
+        <h3>6.2 必须配合 WaitGroup 使用</h3>
+
+        <p>光有 safeGo 还不够——<code>main</code> 退出后所有协程会被强制杀死，recover 来不及输出。必须配合 WaitGroup 等 goroutine 跑完：</p>
+
+<pre><code><span class="code-label">go</span>func main() {
+    var wg sync.WaitGroup
+    wg.Add(1)
+
+    safeGo(func() {
+        defer wg.Done()    // goroutine 里 Done，不是 main 里
+        panic("出大事了")   // 不会崩溃整个程序
+    })
+
+    wg.Wait()              // 等 goroutine 完成再退出
+}</code></pre>
+
+        <h3>6.3 常见错误</h3>
+
+        <p><strong>错误 1：wg.Done() 写在 main 里</strong></p>
+
+<pre><code><span class="code-label">go</span>// ❌ main 自己把计数器清零了，Wait 立刻返回，goroutine 还没跑就被杀
+safeGo(func() {
+    panic("出大事了")
+})
+wg.Done()   // 包工头替工人划考勤，以为没人了就下班
+wg.Wait()</code></pre>
+
+        <p><strong>错误 2：不写 wg.Done()</strong></p>
+
+<pre><code><span class="code-label">go</span>// ❌ 计数器永远不归零，Wait 永远阻塞 → 死锁
+safeGo(func() {
+    panic("出大事了")
+    // 没有 defer wg.Done()
+})
+wg.Wait()   // 计数器还是 1，天荒地老地等</code></pre>
+
+        <p><strong>错误 3：不用 WaitGroup</strong></p>
+
+<pre><code><span class="code-label">go</span>// ❌ main 退出太快，goroutine 来不及执行就被杀
+safeGo(func() {
+    panic("出大事了")
+})
+// 没有 wg.Wait()，main 直接结束，程序退出</code></pre>
+
+        <h3>6.4 完整执行流程</h3>
+
+<pre><code><span class="code-label">go</span>func safeGo(fn func()) {
+    go func() {
+        defer func() {
+            if r := recover(); r != nil {
+                log.Println("协程 panic 恢复：", r)
+            }
+        }()
+        fn()
+    }()
+}
+
+func main() {
+    var wg sync.WaitGroup
+    wg.Add(1)
+
+    safeGo(func() {
+        defer wg.Done()
+        panic("出大事了")
+    })
+
+    wg.Wait()
+}</code></pre>
+
+        <p>执行时序：</p>
+
+        <div class="flow-diagram">
+main goroutine                  子 goroutine
+──────────────                  ────────────
+wg.Add(1) [计数器=1]
+safeGo() ──────────────────→   注册 defer recover
+wg.Wait() [阻塞中]             注册 defer wg.Done
+                                panic("出大事了")!
+                                defer 后进先出：
+                                ① wg.Done() [计数器=0] ──→ Wait() 解除！
+                                ② recover() → 打印恢复信息
+main 继续执行                   goroutine 退出
+程序退出
+        </div>
+
+        <p>输出：</p>
+
+<pre><code>2026/06/01 15:30:00 协程 panic 恢复： 出大事了</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：</p>
+          <ul>
+            <li>每个协程应该自己 recover panic，否则整个程序会崩</li>
+            <li><code>safeGo</code> = 带安全网的 <code>go</code>，panic 不会拖垮进程</li>
+            <li><code>wg.Done()</code> 必须写在 goroutine 里面，用 <code>defer</code> 兜底</li>
+            <li><code>wg.Add()</code> 和 <code>wg.Done()</code> 必须配对，多一个 Add 死锁，多一个 Done panic</li>
+            <li>defer 执行顺序：后注册先执行，所以 <code>wg.Done()</code> 在 <code>recover()</code> 之前执行</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <h2>7. 常见并发模式</h2>
+
+        <h3>7.1 Worker Pool（工人池）</h3>
+
+        <p>固定数量的工人处理任务，避免无限制创建协程：</p>
+
+<pre><code><span class="code-label">go</span>func worker(id int, jobs &lt;-chan int, results chan&lt;- int) {
+    for job := range jobs {
+        fmt.Printf("工人 %d 处理任务 %d\n", id, job)
+        time.Sleep(time.Millisecond * 500) // 模拟工作
+        results &lt;- job * 2
+    }
+}
+
+func main() {
+    jobs := make(chan int, 10)
+    results := make(chan int, 10)
+
+    // 启动 3 个工人
+    for w := 1; w &lt;= 3; w++ {
+        go worker(w, jobs, results)
+    }
+
+    // 发送 5 个任务
+    for j := 1; j &lt;= 5; j++ {
+        jobs &lt;- j
+    }
+    close(jobs) // 任务发完了
+
+    // 收集结果
+    for r := 1; r &lt;= 5; r++ {
+        fmt.Println("结果：", &lt;-results)
+    }
+}</code></pre>
+
+        <h3>7.2 限制并发数</h3>
+
+        <p>用带缓冲的通道做信号量，限制同时运行的协程数量：</p>
+
+<pre><code><span class="code-label">go</span>var sem = make(chan struct{}, 5) // 最多 5 个并发
+
+func process(url string) {
+    sem &lt;- struct{}{}        // 占一个位置（满了就等）
+    defer func() { &lt;-sem }() // 完成后释放位置
+
+    // 处理请求...
+    fmt.Println("处理：", url)
+    time.Sleep(time.Second)
+}</code></pre>
+
+        <h3>7.3 通道多路复用（Fan-in）</h3>
+
+        <p>多个通道的数据汇聚到一个通道：</p>
+
+<pre><code><span class="code-label">go</span>func fanIn(ch1, ch2 &lt;-chan string) &lt;-chan string {
+    merged := make(chan string)
+    go func() {
+        for msg := range ch1 { merged &lt;- msg }
+    }()
+    go func() {
+        for msg := range ch2 { merged &lt;- msg }
+    }()
+    return merged
+}</code></pre>
+
+        <h3>7.4 超时模式</h3>
+
+        <p>给任何操作加超时保护：</p>
+
+<pre><code><span class="code-label">go</span>func doWithTimeout(timeout time.Duration) (int, error) {
+    resultCh := make(chan int)
+    go func() {
+        // 可能很慢的操作
+        time.Sleep(2 * time.Second)
+        resultCh &lt;- 42
+    }()
+
+    select {
+    case result := &lt;-resultCh:
+        return result, nil
+    case &lt;-time.After(timeout):
+        return 0, fmt.Errorf("操作超时（%v）", timeout)
+    }
+}</code></pre>
+
+        <h3>7.5 Pipeline（管道）</h3>
+
+        <p>数据像流水线一样经过多个处理阶段：</p>
+
+<pre><code><span class="code-label">go</span>// 阶段1：生成数据
+func generate(nums ...int) &lt;-chan int {
+    out := make(chan int)
+    go func() {
+        for _, n := range nums {
+            out &lt;- n
+        }
+        close(out)
+    }()
+    return out
+}
+
+// 阶段2：平方
+func square(in &lt;-chan int) &lt;-chan int {
+    out := make(chan int)
+    go func() {
+        for n := range in {
+            out &lt;- n * n
+        }
+        close(out)
+    }()
+    return out
+}
+
+// 串联：generate → square → 打印
+func main() {
+    ch := generate(2, 3, 4)
+    ch = square(ch)
+    for result := range ch {
+        fmt.Println(result) // 4, 9, 16
+    }
+}</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：</p>
+          <ul>
+            <li>Worker Pool：固定工人处理任务，避免协程爆炸</li>
+            <li>信号量模式：带缓冲通道限制并发数</li>
+            <li>Fan-in：多个通道汇聚到一个</li>
+            <li>Pipeline：数据经过多个阶段串行处理</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <h2>8. 高级模式概览</h2>
+
+        <p>以下模式初学时了解概念即可，遇到实际需求再深入研究。</p>
+
+        <h3>8.1 Futures 模式</h3>
+
+        <p>"我先去干活，结果回头来拿"——启动协程计算，返回一个"未来结果"通道：</p>
+
+<pre><code><span class="code-label">go</span>func asyncCompute() &lt;-chan int {
+    future := make(chan int)
+    go func() {
+        result := heavyComputation() // 很慢的计算
+        future &lt;- result
+    }()
+    return future // 立刻返回，不等计算完
+}
+
+// 使用
+f := asyncCompute()
+// 可以做别的事...
+result := &lt;-f // 需要结果时再取</code></pre>
+
+        <h3>8.2 多核并行计算</h3>
+
+<pre><code><span class="code-label">go</span>func parallelSum(data []int) int {
+    n := runtime.NumCPU()
+    size := (len(data) + n - 1) / n
+    results := make(chan int, n)
+
+    for i := 0; i &lt; n; i++ {
+        go func(start int) {
+            sum := 0
+            end := start + size
+            if end &gt; len(data) { end = len(data) }
+            for j := start; j &lt; end; j++ {
+                sum += data[j]
+            }
+            results &lt;- sum
+        }(i * size)
+    }
+
+    total := 0
+    for i := 0; i &lt; n; i++ {
+        total += &lt;-results
+    }
+    return total
+}</code></pre>
+
+        <h3>8.3 限流（Leaky Bucket 漏桶）</h3>
+
+        <p>控制请求速率，防止系统被冲垮：</p>
+
+<pre><code><span class="code-label">go</span>func rateLimiter(interval time.Duration) chan struct{} {
+    bucket := make(chan struct{}, 1)
+    go func() {
+        for {
+            bucket &lt;- struct{}{}
+            time.Sleep(interval)
+        }
+    }()
+    return bucket
+}
+
+// 每 100ms 允许一个请求
+limiter := rateLimiter(100 * time.Millisecond)
+for i := 0; i &lt; 10; i++ {
+    &lt;-limiter // 等待令牌
+    fmt.Println("处理请求", i)
+}</code></pre>
+
+        <div class="highlight-box">
+          <p><strong>💡 要点速记</strong>：</p>
+          <ul>
+            <li>Futures：异步计算，需要时再取结果</li>
+            <li>多核并行：把数据分片，每个核心算一片，最后合并</li>
+            <li>限流：用定时器控制处理速率</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <h2>9. 新手常见坑</h2>
+
+        <ol>
+          <li><strong>协程泄漏</strong>：协程启动后永远阻塞在通道上，没人发送/接收，协程就永远挂着。确保通道最终会被关闭或发送数据。</li>
+
+          <li><strong>死锁</strong>：两个协程互相等待对方发送/接收，谁也动不了。常见于无缓冲通道的"双方都没准备好"的情况。</li>
+
+          <li><strong>向已关闭的通道发送</strong>：这会 panic。记住只有发送方关闭，且关闭后不要再发。</li>
+
+          <li><strong>range 遍历通道时没关闭</strong>：<code>for x := range ch</code> 会一直等数据，如果没人 close(ch)，就永远阻塞。</li>
+
+          <li><strong>闭包捕获循环变量</strong>：经典的坑——for 循环里启动协程，协程里用了循环变量，结果所有协程拿到的是同一个值：</li>
+        </ol>
+
+<pre><code><span class="code-label">go</span>// 错误！所有协程都打印 3
+for i := 0; i &lt; 3; i++ {
+    go func() { fmt.Println(i) }()
+}
+
+// 正确：把 i 作为参数传入
+for i := 0; i &lt; 3; i++ {
+    go func(n int) { fmt.Println(n) }(i)
+}</code></pre>
+
+        <ol start="6">
+          <li><strong>主函数退出导致协程被杀</strong>：主函数 return 或 os.Exit 后，所有协程立刻终止，不管它们是否完成。用 WaitGroup 或通道同步来等待。</li>
+
+          <li><strong>无缓冲通道在同一个协程发收</strong>：<code>ch &lt;- 1; x := &lt;-ch</code> 在同一个协程会死锁——发送在等接收，但接收代码在发送后面，永远执行不到。必须分开到不同协程。</li>
+
+          <li><strong>select 空 case</strong>：<code>select {}</code> 会永远阻塞当前协程。有时候是有意为之（让主协程不退出），但别写错了。</li>
+        </ol>
+
+      </div>
+
+        <!-- TOC (auto-generated by JS) -->
+        <aside class="toc-container" id="toc-container">
+          <div class="toc-title">目录</div>
+          <ul class="toc-list" id="toc-list"></ul>
+        </aside>
+
+      </div>
+      <!-- /article-layout -->
+
+    </div>
+  </main>
+
+</div>
+
+<!-- Mobile TOC button + panel -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+// ===== Auto-generate TOC from h2/h3 =====
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var mobilePanel = document.getElementById('toc-mobile-panel');
+      if (mobilePanel) mobilePanel.classList.remove('show');
+    });
+
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  // Scroll spy
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  updateActiveToc();
+})();
+</script>
+
+</body>
+</html>
