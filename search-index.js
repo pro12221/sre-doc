@@ -214,5 +214,13 @@ window.SEARCH_INDEX = [
     category: "go",
     date: "2026-06-02",
     url: "posts/go-协程与通道.html"
+  },
+  {
+    title: "Go 网络模板与 Web 应用完全指南",
+    desc: "Go 标准库模板引擎、net/http 路由、Gin/Echo/Fiber 框架、TCP/UDP 网络编程、gRPC 远程调用、WebSocket 实时通信全覆盖，所有代码可直接运行。",
+    tags: ["go", "devops", "network"],
+    category: "go",
+    date: "2026-06-02",
+    url: "posts/go-网络模板与-web-应用完全指南.html"
   }
 ];
