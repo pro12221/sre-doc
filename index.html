@@ -3,454 +3,206 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tech Notes</title>
+<title>SRE Notes — Cloud Native Tech Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- Mobile Toggle -->
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <!-- ====== Sidebar ====== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <div class="blog-title"><span class="icon">📒</span> Tech Notes</div>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="#kubernetes" class="nav-item">
-          <span class="dot" style="background:var(--tag-k8s)"></span>
-          Kubernetes
-          <span class="count">9</span>
-        </a>
-        <a href="#go" class="nav-item">
-          <span class="dot" style="background:var(--tag-go)"></span>
-          Go
-          <span class="count">4</span>
-        </a>
-        <a class="nav-item" style="color:var(--text-tertiary)">
-          <span class="dot" style="background:var(--tag-python)"></span>
-          Python
-          <span class="count">0</span>
-        </a>
-        <a href="#devops" class="nav-item">
-          <span class="dot" style="background:var(--tag-devops)"></span>
-          DevOps
-          <span class="count">1</span>
-        </a>
-        <a href="#iac" class="nav-item">
-          <span class="dot" style="background:var(--tag-iac)"></span>
-          IaC
-          <span class="count">1</span>
-        </a>
-        <a href="#linux" class="nav-item">
-          <span class="dot" style="background:var(--tag-linux)"></span>
-          Linux
-          <span class="count">2</span>
-        </a>
-        <a href="#network" class="nav-item">
-          <span class="dot" style="background:var(--tag-network)"></span>
-          Network
-          <span class="count">3</span>
-        </a>
-        <a href="#ai" class="nav-item">
-          <span class="dot" style="background:var(--tag-ai)"></span>
-          AI
-          <span class="count">8</span>
-        </a>
-      </div>
-
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
-          <span class="dot" style="background:#24292e"></span>
-          GitHub
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      &copy; 2026 Tech Notes
-    </div>
-  </aside>
-
-  <!-- ====== Main Content ====== -->
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="home-header">
-        <h1>📒 Tech Notes</h1>
-        <p>个人技术笔记，记录学习与实践中的关键知识点。</p>
-      </div>
-
-      <!-- Search Bar -->
-      <div class="search-bar">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="search-input" placeholder="搜索笔记标题、内容..." autocomplete="off">
-        <button class="search-clear" id="search-clear" title="清除搜索">&times;</button>
-      </div>
-
-      <!-- Tag Filter Bar -->
-      <div class="tag-filter-bar" id="tag-filter-bar">
-        <button class="tag-filter-btn active" data-tag="">全部</button>
-        <button class="tag-filter-btn" data-tag="kubernetes"><span class="dot" style="background:var(--tag-k8s)"></span>Kubernetes</button>
-        <button class="tag-filter-btn" data-tag="go"><span class="dot" style="background:var(--tag-go)"></span>Go</button>
-        <button class="tag-filter-btn" data-tag="python"><span class="dot" style="background:var(--tag-python)"></span>Python</button>
-        <button class="tag-filter-btn" data-tag="devops"><span class="dot" style="background:var(--tag-devops)"></span>DevOps</button>
-        <button class="tag-filter-btn" data-tag="iac"><span class="dot" style="background:var(--tag-iac)"></span>IaC</button>
-        <button class="tag-filter-btn" data-tag="linux"><span class="dot" style="background:var(--tag-linux)"></span>Linux</button>
-        <button class="tag-filter-btn" data-tag="network"><span class="dot" style="background:var(--tag-network)"></span>Network</button>
-        <button class="tag-filter-btn" data-tag="ai"><span class="dot" style="background:var(--tag-ai)"></span>AI</button>
-      </div>
-
-      <!-- Sort Controls -->
-      <div class="sort-controls" id="sort-controls">
-        <span class="sort-label">排序</span>
-        <button class="sort-btn active" data-sort="date-desc">时间 ↓</button>
-        <button class="sort-btn" data-sort="date-asc">时间 ↑</button>
-        <button class="sort-btn" data-sort="title-asc">标题 A-Z</button>
-      </div>
-
-      <!-- Search Results (hidden by default) -->
-      <div class="search-results" id="search-results" style="display:none">
-        <div class="search-results-header">
-          <span id="search-results-count"></span>
-          <button class="search-results-clear" id="search-results-clear">返回全部</button>
-        </div>
-        <div id="search-results-list"></div>
-      </div>
-
-      <!-- Original Category View -->
-      <div id="category-view">
-
-        <!-- ===== Kubernetes ===== -->
-        <div class="category-group" id="kubernetes">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-k8s)"></span>
-            Kubernetes
-          </div>
-          <div class="post-cards" data-category="kubernetes">
-            <a href="posts/admission-webhook.html" class="post-card" data-title="Admission Webhook 开发" data-date="2026-05-12" data-tags="kubernetes,python">
-              <div class="post-card-title">Admission Webhook 开发</div>
-              <div class="post-card-desc">Kubernetes Admission Webhook 机制详解：Mutating / Validating 流程、AdmissionReview 返回格式、Python Flask 实现及证书配置完整指南。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-python">Python</span></span>
-                <span>2026-05-12</span>
-              </div>
-            </a>
-            <a href="posts/configmap-secret.html" class="post-card" data-title="ConfigMap 与 Secret" data-date="2026-05-15" data-tags="kubernetes">
-              <div class="post-card-title">ConfigMap 与 Secret</div>
-              <div class="post-card-desc">Kubernetes ConfigMap 和 Secret 详解：创建方式、环境变量引用、卷挂载使用，以及 Secret 内置类型与安全实践。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/k8s-api组织结构.html" class="post-card" data-title="k8s API组织结构" data-date="2026-05-16" data-tags="kubernetes,network">
-              <div class="post-card-title">k8s API组织结构</div>
-              <div class="post-card-desc">Kubernetes API 组织形式详解：Group/Version/Resource 三层结构、list-watch 机制、kubectl proxy 认证代理原理与直接访问 6443 的区别。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
-                <span>2026-05-16</span>
-              </div>
-            </a>
-            <a href="posts/k8s权限管理.html" class="post-card" data-title="K8s权限管理" data-date="2026-05-20" data-tags="kubernetes,devops">
-              <div class="post-card-title">K8s权限管理</div>
-              <div class="post-card-desc">Kubernetes 权限管理全流程：RBAC 核心对象与判定逻辑、用户证书创建与 CSR 审批、kubeconfig 文件结构解析、ServiceAccount 机制及命名空间 SA 与全局权限的区别。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-devops">DevOps</span></span>
-                <span>2026-05-20</span>
-              </div>
-            </a>
-            <a href="posts/security-context和linux-capabilities详解.html" class="post-card" data-title="Security Context和Linux Capabilities详解" data-date="2026-05-20" data-tags="kubernetes,linux">
-              <div class="post-card-title">Security Context和Linux Capabilities详解</div>
-              <div class="post-card-desc">Kubernetes Security Context 核心机制：Linux Capabilities 四组集合与传递规则、Pod/容器级安全配置字段详解、最小权限配置范式与 Pod Security Standards 三个安全级别。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-linux">Linux</span></span>
-                <span>2026-05-20</span>
-              </div>
-            </a>
-            <a href="posts/kubernetes-service原理.html" class="post-card" data-title="Kubernetes Service原理" data-date="2026-05-21" data-tags="kubernetes,linux,network">
-              <div class="post-card-title">Kubernetes Service原理</div>
-              <div class="post-card-desc">Kubernetes Service 原理详解：conntrack 连接跟踪与不对称路径问题、iptables/ipvs 两种模式下数据包流转全链路、四种 Service 类型及 Headless Service 使用场景。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-linux">Linux</span><span class="tag tag-network">Network</span></span>
-                <span>2026-05-21</span>
-              </div>
-            </a>
-            <a href="posts/Ingress三种部署模式与底层原理.html" class="post-card" data-title="Ingress 三种部署模式与底层原理" data-date="2026-05-30" data-tags="kubernetes,network">
-              <div class="post-card-title">Ingress 三种部署模式与底层原理</div>
-              <div class="post-card-desc">Kubernetes Ingress 详解：Deployment/DaemonSet+HostNetwork/NodePort 三种部署模式对比、Nginx Ingress Controller 控制循环与 Lua Balancer 原理、TLS 终止与完整请求链路。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
-                <span>2026-05-30</span>
-              </div>
-            </a>
-            <a href="posts/Ingress-Nginx三种部署模式实战.html" class="post-card" data-title="Ingress-Nginx 三种部署模式实战" data-date="2026-05-31" data-tags="kubernetes,network">
-              <div class="post-card-title">Ingress-Nginx 三种部署模式实战</div>
-              <div class="post-card-desc">三节点 K8s 集群实战部署 ingress-nginx 三种模式：Deployment+NodePort、DaemonSet+HostNetwork、DaemonSet+NodePort，含国内镜像适配、验证结果与清理步骤。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
-                <span>2026-05-31</span>
-              </div>
-            </a>
-            <a href="posts/Ingress-Nginx高阶用法与流量控制.html" class="post-card" data-title="Ingress-Nginx 高阶用法与流量控制" data-date="2026-05-31" data-tags="kubernetes,network">
-              <div class="post-card-title">Ingress-Nginx 高阶用法与流量控制</div>
-              <div class="post-card-desc">Ingress-Nginx 金丝雀/蓝绿/灰度/滚动发布全攻略：基于权重、请求头、Cookie、正则的流量控制，TLS 站点构建与 cert-manager 自动证书，流量镜像与生产实战组合案例。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
-                <span>2026-05-31</span>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- ===== Go ===== -->
-        <div class="category-group" id="go">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-go)"></span>
-            Go
-          </div>
-          <div class="post-cards" data-category="go">
-            <a href="posts/go值接收者与指针接收者.html" class="post-card" data-title="Go 值接收者与指针接收者" data-date="2026-05-17" data-tags="go">
-              <div class="post-card-title">Go 值接收者与指针接收者</div>
-              <div class="post-card-desc">Go 方法接收者选择策略：值接收者操作副本无法修改原值，指针接收者可修改且避免拷贝，混用导致接口满足混乱，一致性原则要求统一选择。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-go">Go</span></span>
-                <span>2026-05-17</span>
-              </div>
-            </a>
-            <a href="posts/如何理解接口.html" class="post-card" data-title="如何理解接口" data-date="2026-05-18" data-tags="go">
-              <div class="post-card-title">如何理解接口</div>
-              <div class="post-card-desc">Go 接口底层双指针结构解析：接口赋值即装箱、类型断言即拆箱、空接口 any 的无条件准入、反射对 type/data 指针的运行时探查，以及 Go 面向对象的组合哲学。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-go">Go</span></span>
-                <span>2026-05-18</span>
-              </div>
-            </a>
-            <a href="posts/go-协程与通道.html" class="post-card" data-title="Go 协程与通道" data-date="2026-06-02" data-tags="go">
-              <div class="post-card-title">Go 协程与通道</div>
-              <div class="post-card-desc">Go 并发编程核心：goroutine 启动与 WaitGroup 同步、无缓冲/带缓冲 channel、close 与 range 遍历、select 多路复用与超时控制、Worker Pool、Pipeline 等常见并发模式及新手避坑指南。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-go">Go</span></span>
-                <span>2026-06-02</span>
-              </div>
-            </a>
-            <a href="posts/go-网络模板与-web-应用完全指南.html" class="post-card" data-title="Go 网络模板与 Web 应用完全指南" data-date="2026-06-02" data-tags="go,devops,network">
-              <div class="post-card-title">Go 网络模板与 Web 应用完全指南</div>
-              <div class="post-card-desc">面向 Go 初学者的 Web 开发教程：从零搭建 HTTP 服务器、模板引擎、表单处理、完整 Task Manager 项目，进阶 TCP/UDP、gRPC、WebSocket 实战。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-go">Go</span><span class="tag tag-devops">DevOps</span><span class="tag tag-network">Network</span></span>
-                <span>2026-06-02</span>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- ===== Python ===== -->
-        <div class="category-group" id="python">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-python)"></span>
-            Python
-          </div>
-          <div class="post-cards" data-category="python"></div>
-          <div class="empty-state">
-            <p>暂无笔记，敬请期待 ✍️</p>
-          </div>
-        </div>
-
-        <!-- ===== DevOps ===== -->
-        <div class="category-group" id="devops">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-devops)"></span>
-            DevOps
-          </div>
-          <div class="post-cards" data-category="devops">
-            <a href="posts/静态站点自动部署实战.html" class="post-card" data-title="静态站点自动部署实战" data-date="2026-05-16" data-tags="devops">
-              <div class="post-card-title">静态站点自动部署实战</div>
-              <div class="post-card-desc">从 Markdown 写作到 Cloudflare Pages 上线：GitHub Actions Workflow 配置、Cloudflare Secrets 设置、完整发布流程与故障排查指南。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-devops">DevOps</span></span>
-                <span>2026-05-16</span>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- ===== IaC ===== -->
-        <div class="category-group" id="iac">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-iac)"></span>
-            IaC
-          </div>
-          <div class="post-cards" data-category="iac">
-            <a href="posts/ucloud-terraform-基础设施自动化.html" class="post-card" data-title="UCloud Terraform 基础设施自动化" data-date="2026-06-01" data-tags="iac,devops">
-              <div class="post-card-title">UCloud Terraform 基础设施自动化</div>
-              <div class="post-card-desc">使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-iac">IaC</span><span class="tag tag-devops">DevOps</span></span>
-                <span>2026-06-01</span>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- ===== Linux ===== -->
-        <div class="category-group" id="linux">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-linux)"></span>
-            Linux
-          </div>
-          <div class="post-cards" data-category="linux">
-            <a href="posts/文件描述符与文件句柄.html" class="post-card" data-title="文件描述符与文件句柄" data-date="2026-05-26" data-tags="linux,python">
-              <div class="post-card-title">文件描述符与文件句柄</div>
-              <div class="post-card-desc">Linux 文件描述符与文件句柄总结：通过 Python os.open 示例观察 /proc/PID/fd，理解 FD、打开文件对象、inode 与路径的关系。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-linux">Linux</span><span class="tag tag-python">Python</span></span>
-                <span>2026-05-26</span>
-              </div>
-            </a>
-            <a href="posts/cpu软中断高排查记录.html" class="post-card" data-title="CPU软中断高排查记录" data-date="2026-05-15" data-tags="linux,network,devops">
-              <div class="post-card-title">CPU软中断高排查记录</div>
-              <div class="post-card-desc">KVM 宿主机 CPU 软中断高排查：perf 定位热点、/proc/softirqs 确认 NET_RX 分布不均、RPS 关闭导致软中断无法跨核分流的根因分析与优化方案。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-linux">Linux</span><span class="tag tag-network">Network</span><span class="tag tag-devops">DevOps</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- ===== Network ===== -->
-        <div class="category-group" id="network">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-network)"></span>
-            Network
-          </div>
-          <div class="post-cards" data-category="network">
-            <a href="posts/云计算网络架构演进.html" class="post-card" data-title="云计算网络架构演进" data-date="2026-05-30" data-tags="network,kubernetes,devops">
-              <div class="post-card-title">云计算网络架构演进</div>
-              <div class="post-card-desc">从经典网络到 VPC、从软件转发到软硬一体化、从数据中心到云边端一体：AWS/阿里云/UCloud 三大厂商网络架构演进与 SDN、VXLAN、eBPF、DPU 核心技术全解析。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-network">Network</span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-devops">DevOps</span></span>
-                <span>2026-05-30</span>
-              </div>
-            </a>
-            <a href="posts/vxlan-与-gre的区别.html" class="post-card" data-title="VXLAN 与 GRE 的区别" data-date="2026-05-29" data-tags="network">
-              <div class="post-card-title">VXLAN 与 GRE 的区别</div>
-              <div class="post-card-desc">云数据中心 Overlay 网络补充：从设计目标、封装结构、VNI/Key、ECMP、NAT、防火墙、MTU 与典型场景讲透 VXLAN 和 GRE 的区别。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-network">Network</span></span>
-                <span>2026-05-29</span>
-              </div>
-            </a>
-            <a href="posts/ip包结构与mtu位置.html" class="post-card" data-title="IP包结构与MTU位置" data-date="2026-05-15" data-tags="network">
-              <div class="post-card-title">IP包结构与MTU位置</div>
-              <div class="post-card-desc">IP 包结构与 MTU 详解：头部字段含义、MTU 在协议栈中的位置、分片与 PMTUD 机制，以及各层封装的嵌套关系。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-network">Network</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- ===== AI ===== -->
-        <div class="category-group" id="ai">
-          <div class="category-group-title">
-            <span class="cat-dot" style="background:var(--tag-ai)"></span>
-            AI
-          </div>
-          <div class="post-cards" data-category="ai">
-            <a href="posts/harness-engineering是什么.html" class="post-card" data-title="Harness Engineering 是什么" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">Harness Engineering 是什么</div>
-              <div class="post-card-desc">当 AI 智能体取代人类成为代码主要生产者时，工程师从"写代码"转向"设计环境、明确意图、构建反馈回路"，让智能体可靠执行——人类掌舵，智能体执行。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/ai常见术语.html" class="post-card" data-title="AI常见术语" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">AI常见术语</div>
-              <div class="post-card-desc">AI 基础术语详解：拟合与过拟合的区别、符号主义与联结主义的核心思想、权重和偏移量的作用、激活函数引入非线性的必要性。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/nlp基础概念.html" class="post-card" data-title="NLP基础概念" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">NLP基础概念</div>
-              <div class="post-card-desc">NLP 文本表示进化史：从 VSM 稀疏向量到 N-gram 接龙猜词，再到 Word2Vec 稠密语义向量和 ELMo 语境动态表示，一步步走向现代大模型。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/llm类型介绍.html" class="post-card" data-title="LLM类型介绍" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">LLM类型介绍</div>
-              <div class="post-card-desc">大语言模型分类概览：Base 模型与 Chat 模型的区别、多模态 LLM、Agent 模型、Code 模型，以及提示（Prompting）与微调（Fine-tuning）的差异。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/训练微调与强化学习.html" class="post-card" data-title="训练微调与强化学习" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">训练微调与强化学习</div>
-              <div class="post-card-desc">LLM 三阶段训练范式：预训练、微调、强化学习的核心逻辑，以及将大模型类比操作系统内核的独特视角——Agent 开发就是开发 LLM 上的应用程序。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/大模型怎么练出来.html" class="post-card" data-title="大模型怎么练出来" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">大模型怎么练出来</div>
-              <div class="post-card-desc">从数据准备到模型部署的完整流程：Tokenizer (BPE)、数据清洗八步骤、预训练与后训练 (SFT/RLHF/DPO)、神经网络训练原理与反向传播。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/模型推理.html" class="post-card" data-title="模型推理" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">模型推理</div>
-              <div class="post-card-desc">LLM 推理流程六步走：分词 → 嵌入 → Transformer 计算 → 输出 Logits → 采样 → 自回归生成，逐 token 循环直到结束。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-            <a href="posts/function-calling与mcp.html" class="post-card" data-title="Function Calling与MCP" data-date="2026-05-15" data-tags="ai">
-              <div class="post-card-title">Function Calling与MCP</div>
-              <div class="post-card-desc">LLM 工具调用全链路：Function Calling 五步流程、MCP 标准化协议的客户端/服务器架构、Tool 与 Skill 的区别及技能四要素。</div>
-              <div class="post-card-meta">
-                <span><span class="tag tag-ai">AI</span></span>
-                <span>2026-05-15</span>
-              </div>
-            </a>
-          </div>
-        </div>
-
-      </div>
-      <!-- /category-view -->
-
-    </div>
-  </main>
-
+<!-- ===== Hero — Editorial Layout ===== -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="hero-label">Cloud Native · SRE</div>
+    <h1>SRE Notes<span class="accent-dot"></span></h1>
+    <p>云原生基础设施 · 分布式系统 · 技术实践笔记</p>
+  </div>
 </div>
 
+<!-- ===== Main Content ===== -->
+<div class="container">
+
+  <!-- Category Chip Bar (replaces category-grid + tag-filter-bar) -->
+  <div class="category-row" id="category-row">
+    <button class="cat-chip active" data-cat="">
+      <span class="cat-dot" style="background:var(--text-secondary)"></span>
+      全部
+      <span class="cat-count">27</span>
+    </button>
+    <button class="cat-chip" data-cat="kubernetes">
+      <span class="cat-dot" style="background:var(--tag-k8s)"></span>
+      Kubernetes
+      <span class="cat-count">9</span>
+    </button>
+    <button class="cat-chip" data-cat="go">
+      <span class="cat-dot" style="background:var(--tag-go)"></span>
+      Go
+      <span class="cat-count">4</span>
+    </button>
+    <button class="cat-chip" data-cat="ai">
+      <span class="cat-dot" style="background:var(--tag-ai)"></span>
+      AI
+      <span class="cat-count">8</span>
+    </button>
+    <button class="cat-chip" data-cat="network">
+      <span class="cat-dot" style="background:var(--tag-network)"></span>
+      Network
+      <span class="cat-count">3</span>
+    </button>
+    <button class="cat-chip" data-cat="linux">
+      <span class="cat-dot" style="background:var(--tag-linux)"></span>
+      Linux
+      <span class="cat-count">2</span>
+    </button>
+    <button class="cat-chip" data-cat="devops">
+      <span class="cat-dot" style="background:var(--tag-devops)"></span>
+      DevOps
+      <span class="cat-count">1</span>
+    </button>
+    <button class="cat-chip" data-cat="iac">
+      <span class="cat-dot" style="background:var(--tag-iac)"></span>
+      IaC
+      <span class="cat-count">1</span>
+    </button>
+    <button class="cat-chip" data-cat="python">
+      <span class="cat-dot" style="background:var(--tag-python)"></span>
+      Python
+      <span class="cat-count">0</span>
+    </button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="search-input" placeholder="搜索笔记..." autocomplete="off">
+    <button class="search-clear" id="search-clear" title="清除搜索">&times;</button>
+  </div>
+
+  <!-- Sort -->
+  <div class="sort-controls" id="sort-controls">
+    <span class="sort-label">排序</span>
+    <button class="sort-btn active" data-sort="date-desc">时间 ↓</button>
+    <button class="sort-btn" data-sort="date-asc">时间 ↑</button>
+    <button class="sort-btn" data-sort="title-asc">标题 A-Z</button>
+  </div>
+
+  <!-- Search Results -->
+  <div class="search-results" id="search-results" style="display:none">
+    <div class="search-results-header">
+      <span id="search-results-count"></span>
+      <button class="search-results-clear" id="search-results-clear">返回全部</button>
+    </div>
+    <div id="search-results-list"></div>
+  </div>
+
+  <!-- Category View -->
+  <div id="category-view">
+
+    <!-- Kubernetes -->
+    <div class="category-group" id="kubernetes">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-k8s)"></span><h3>Kubernetes</h3></div>
+      <div class="post-cards" data-category="kubernetes">
+        <a href="posts/admission-webhook.html" class="post-card" data-title="Admission Webhook 开发" data-date="2026-05-12" data-tags="kubernetes,python"><div class="post-card-title">Admission Webhook 开发</div><div class="post-card-desc">Kubernetes Admission Webhook 机制详解：Mutating / Validating 流程、AdmissionReview 返回格式、Python Flask 实现及证书配置完整指南。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-python">Python</span></span><span>2026-05-12</span></div></a>
+        <a href="posts/configmap-secret.html" class="post-card" data-title="ConfigMap 与 Secret" data-date="2026-05-15" data-tags="kubernetes"><div class="post-card-title">ConfigMap 与 Secret</div><div class="post-card-desc">Kubernetes ConfigMap 和 Secret 详解：创建方式、环境变量引用、卷挂载使用，以及 Secret 内置类型与安全实践。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/k8s-api组织结构.html" class="post-card" data-title="k8s API组织结构" data-date="2026-05-16" data-tags="kubernetes,network"><div class="post-card-title">k8s API组织结构</div><div class="post-card-desc">Kubernetes API 组织形式详解：Group/Version/Resource 三层结构、list-watch 机制、kubectl proxy 认证代理原理与直接访问 6443 的区别。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span><span>2026-05-16</span></div></a>
+        <a href="posts/k8s权限管理.html" class="post-card" data-title="K8s权限管理" data-date="2026-05-20" data-tags="kubernetes,devops"><div class="post-card-title">K8s权限管理</div><div class="post-card-desc">Kubernetes 权限管理全流程：RBAC 核心对象与判定逻辑、用户证书创建与 CSR 审批、kubeconfig 文件结构解析、ServiceAccount 机制。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-devops">DevOps</span></span><span>2026-05-20</span></div></a>
+        <a href="posts/security-context和linux-capabilities详解.html" class="post-card" data-title="Security Context和Linux Capabilities详解" data-date="2026-05-20" data-tags="kubernetes,linux"><div class="post-card-title">Security Context和Linux Capabilities详解</div><div class="post-card-desc">Kubernetes Security Context 核心机制：Linux Capabilities 四组集合与传递规则、Pod/容器级安全配置字段详解、最小权限配置范式。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-linux">Linux</span></span><span>2026-05-20</span></div></a>
+        <a href="posts/kubernetes-service原理.html" class="post-card" data-title="Kubernetes Service原理" data-date="2026-05-21" data-tags="kubernetes,linux,network"><div class="post-card-title">Kubernetes Service原理</div><div class="post-card-desc">Kubernetes Service 原理详解：conntrack 连接跟踪与不对称路径问题、iptables/ipvs 两种模式下数据包流转全链路、四种 Service 类型。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-linux">Linux</span><span class="tag tag-network">Network</span></span><span>2026-05-21</span></div></a>
+        <a href="posts/Ingress三种部署模式与底层原理.html" class="post-card" data-title="Ingress 三种部署模式与底层原理" data-date="2026-05-30" data-tags="kubernetes,network"><div class="post-card-title">Ingress 三种部署模式与底层原理</div><div class="post-card-desc">Kubernetes Ingress 详解：Deployment/DaemonSet+HostNetwork/NodePort 三种部署模式对比、Nginx Ingress Controller 控制循环与 Lua Balancer 原理。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span><span>2026-05-30</span></div></a>
+        <a href="posts/Ingress-Nginx三种部署模式实战.html" class="post-card" data-title="Ingress-Nginx 三种部署模式实战" data-date="2026-05-31" data-tags="kubernetes,network"><div class="post-card-title">Ingress-Nginx 三种部署模式实战</div><div class="post-card-desc">三节点 K8s 集群实战部署 ingress-nginx 三种模式：Deployment+NodePort、DaemonSet+HostNetwork、DaemonSet+NodePort。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span><span>2026-05-31</span></div></a>
+        <a href="posts/Ingress-Nginx高阶用法与流量控制.html" class="post-card" data-title="Ingress-Nginx 高阶用法与流量控制" data-date="2026-05-31" data-tags="kubernetes,network"><div class="post-card-title">Ingress-Nginx 高阶用法与流量控制</div><div class="post-card-desc">Ingress-Nginx 金丝雀/蓝绿/灰度/滚动发布全攻略：基于权重、请求头、Cookie、正则的流量控制，TLS 站点构建与 cert-manager 自动证书。</div><div class="post-card-meta"><span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span><span>2026-05-31</span></div></a>
+      </div>
+    </div>
+
+    <!-- Go -->
+    <div class="category-group" id="go">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-go)"></span><h3>Go</h3></div>
+      <div class="post-cards" data-category="go">
+        <a href="posts/go值接收者与指针接收者.html" class="post-card" data-title="Go 值接收者与指针接收者" data-date="2026-05-17" data-tags="go"><div class="post-card-title">Go 值接收者与指针接收者</div><div class="post-card-desc">Go 方法接收者选择策略：值接收者操作副本无法修改原值，指针接收者可修改且避免拷贝，混用导致接口满足混乱，一致性原则要求统一选择。</div><div class="post-card-meta"><span><span class="tag tag-go">Go</span></span><span>2026-05-17</span></div></a>
+        <a href="posts/如何理解接口.html" class="post-card" data-title="如何理解接口" data-date="2026-05-18" data-tags="go"><div class="post-card-title">如何理解接口</div><div class="post-card-desc">Go 接口底层双指针结构解析：接口赋值即装箱、类型断言即拆箱、空接口 any 的无条件准入、反射对 type/data 指针的运行时探查。</div><div class="post-card-meta"><span><span class="tag tag-go">Go</span></span><span>2026-05-18</span></div></a>
+        <a href="posts/go-协程与通道.html" class="post-card" data-title="Go 协程与通道" data-date="2026-06-02" data-tags="go"><div class="post-card-title">Go 协程与通道</div><div class="post-card-desc">Go 并发编程核心：goroutine 启动与 WaitGroup 同步、无缓冲/带缓冲 channel、close 与 range 遍历、select 多路复用与超时控制、Worker Pool。</div><div class="post-card-meta"><span><span class="tag tag-go">Go</span></span><span>2026-06-02</span></div></a>
+        <a href="posts/go-网络模板与-web-应用完全指南.html" class="post-card" data-title="Go 网络模板与 Web 应用完全指南" data-date="2026-06-02" data-tags="go,devops,network"><div class="post-card-title">Go 网络模板与 Web 应用完全指南</div><div class="post-card-desc">面向 Go 初学者的 Web 开发教程：从零搭建 HTTP 服务器、模板引擎、表单处理、完整 Task Manager 项目，进阶 TCP/UDP、gRPC、WebSocket 实战。</div><div class="post-card-meta"><span><span class="tag tag-go">Go</span><span class="tag tag-devops">DevOps</span><span class="tag tag-network">Network</span></span><span>2026-06-02</span></div></a>
+      </div>
+    </div>
+
+    <!-- Python -->
+    <div class="category-group" id="python">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-python)"></span><h3>Python</h3></div>
+      <div class="post-cards" data-category="python"></div>
+      <div class="empty-state"><p>暂无笔记</p></div>
+    </div>
+
+    <!-- DevOps -->
+    <div class="category-group" id="devops">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-devops)"></span><h3>DevOps</h3></div>
+      <div class="post-cards" data-category="devops">
+        <a href="posts/静态站点自动部署实战.html" class="post-card" data-title="静态站点自动部署实战" data-date="2026-05-16" data-tags="devops"><div class="post-card-title">静态站点自动部署实战</div><div class="post-card-desc">从 Markdown 写作到 Cloudflare Pages 上线：GitHub Actions Workflow 配置、Cloudflare Secrets 设置、完整发布流程与故障排查指南。</div><div class="post-card-meta"><span><span class="tag tag-devops">DevOps</span></span><span>2026-05-16</span></div></a>
+      </div>
+    </div>
+
+    <!-- IaC -->
+    <div class="category-group" id="iac">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-iac)"></span><h3>IaC</h3></div>
+      <div class="post-cards" data-category="iac">
+        <a href="posts/ucloud-terraform-基础设施自动化.html" class="post-card" data-title="UCloud Terraform 基础设施自动化" data-date="2026-06-01" data-tags="iac,devops"><div class="post-card-title">UCloud Terraform 基础设施自动化</div><div class="post-card-desc">使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。</div><div class="post-card-meta"><span><span class="tag tag-iac">IaC</span><span class="tag tag-devops">DevOps</span></span><span>2026-06-01</span></div></a>
+      </div>
+    </div>
+
+    <!-- Linux -->
+    <div class="category-group" id="linux">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-linux)"></span><h3>Linux</h3></div>
+      <div class="post-cards" data-category="linux">
+        <a href="posts/文件描述符与文件句柄.html" class="post-card" data-title="文件描述符与文件句柄" data-date="2026-05-26" data-tags="linux,python"><div class="post-card-title">文件描述符与文件句柄</div><div class="post-card-desc">Linux 文件描述符与文件句柄总结：通过 Python os.open 示例观察 /proc/PID/fd，理解 FD、打开文件对象、inode 与路径的关系。</div><div class="post-card-meta"><span><span class="tag tag-linux">Linux</span><span class="tag tag-python">Python</span></span><span>2026-05-26</span></div></a>
+        <a href="posts/cpu软中断高排查记录.html" class="post-card" data-title="CPU软中断高排查记录" data-date="2026-05-15" data-tags="linux,network,devops"><div class="post-card-title">CPU软中断高排查记录</div><div class="post-card-desc">KVM 宿主机 CPU 软中断高排查：perf 定位热点、/proc/softirqs 确认 NET_RX 分布不均、RPS 关闭导致软中断无法跨核分流的根因分析与优化方案。</div><div class="post-card-meta"><span><span class="tag tag-linux">Linux</span><span class="tag tag-network">Network</span><span class="tag tag-devops">DevOps</span></span><span>2026-05-15</span></div></a>
+      </div>
+    </div>
+
+    <!-- Network -->
+    <div class="category-group" id="network">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-network)"></span><h3>Network</h3></div>
+      <div class="post-cards" data-category="network">
+        <a href="posts/云计算网络架构演进.html" class="post-card" data-title="云计算网络架构演进" data-date="2026-05-30" data-tags="network,kubernetes,devops"><div class="post-card-title">云计算网络架构演进</div><div class="post-card-desc">从经典网络到 VPC、从软件转发到软硬一体化、从数据中心到云边端一体：AWS/阿里云/UCloud 三大厂商网络架构演进。</div><div class="post-card-meta"><span><span class="tag tag-network">Network</span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-devops">DevOps</span></span><span>2026-05-30</span></div></a>
+        <a href="posts/vxlan-与-gre的区别.html" class="post-card" data-title="VXLAN 与 GRE 的区别" data-date="2026-05-29" data-tags="network"><div class="post-card-title">VXLAN 与 GRE 的区别</div><div class="post-card-desc">云数据中心 Overlay 网络补充：从设计目标、封装结构、VNI/Key、ECMP、NAT、防火墙、MTU 与典型场景讲透 VXLAN 和 GRE 的区别。</div><div class="post-card-meta"><span><span class="tag tag-network">Network</span></span><span>2026-05-29</span></div></a>
+        <a href="posts/ip包结构与mtu位置.html" class="post-card" data-title="IP包结构与MTU位置" data-date="2026-05-15" data-tags="network"><div class="post-card-title">IP包结构与MTU位置</div><div class="post-card-desc">IP 包结构与 MTU 详解：头部字段含义、MTU 在协议栈中的位置、分片与 PMTUD 机制，以及各层封装的嵌套关系。</div><div class="post-card-meta"><span><span class="tag tag-network">Network</span></span><span>2026-05-15</span></div></a>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div class="category-group" id="ai">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-ai)"></span><h3>AI</h3></div>
+      <div class="post-cards" data-category="ai">
+        <a href="posts/harness-engineering是什么.html" class="post-card" data-title="Harness Engineering 是什么" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">Harness Engineering 是什么</div><div class="post-card-desc">当 AI 智能体取代人类成为代码主要生产者时，工程师从"写代码"转向"设计环境、明确意图、构建反馈回路"，让智能体可靠执行。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/ai常见术语.html" class="post-card" data-title="AI常见术语" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">AI常见术语</div><div class="post-card-desc">AI 基础术语详解：拟合与过拟合的区别、符号主义与联结主义的核心思想、权重和偏移量的作用、激活函数引入非线性的必要性。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/nlp基础概念.html" class="post-card" data-title="NLP基础概念" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">NLP基础概念</div><div class="post-card-desc">NLP 文本表示进化史：从 VSM 稀疏向量到 N-gram 接龙猜词，再到 Word2Vec 稠密语义向量和 ELMo 语境动态表示，一步步走向现代大模型。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/llm类型介绍.html" class="post-card" data-title="LLM类型介绍" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">LLM类型介绍</div><div class="post-card-desc">大语言模型分类概览：Base 模型与 Chat 模型的区别、多模态 LLM、Agent 模型、Code 模型，以及提示（Prompting）与微调（Fine-tuning）的差异。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/训练微调与强化学习.html" class="post-card" data-title="训练微调与强化学习" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">训练微调与强化学习</div><div class="post-card-desc">LLM 三阶段训练范式：预训练、微调、强化学习的核心逻辑，以及将大模型类比操作系统内核的独特视角——Agent 开发就是开发 LLM 上的应用程序。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/大模型怎么练出来.html" class="post-card" data-title="大模型怎么练出来" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">大模型怎么练出来</div><div class="post-card-desc">从数据准备到模型部署的完整流程：Tokenizer (BPE)、数据清洗八步骤、预训练与后训练 (SFT/RLHF/DPO)、神经网络训练原理与反向传播。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/模型推理.html" class="post-card" data-title="模型推理" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">模型推理</div><div class="post-card-desc">LLM 推理流程六步走：分词 → 嵌入 → Transformer 计算 → 输出 Logits → 采样 → 自回归生成，逐 token 循环直到结束。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+        <a href="posts/function-calling与mcp.html" class="post-card" data-title="Function Calling与MCP" data-date="2026-05-15" data-tags="ai"><div class="post-card-title">Function Calling与MCP</div><div class="post-card-desc">LLM 工具调用全链路：Function Calling 五步流程、MCP 标准化协议的客户端/服务器架构、Tool 与 Skill 的区别及技能四要素。</div><div class="post-card-meta"><span><span class="tag tag-ai">AI</span></span><span>2026-05-15</span></div></a>
+      </div>
+    </div>
+
+  </div><!-- /category-view -->
+
+</div><!-- /container -->
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="index.html">首页</a>
+      <a href="about.html">关于</a>
+      <a href="https://github.com/pro12221" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">© 2026 SRE Notes</div>
+  </div>
+</footer>
+
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
 <script src="search-index.js"></script>
 <script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-
 (function() {
   var TAG_CLASS_MAP = {
     kubernetes: 'tag-k8s', go: 'tag-go', python: 'tag-python',
@@ -462,14 +214,8 @@ function toggleSidebar() {
   };
 
   var fuse = new Fuse(window.SEARCH_INDEX || [], {
-    keys: [
-      { name: 'title', weight: 0.4 },
-      { name: 'desc', weight: 0.35 },
-      { name: 'tags', weight: 0.25 }
-    ],
-    threshold: 0.35,
-    ignoreLocation: true,
-    includeScore: true
+    keys: [{ name: 'title', weight: 0.4 }, { name: 'desc', weight: 0.35 }, { name: 'tags', weight: 0.25 }],
+    threshold: 0.35, ignoreLocation: true, includeScore: true
   });
 
   var searchInput = document.getElementById('search-input');
@@ -480,13 +226,11 @@ function toggleSidebar() {
   var searchResultsClear = document.getElementById('search-results-clear');
   var categoryView = document.getElementById('category-view');
   var sortControls = document.getElementById('sort-controls');
-  var tagFilterBar = document.getElementById('tag-filter-bar');
-
+  var categoryRow = document.getElementById('category-row');
   var currentSort = 'date-desc';
   var currentTag = '';
   var debounceTimer = null;
 
-  // --- Search ---
   searchInput.addEventListener('input', function() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(doSearch, 250);
@@ -507,20 +251,18 @@ function toggleSidebar() {
 
   function doSearch() {
     var query = searchInput.value.trim();
+    var allCardsContainer = document.getElementById('all-cards-container');
     if (!query) { hideSearchResults(); return; }
-
     var results = fuse.search(query);
     categoryView.style.display = 'none';
+    if (allCardsContainer) allCardsContainer.style.display = 'none';
     sortControls.style.display = 'none';
     searchResults.style.display = 'block';
-
     searchResultsCount.textContent = results.length + ' 篇匹配 "' + query + '"';
-
     if (results.length === 0) {
       searchResultsList.innerHTML = '<div class="search-empty">未找到相关笔记</div>';
       return;
     }
-
     searchResultsList.innerHTML = results.map(function(r) {
       var item = r.item;
       var tagHtml = item.tags.map(function(t) {
@@ -529,33 +271,30 @@ function toggleSidebar() {
       return '<a href="' + item.url + '" class="post-card">' +
         '<div class="post-card-title">' + item.title + '</div>' +
         '<div class="post-card-desc">' + item.desc + '</div>' +
-        '<div class="post-card-meta"><span>' + tagHtml + '</span><span>' + item.date + '</span></div>' +
-        '</a>';
+        '<div class="post-card-meta"><span>' + tagHtml + '</span><span>' + item.date + '</span></div></a>';
     }).join('');
   }
 
   function hideSearchResults() {
     searchResults.style.display = 'none';
     searchResultsList.innerHTML = '';
+    var allCardsContainer = document.getElementById('all-cards-container');
+    if (allCardsContainer) allCardsContainer.style.display = '';
     categoryView.style.display = '';
     sortControls.style.display = '';
     applyFilters();
   }
 
-  // --- Tag Filter ---
-  tagFilterBar.addEventListener('click', function(e) {
-    var btn = e.target.closest('.tag-filter-btn');
-    if (!btn) return;
-    var tag = btn.dataset.tag;
-
-    tagFilterBar.querySelectorAll('.tag-filter-btn').forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    currentTag = tag;
-
+  // Category chip bar click handler (replaces tag-filter-bar)
+  categoryRow.addEventListener('click', function(e) {
+    var chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    categoryRow.querySelectorAll('.cat-chip').forEach(function(c) { c.classList.remove('active'); });
+    chip.classList.add('active');
+    currentTag = chip.dataset.cat;
     applyFilters();
   });
 
-  // --- Sort ---
   sortControls.addEventListener('click', function(e) {
     var btn = e.target.closest('.sort-btn');
     if (!btn) return;
@@ -565,71 +304,94 @@ function toggleSidebar() {
     applyFilters();
   });
 
-  // --- Apply tag filter + sort ---
   function applyFilters() {
     var groups = document.querySelectorAll('.category-group');
+    var allCardsContainer = document.getElementById('all-cards-container');
+    var allCardsGrid = document.getElementById('all-cards-grid');
 
-    groups.forEach(function(group) {
-      var cardsContainer = group.querySelector('.post-cards');
-      var emptyState = group.querySelector('.empty-state');
-      var cards = cardsContainer ? Array.from(cardsContainer.querySelectorAll('.post-card')) : [];
+    if (!currentTag) {
+      // "全部" 模式：所有卡片汇集到统一网格，隐藏分类头部
+      if (!allCardsContainer) {
+        allCardsContainer = document.createElement('div');
+        allCardsContainer.id = 'all-cards-container';
+        allCardsGrid = document.createElement('div');
+        allCardsGrid.id = 'all-cards-grid';
+        allCardsGrid.className = 'post-cards';
+        allCardsContainer.appendChild(allCardsGrid);
+        categoryView.insertBefore(allCardsContainer, categoryView.firstChild);
+      }
 
-      // Tag filter
-      if (currentTag) {
+      // 收集所有卡片
+      var allCards = [];
+      groups.forEach(function(group) {
+        group.style.display = 'none';
+        var header = group.querySelector('.category-group-header');
+        if (header) header.style.display = 'none';
+        var cards = group.querySelectorAll('.post-card');
+        cards.forEach(function(card) { allCards.push(card); });
+      });
+
+      // 排序
+      if (allCards.length > 1) {
+        allCards.sort(function(a, b) {
+          if (currentSort === 'date-desc') return (b.dataset.date || '').localeCompare(a.dataset.date || '');
+          if (currentSort === 'date-asc') return (a.dataset.date || '').localeCompare(b.dataset.date || '');
+          if (currentSort === 'title-asc') return (a.dataset.title || '').localeCompare(b.dataset.title || '');
+          return 0;
+        });
+      }
+
+      allCardsGrid.innerHTML = '';
+      allCards.forEach(function(card) {
+        card.style.display = '';
+        allCardsGrid.appendChild(card);
+      });
+      allCardsContainer.style.display = '';
+
+    } else {
+      // 分类过滤模式：只显示匹配的分类，隐藏统一网格
+      if (allCardsContainer) allCardsContainer.style.display = 'none';
+      groups.forEach(function(group) {
+        var header = group.querySelector('.category-group-header');
+        var cardsContainer = group.querySelector('.post-cards');
+        var emptyState = group.querySelector('.empty-state');
+        var cards = cardsContainer ? Array.from(cardsContainer.querySelectorAll('.post-card')) : [];
         var hasVisible = false;
+
         cards.forEach(function(card) {
           var tags = (card.dataset.tags || '').split(',');
           var visible = tags.indexOf(currentTag) !== -1;
           card.style.display = visible ? '' : 'none';
           if (visible) hasVisible = true;
         });
+
         group.style.display = hasVisible ? '' : 'none';
+        if (header) header.style.display = hasVisible ? '' : 'none';
         if (emptyState) emptyState.style.display = 'none';
-      } else {
-        cards.forEach(function(card) { card.style.display = ''; });
-        group.style.display = '';
-        if (emptyState && cards.length === 0) emptyState.style.display = '';
-        else if (emptyState) emptyState.style.display = 'none';
-      }
 
-      // Sort
-      if (cards.length > 1) {
-        cards.sort(function(a, b) {
-          if (currentSort === 'date-desc') return (b.dataset.date || '').localeCompare(a.dataset.date || '');
-          if (currentSort === 'date-asc') return (a.dataset.date || '').localeCompare(b.dataset.date || '');
-          if (currentSort === 'title-asc') return (a.dataset.title || '').localeCompare(b.dataset.title || '');
-          return 0;
-        });
-        cards.forEach(function(card) { cardsContainer.appendChild(card); });
-      }
-    });
-
-    // When filtering by tag, also hide empty category headers for cleanliness
-    if (currentTag) {
-      groups.forEach(function(group) {
-        var cardsContainer = group.querySelector('.post-cards');
-        var visibleCards = cardsContainer ? cardsContainer.querySelectorAll('.post-card:not([style*="display: none"])') : [];
-        group.style.display = visibleCards.length > 0 ? '' : 'none';
+        if (hasVisible && cards.length > 1) {
+          cards.sort(function(a, b) {
+            if (currentSort === 'date-desc') return (b.dataset.date || '').localeCompare(a.dataset.date || '');
+            if (currentSort === 'date-asc') return (a.dataset.date || '').localeCompare(b.dataset.date || '');
+            if (currentSort === 'title-asc') return (a.dataset.title || '').localeCompare(b.dataset.title || '');
+            return 0;
+          });
+          cards.forEach(function(card) { cardsContainer.appendChild(card); });
+        }
       });
     }
   }
 
-  // Keyboard shortcut: / to focus search
   document.addEventListener('keydown', function(e) {
-    if (e.key === '/' && document.activeElement !== searchInput) {
-      e.preventDefault();
-      searchInput.focus();
-    }
-    if (e.key === 'Escape' && document.activeElement === searchInput) {
-      searchInput.blur();
-      if (!searchInput.value.trim()) { hideSearchResults(); }
-    }
+    if (e.key === '/' && document.activeElement !== searchInput) { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) { searchInput.blur(); if (!searchInput.value.trim()) { hideSearchResults(); } }
   });
 
-  // Initial sort
   applyFilters();
 })();
 </script>
+<script src="js/particles.js"></script>
+<script src="js/nav.js"></script>
 
 </body>
 </html>
