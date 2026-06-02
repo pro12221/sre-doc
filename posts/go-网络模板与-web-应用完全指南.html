@@ -106,123 +106,532 @@
 
 <h2>1. 目录</h2>
 
-<ol><li><a href="#1-nethttp-路由go-122">net/http 路由（Go 1.22+）</a></li><li><a href="#2-快速开始hello-world">快速开始：Hello World</a></li><li><a href="#3-模板语法速查">模板语法速查</a></li><li><a href="#4-自定义函数-funcmap">自定义函数 FuncMap</a></li><li><a href="#5-模板组合layout--partial-模式">模板组合：Layout + Partial 模式</a></li><li><a href="#6-embedfs将模板嵌入二进制">embed.FS：将模板嵌入二进制</a></li><li><a href="#7-gin-框架模板渲染">Gin 框架模板渲染</a></li><li><a href="#8-echo-框架模板渲染">Echo 框架模板渲染</a></li><li><a href="#9-fiber-框架模板渲染">Fiber 框架模板渲染</a></li><li><a href="#10-go-网络编程tcpudp">Go 网络编程：TCP/UDP</a></li><li><a href="#11-rpc-远程调用netrpc-与-grpc">RPC 远程调用：net/rpc 与 gRPC</a></li><li><a href="#12-websocket-实时通信">WebSocket 实时通信</a></li><li><a href="#13-安全xss-防护与自动转义">安全：XSS 防护与自动转义</a></li><li><a href="#14-view-model-模式">View Model 模式</a></li><li><a href="#15-生产环境最佳实践">生产环境最佳实践</a></li></ol>
+<ol><li><a href="#1-准备工作你需要知道什么">准备工作：你需要知道什么</a></li><li><a href="#2-你的第一个-http-服务器">你的第一个 HTTP 服务器</a></li><li><a href="#3-理解-http-请求与响应">理解 HTTP 请求与响应</a></li><li><a href="#4-处理多个路由">处理多个路由</a></li><li><a href="#5-返回-json-数据构建-api">返回 JSON 数据（构建 API）</a></li><li><a href="#6-html-模板入门告别字符串拼接">HTML 模板入门：告别字符串拼接</a></li><li><a href="#7-模板进阶layout-布局与组件复用">模板进阶：Layout 布局与组件复用</a></li><li><a href="#8-处理表单让用户提交数据">处理表单：让用户提交数据</a></li><li><a href="#9-实战项目task-manager-任务管理器">实战项目：Task Manager 任务管理器</a></li><li><a href="#10-进阶网络编程tcpudp">进阶网络编程：TCP/UDP</a></li><li><a href="#11-rpc-远程调用服务之间如何通信">RPC 远程调用：服务之间如何通信</a></li><li><a href="#12-websocket-实时通信">WebSocket 实时通信</a></li><li><a href="#13-安全xss-防护与最佳实践">安全：XSS 防护与最佳实践</a></li><li><a href="#14-生产环境-checklist">生产环境 Checklist</a></li></ol>
 
 <hr>
 
-<h2>2. 1. net/http 路由（Go 1.22+）</h2>
+<h2>2. 1. 准备工作：你需要知道什么</h2>
 
-<p>Go 1.22 大幅增强了 <code>net/http.ServeMux</code>，原生支持 HTTP 方法匹配和路径参数。</p>
+<h3>1.1 前置知识</h3>
 
-<h3>6.1 基本路由</h3>
+<table><thead><tr><th>你会的</th><th>你不需要会的</th></tr></thead><tbody><tr><td>Go 基础语法（变量、函数、struct、slice、map）</td><td>HTTP 协议细节</td></tr><tr><td>会用 <code>go run</code> / <code>go build</code></td><td>HTML/CSS/JavaScript</td></tr><tr><td>理解 <code>if err != nil</code> 错误处理</td><td>任何 Web 框架</td></tr><tr><td>知道 <code>package main</code> 和 <code>import</code></td><td>数据库操作</td></tr></tbody></table>
+
+<h3>1.2 两个核心概念：你只需要记住这两个东西</h3>
+
+<p>在 Go 的 Web 开发中，你写代码时永远在和两个东西打交道：</p>
+
+<pre><code>1. http.ResponseWriter  →  用来"写响应"（告诉浏览器显示什么）
+2. *http.Request        →  用来"读请求"（浏览器发来了什么）</code></pre>
+
+<p><strong>每一个</strong>处理函数都是这个签名：</p>
+
+<pre><code><span class="code-label">Go</span>func 处理函数名(w http.ResponseWriter, r *http.Request) {
+    // w: 你想返回给浏览器的内容，通过 w 写出去
+    // r: 浏览器发来的请求信息（URL、参数、表单数据等）
+}</code></pre>
+
+<blockquote><p>后面所有章节，你都会反复看到这两个参数。记住它们，后面的内容就很容易理解了。</p></blockquote>
+
+<h3>1.3 项目目录</h3>
+
+<pre><code><span class="code-label">Shell</span>mkdir ~/go-web-tutorial &amp;&amp; cd ~/go-web-tutorial
+go mod init go-web-tutorial</code></pre>
+
+<hr>
+
+<h2>3. 2. 你的第一个 HTTP 服务器</h2>
+
+<h3>2.1 目标</h3>
+
+<p>启动一个程序，在浏览器访问 <code>http://localhost:8080</code> 时显示 "Hello, 世界！"。</p>
+
+<h3>2.2 代码</h3>
+
+<p>创建 <code>main.go</code>：</p>
 
 <pre><code><span class="code-label">Go</span>package main
 
 import (
-    "encoding/json"
     "fmt"
-    "log"
     "net/http"
-    "strconv"
 )
 
 func main() {
-    mux := http.NewServeMux()
-
-    // 方法 + 路径匹配
-    mux.HandleFunc("GET /api/users", listUsers)
-    mux.HandleFunc("POST /api/users", createUser)
-    mux.HandleFunc("GET /api/users/{id}", getUser)
-    mux.HandleFunc("PUT /api/users/{id}", updateUser)
-    mux.HandleFunc("DELETE /api/users/{id}", deleteUser)
-
-    // 嵌套资源
-    mux.HandleFunc("GET /api/users/{userID}/posts", listUserPosts)
-    mux.HandleFunc("GET /api/users/{userID}/posts/{postID}", getUserPost)
-
-    // 精确匹配根路径（{$} 防止匹配所有路径）
-    mux.HandleFunc("GET /{$}", homePage)
-
-    log.Fatal(http.ListenAndServe(":8080", mux))
-}
-
-func getUser(w http.ResponseWriter, r *http.Request) {
-    id := r.PathValue("id") // 提取路径参数
-    // 实际应用中从数据库查询
-    writeJSON(w, http.StatusOK, map[string]string{"id": id, "name": "张三"})
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprint(w, "Hello, 世界！")
+    })
+    http.ListenAndServe(":8080", nil)
 }</code></pre>
 
-<h3>6.2 中间件模式</h3>
+<p>运行：</p>
 
-<pre><code><span class="code-label">Go</span>// 中间件签名：func(http.Handler) http.Handler
-func loggingMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        start := time.Now()
-        next.ServeHTTP(w, r)
-        log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
-    })
-}
+<pre><code><span class="code-label">Shell</span>go run main.go</code></pre>
 
-func authMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        token := r.Header.Get("Authorization")
-        if token == "" {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
-            return
-        }
-        // 验证 token 并将用户信息存入 context
-        ctx := context.WithValue(r.Context(), "userID", "123")
-        next.ServeHTTP(w, r.WithContext(ctx))
-    })
-}
+<p>打开浏览器访问 <code>http://localhost:8080</code>，你会看到 "Hello, 世界！"。</p>
 
-// 中间件链
-func middlewareChain(h http.Handler, middlewares ...func(http.Handler) http.Handler) http.Handler {
-    for i := len(middlewares) - 1; i &gt;= 0; i-- {
-        h = middlewares[i](h)
+<h3>2.3 逐行解释</h3>
+
+<pre><code><span class="code-label">Go</span>http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+    //      ↑路径  ↑处理函数
+    // 含义：当有人访问路径 "/" 时，执行这个函数</code></pre>
+
+<ul><li><strong><code>"/"</code></strong>：路径。<code>"/"</code> 表示根路径，也就是 <code>http://localhost:8080/</code>。如果写成 <code>"/hello"</code>，那就是 <code>http://localhost:8080/hello</code>。</li><li><strong><code>func(w http.ResponseWriter, r *http.Request)</code></strong>：处理函数。<code>w</code> 负责写响应，<code>r</code> 包含请求信息。</li><li><strong><code>fmt.Fprint(w, "Hello, 世界！")</code></strong>：把字符串写入 <code>w</code>，浏览器就会显示这个字符串。<code>Fprint</code> 和 <code>fmt.Print</code> 用法一样，只是输出目标从终端变成了浏览器。</li></ul>
+
+<pre><code><span class="code-label">Go</span>http.ListenAndServe(":8080", nil)
+//                   ↑端口  ↑暂且不管</code></pre>
+
+<ul><li><strong><code>":8080"</code></strong>：让服务器监听 8080 端口。冒号前面是 IP 地址，留空表示监听本机所有网络接口。</li><li><strong><code>nil</code></strong>：暂时传 <code>nil</code>，表示使用默认的路由器。后面会讲到如何自定义。</li></ul>
+
+<h3>2.4 关键理解</h3>
+
+<p><code>ListenAndServe</code> 会<strong>阻塞</strong>程序——它不会返回，除非服务器出错或你手动停止（Ctrl+C）。所以这行代码通常放在 <code>main()</code> 的最后。</p>
+
+<hr>
+
+<h2>4. 3. 理解 HTTP 请求与响应</h2>
+
+<h3>3.1 目标</h3>
+
+<p>学会读取浏览器发来的请求信息（URL 路径、查询参数），并返回不同的内容。</p>
+
+<h3>3.2 代码</h3>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    // r.URL.Path 是请求的路径部分
+    path := r.URL.Path
+    fmt.Fprintf(w, "你访问的路径是: %s\n", path)
+
+    // r.URL.Query() 获取查询参数，例如 ?name=张三
+    name := r.URL.Query().Get("name")
+    if name != "" {
+        fmt.Fprintf(w, "你好, %s!\n", name)
+    } else {
+        fmt.Fprint(w, "请在 URL 后面加上 ?name=你的名字 试试\n")
     }
-    return h
 }
 
 func main() {
-    mux := http.NewServeMux()
-    mux.HandleFunc("GET /api/public", publicHandler)
-    mux.HandleFunc("GET /api/private", privateHandler)
-
-    // 全局中间件
-    handler := middlewareChain(mux, loggingMiddleware, corsMiddleware)
-
-    http.ListenAndServe(":8080", handler)
+    http.HandleFunc("/", handler)
+    fmt.Println("服务器启动: http://localhost:8080")
+    http.ListenAndServe(":8080", nil)
 }</code></pre>
 
-<h3>6.3 路由分组（子路由）</h3>
+<h3>3.3 测试</h3>
+
+<table><thead><tr><th>访问地址</th><th>你会看到</th></tr></thead><tbody><tr><td><code>http://localhost:8080</code></td><td>你访问的路径是: /  + 提示</td></tr><tr><td><code>http://localhost:8080/hello</code></td><td>你访问的路径是: /hello</td></tr><tr><td><code>http://localhost:8080/?name=张三</code></td><td>你访问的路径是: / 你好, 张三!</td></tr></tbody></table>
+
+<h3>3.4 关键理解</h3>
+
+<p><code>r *http.Request</code> 是一个包含了<strong>所有请求信息</strong>的结构体。常用字段：</p>
+
+<table><thead><tr><th>字段/方法</th><th>含义</th><th>示例</th></tr></thead><tbody><tr><td><code>r.URL.Path</code></td><td>URL 路径</td><td><code>/hello</code></td></tr><tr><td><code>r.URL.Query().Get("key")</code></td><td>查询参数</td><td><code>?name=张三</code> → <code>"张三"</code></td></tr><tr><td><code>r.Method</code></td><td>HTTP 方法</td><td><code>"GET"</code>, <code>"POST"</code></td></tr><tr><td><code>r.Header.Get("key")</code></td><td>请求头</td><td><code>r.Header.Get("User-Agent")</code></td></tr><tr><td><code>r.Body</code></td><td>请求体（POST 数据）</td><td>后面会讲</td></tr></tbody></table>
+
+<hr>
+
+<h2>5. 4. 处理多个路由</h2>
+
+<h3>4.1 目标</h3>
+
+<p>创建多个页面：首页、关于页、API 页。</p>
+
+<h3>4.2 代码</h3>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func homePage(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprint(w, "&lt;h1&gt;欢迎来到我的网站&lt;/h1&gt;&lt;p&gt;这是首页&lt;/p&gt;")
+}
+
+func aboutPage(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprint(w, "&lt;h1&gt;关于本站&lt;/h1&gt;&lt;p&gt;这是一个 Go 语言练习项目&lt;/p&gt;")
+}
+
+func userPage(w http.ResponseWriter, r *http.Request) {
+    name := r.URL.Query().Get("name")
+    if name == "" {
+        name = "访客"
+    }
+    fmt.Fprintf(w, "&lt;h1&gt;用户: %s&lt;/h1&gt;", name)
+}
+
+func main() {
+    // 注册路由：哪个路径访问哪个函数
+    http.HandleFunc("/", homePage)       // 首页
+    http.HandleFunc("/about", aboutPage) // 关于页
+    http.HandleFunc("/user", userPage)   // 用户页
+
+    fmt.Println("服务器启动: http://localhost:8080")
+    http.ListenAndServe(":8080", nil)
+}</code></pre>
+
+<h3>4.3 关键理解</h3>
+
+<p><code>http.HandleFunc</code> 的匹配规则：</p>
+
+<ul><li><strong><code>"/"</code></strong>：匹配所有路径（catch-all）。如果你访问 <code>/任意路径</code>，都会执行 <code>homePage</code>。</li><li><strong><code>"/about"</code></strong>：精确匹配 <code>/about</code>。</li><li><strong><code>"/about/"</code></strong>（带尾部斜杠）：匹配 <code>/about/</code> 开头的所有路径，如 <code>/about/me</code>。</li></ul>
+
+<blockquote><p>如果你注册了 <code>"/"</code> 和 <code>"/about"</code>，访问 <code>/about</code> 会走 <code>aboutPage</code>，因为更具体的路径优先。</p></blockquote>
+
+<h3>4.4 使用 ServeMux（更好的路由管理）</h3>
+
+<p>随着路由增多，建议使用显式的 <code>http.ServeMux</code>：</p>
 
 <pre><code><span class="code-label">Go</span>func main() {
-    mux := http.NewServeMux()
+    mux := http.NewServeMux() // 创建自己的路由器
 
-    // API 路由组
-    apiMux := http.NewServeMux()
-    apiMux.HandleFunc("GET /users", listUsers)
-    apiMux.HandleFunc("POST /users", createUser)
-    // apiMux 挂载到 /api/ 前缀
-    mux.Handle("/api/", http.StripPrefix("/api", apiMux))
+    mux.HandleFunc("/", homePage)
+    mux.HandleFunc("/about", aboutPage)
+    mux.HandleFunc("/user", userPage)
 
-    // Admin 路由组（带认证中间件）
-    adminMux := http.NewServeMux()
-    adminMux.HandleFunc("GET /dashboard", adminDashboard)
-    adminMux.HandleFunc("GET /users", adminListUsers)
-    mux.Handle("/admin/", http.StripPrefix("/admin",
-        authMiddleware(adminMux)))
-
+    // 把 mux 传给 ListenAndServe（不再是 nil）
     http.ListenAndServe(":8080", mux)
 }</code></pre>
 
-<h3>6.4 完整 REST API 示例（含模板渲染）</h3>
+<blockquote><p>为什么不用全局的 <code>http.HandleFunc</code>？因为使用自己的 <code>mux</code> 可以更好地控制路由，也方便后面添加中间件。</p></blockquote>
+
+<hr>
+
+<h2>6. 5. 返回 JSON 数据（构建 API）</h2>
+
+<h3>5.1 目标</h3>
+
+<p>很多 Web 应用不只是显示 HTML 页面，还需要提供 API 接口（返回 JSON 数据给前端或 App 调用）。</p>
+
+<h3>5.2 代码</h3>
 
 <pre><code><span class="code-label">Go</span>package main
 
 import (
     "encoding/json"
+    "net/http"
+)
+
+type User struct {
+    ID    int    `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+    // 准备数据（实际项目中从数据库查）
+    users := []User{
+        {ID: 1, Name: "张三", Email: "zhangsan@example.com"},
+        {ID: 2, Name: "李四", Email: "lisi@example.com"},
+    }
+
+    // 设置响应头：告诉浏览器返回的是 JSON
+    w.Header().Set("Content-Type", "application/json")
+
+    // 把数据编码为 JSON 并写入响应
+    json.NewEncoder(w).Encode(users)
+}
+
+func main() {
+    http.HandleFunc("/api/users", usersHandler)
+    http.ListenAndServe(":8080", nil)
+}</code></pre>
+
+<h3>5.3 测试</h3>
+
+<p>访问 <code>http://localhost:8080/api/users</code>，你会看到：</p>
+
+<pre><code><span class="code-label">JSON</span>[{"id":1,"name":"张三","email":"zhangsan@example.com"},{"id":2,"name":"李四","email":"lisi@example.com"}]</code></pre>
+
+<h3>5.4 关键理解</h3>
+
+<ul><li><strong><code>json.NewEncoder(w).Encode(data)</code></strong>：把 Go 的数据结构直接转成 JSON 字符串，写入响应。</li><li><strong><code>w.Header().Set("Content-Type", "application/json")</code></strong>：告诉浏览器"我返回的是 JSON"，浏览器才能正确解析。</li><li><strong>struct 的 json tag</strong>：`<code> </code>json:"id"<code> </code>` 指定 JSON 输出时的字段名。不加 tag 的话，字段名首字母会大写（Go 导出规则）。</li></ul>
+
+<blockquote><p><strong>顺序很重要</strong>：必须先 <code>Set</code> Header，再 <code>Write</code> 内容。一旦开始写内容，就不能再修改 Header 了。</p></blockquote>
+
+<hr>
+
+<h2>7. 6. HTML 模板入门：告别字符串拼接</h2>
+
+<h3>6.1 目标</h3>
+
+<p>前面的例子中，我们直接在 Go 代码里写 HTML 字符串（<code>fmt.Fprint(w, "&lt;h1&gt;...")</code>）。页面一多，代码会变得又长又乱。解决方案：<strong>模板文件</strong>。</p>
+
+<h3>6.2 代码</h3>
+
+<p>创建 <code>templates/index.html</code>：</p>
+
+<pre><code><span class="code-label">HTML</span>&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;title&gt;{{.Title}}&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;{{.Title}}&lt;/h1&gt;
+    &lt;p&gt;{{.Message}}&lt;/p&gt;
+
+    &lt;ul&gt;
+    {{range .Items}}
+        &lt;li&gt;{{.}}&lt;/li&gt;
+    {{end}}
+    &lt;/ul&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<p>修改 <code>main.go</code>：</p>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import (
+    "html/template"
+    "net/http"
+)
+
+// 启动时加载模板（只加载一次，不是每次请求都加载）
+var tmpl = template.Must(template.ParseFiles("templates/index.html"))
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    // 准备要传给模板的数据
+    data := map[string]interface{}{
+        "Title":   "我的 Go 网站",
+        "Message": "欢迎来到用 Go 模板引擎渲染的页面！",
+        "Items":   []string{"学习 Go", "学习模板", "构建网站"},
+    }
+
+    // 执行模板，把数据填进去，结果写入 w
+    tmpl.Execute(w, data)
+}
+
+func main() {
+    http.HandleFunc("/", handler)
+    http.ListenAndServe(":8080", nil)
+}</code></pre>
+
+<h3>6.3 逐行解释</h3>
+
+<p><strong>模板文件中的 <code>{{ }}</code> 语法</strong>：</p>
+
+<pre><code><span class="code-label">HTML</span>{{.Title}}        → 输出数据中的 Title 字段
+{{range .Items}}  → 遍历 Items 切片
+  {{.}}           → 在 range 内部，"." 代表当前元素
+{{end}}           → 结束 range</code></pre>
+
+<p><strong>Go 代码中的关键点</strong>：</p>
+
+<pre><code><span class="code-label">Go</span>// ParseFiles 读取模板文件，返回一个 *template.Template
+// Must 包裹它：如果解析失败，程序直接 panic（启动时就暴露错误）
+var tmpl = template.Must(template.ParseFiles("templates/index.html"))
+
+// Execute 执行模板：
+// 第一个参数是写入目标（w = 浏览器）
+// 第二个参数是传给模板的数据（可以是 struct、map 等）
+tmpl.Execute(w, data)</code></pre>
+
+<h3>6.4 模板语法速查</h3>
+
+<table><thead><tr><th>模板语法</th><th>含义</th></tr></thead><tbody><tr><td><code>{{.}}</code></td><td>当前数据（"dot"）</td></tr><tr><td><code>{{.Name}}</code></td><td>访问数据的 Name 字段</td></tr><tr><td><code>{{if .Show}}...{{end}}</code></td><td>条件判断</td></tr><tr><td><code>{{if .Show}}...{{else}}...{{end}}</code></td><td>条件+否则</td></tr><tr><td><code>{{range .Items}}...{{end}}</code></td><td>遍历切片</td></tr><tr><td><code>{{range .Items}}...{{else}}...{{end}}</code></td><td>遍历（空切片走 else）</td></tr><tr><td><code>{{range $i, $v := .Items}}</code></td><td>遍历（带索引和值）</td></tr><tr><td><code>{{with .User}}...{{end}}</code></td><td>如果 User 不为空，进入其上下文</td></tr><tr><td><code>{{/* 注释 */}}</code></td><td>模板注释（不会输出到 HTML）</td></tr></tbody></table>
+
+<hr>
+
+<h2>8. 7. 模板进阶：Layout 布局与组件复用</h2>
+
+<h3>7.1 目标</h3>
+
+<p>真实网站的每个页面都有相同的头部、导航、底部。我们要把这些公共部分提取出来，只写一次。</p>
+
+<h3>7.2 目录结构</h3>
+
+<pre><code>templates/
+├── layout.html       ← 所有页面的骨架（头部+导航+底部）
+├── home.html         ← 首页（只写内容部分）
+└── about.html        ← 关于页（只写内容部分）</code></pre>
+
+<h3>7.3 layout.html（骨架）</h3>
+
+<pre><code><span class="code-label">HTML</span>{{define "layout"}}
+&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;title&gt;{{block "title" .}}默认标题{{end}} - 我的网站&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;header&gt;
+        &lt;h1&gt;我的网站&lt;/h1&gt;
+        &lt;nav&gt;
+            &lt;a href="/"&gt;首页&lt;/a&gt; |
+            &lt;a href="/about"&gt;关于&lt;/a&gt;
+        &lt;/nav&gt;
+    &lt;/header&gt;
+
+    &lt;main&gt;
+        {{block "content" .}}{{end}}
+    &lt;/main&gt;
+
+    &lt;footer&gt;
+        &lt;p&gt;&amp;copy; 2026 我的网站&lt;/p&gt;
+    &lt;/footer&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+{{end}}</code></pre>
+
+<h3>7.4 home.html（首页内容）</h3>
+
+<pre><code><span class="code-label">HTML</span>{{define "title"}}首页{{end}}
+
+{{define "content"}}
+    &lt;h2&gt;欢迎！&lt;/h2&gt;
+    &lt;p&gt;{{.Greeting}}&lt;/p&gt;
+{{end}}</code></pre>
+
+<h3>7.5 about.html（关于页内容）</h3>
+
+<pre><code><span class="code-label">HTML</span>{{define "title"}}关于本站{{end}}
+
+{{define "content"}}
+    &lt;h2&gt;关于本站&lt;/h2&gt;
+    &lt;p&gt;这是一个用 Go 语言构建的练习项目&lt;/p&gt;
+{{end}}</code></pre>
+
+<h3>7.6 Go 代码</h3>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import (
+    "html/template"
+    "net/http"
+)
+
+var templates = template.Must(template.ParseGlob("templates/*.html"))
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+    templates.ExecuteTemplate(w, "layout", map[string]interface{}{
+        "Greeting": "欢迎来到我的 Go 网站！",
+    })
+}
+
+func aboutHandler(w http.ResponseWriter, r *http.Request) {
+    templates.ExecuteTemplate(w, "layout", nil)
+}
+
+func main() {
+    http.HandleFunc("/", homeHandler)
+    http.HandleFunc("/about", aboutHandler)
+    http.ListenAndServe(":8080", nil)
+}</code></pre>
+
+<h3>7.7 关键理解</h3>
+
+<table><thead><tr><th>模板动作</th><th>含义</th></tr></thead><tbody><tr><td><code>{{define "name"}}...{{end}}</code></td><td>定义一个命名模板</td></tr><tr><td><code>{{template "name" .}}</code></td><td>调用另一个命名模板（必须存在）</td></tr><tr><td><code>{{block "name" .}}默认{{end}}</code></td><td>调用模板，如果不存在则使用默认内容</td></tr></tbody></table>
+
+<p><strong>布局的工作原理</strong>：</p>
+
+<ol><li><code>layout.html</code> 定义了 <code>{{define "layout"}}</code>，里面用 <code>{{block "title"}}</code> 和 <code>{{block "content"}}</code> 留了两个"插槽"</li><li><code>home.html</code> 用 <code>{{define "title"}}</code> 和 <code>{{define "content"}}</code> 填充这两个插槽</li><li>执行 <code>ExecuteTemplate(w, "layout", data)</code>，Go 会把所有碎片拼成完整 HTML</li></ol>
+
+<blockquote><p><strong><code>block</code> vs <code>template</code></strong>：<code>block</code> 允许默认值（如果子模板没定义这个块，就用默认内容），<code>template</code> 要求被调用的模板必须存在。</p></blockquote>
+
+<hr>
+
+<h2>9. 8. 处理表单：让用户提交数据</h2>
+
+<h3>8.1 目标</h3>
+
+<p>做一个留言板：用户填写表单 → 提交 → 显示在页面上。</p>
+
+<h3>8.2 代码</h3>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import (
+    "html/template"
+    "net/http"
+)
+
+var tmpl = template.Must(template.New("").Parse(`
+&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;&lt;meta charset="UTF-8"&gt;&lt;title&gt;留言板&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;留言板&lt;/h1&gt;
+
+    &lt;form method="POST" action="/"&gt;
+        &lt;input type="text" name="message" placeholder="输入留言..." required&gt;
+        &lt;button type="submit"&gt;提交&lt;/button&gt;
+    &lt;/form&gt;
+
+    &lt;h2&gt;历史留言 ({{len .Messages}})&lt;/h2&gt;
+    &lt;ul&gt;
+    {{range .Messages}}
+        &lt;li&gt;{{.}}&lt;/li&gt;
+    {{else}}
+        &lt;li&gt;暂无留言&lt;/li&gt;
+    {{end}}
+    &lt;/ul&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+`))
+
+// 存储留言（用内存切片模拟数据库）
+var messages []string
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    if r.Method == "POST" {
+        // 读取表单数据
+        msg := r.FormValue("message")
+        if msg != "" {
+            messages = append(messages, msg)
+        }
+        // 重定向回首页（PRG 模式：Post-Redirect-Get）
+        http.Redirect(w, r, "/", http.StatusSeeOther)
+        return
+    }
+
+    // GET 请求：显示页面
+    tmpl.Execute(w, map[string]interface{}{
+        "Messages": messages,
+    })
+}
+
+func main() {
+    http.HandleFunc("/", handler)
+    http.ListenAndServe(":8080", nil)
+}</code></pre>
+
+<h3>8.3 关键理解</h3>
+
+<p><strong>表单提交流程</strong>：</p>
+
+<pre><code>用户填写表单 → 点击提交 → 浏览器发送 POST 请求 → 服务器读取表单数据
+→ 保存数据 → 重定向回首页 → 浏览器发送 GET 请求 → 显示最新页面</code></pre>
+
+<p><strong><code>r.FormValue("message")</code></strong>：读取表单中 <code>name="message"</code> 的输入框的值。</p>
+
+<p><strong>Post-Redirect-Get (PRG) 模式</strong>：</p>
+
+<ul><li>如果不重定向，用户刷新页面会重复提交表单</li><li><code>http.StatusSeeOther</code>（303）告诉浏览器"请用 GET 重新访问这个 URL"</li></ul>
+
+<hr>
+
+<h2>10. 9. 实战项目：Task Manager 任务管理器</h2>
+
+<h3>9.1 目标</h3>
+
+<p>把前面学的所有知识整合起来，做一个完整的任务管理器，支持：</p>
+
+<ul><li>查看任务列表</li><li>添加任务</li><li>标记完成/未完成</li><li>删除任务</li></ul>
+
+<h3>9.2 完整代码</h3>
+
+<pre><code><span class="code-label">Go</span>package main
+
+import (
     "html/template"
     "log"
     "net/http"
@@ -234,112 +643,101 @@ import (
 // ============== 数据模型 ==============
 
 type Task struct {
-    ID        int       `json:"id"`
-    Title     string    `json:"title"`
-    Done      bool      `json:"done"`
-    CreatedAt time.Time `json:"created_at"`
+    ID        int
+    Title     string
+    Done      bool
+    CreatedAt time.Time
 }
 
 type TaskStore struct {
-    mu    sync.RWMutex
-    tasks []Task
+    mu     sync.Mutex
+    tasks  []Task
     nextID int
 }
 
 func (s *TaskStore) List() []Task {
-    s.mu.RLock()
-    defer s.mu.RUnlock()
+    s.mu.Lock()
+    defer s.mu.Unlock()
     result := make([]Task, len(s.tasks))
     copy(result, s.tasks)
     return result
 }
 
-func (s *TaskStore) Add(title string) Task {
+func (s *TaskStore) Add(title string) {
     s.mu.Lock()
     defer s.mu.Unlock()
-    t := Task{ID: s.nextID, Title: title, Done: false, CreatedAt: time.Now()}
+    s.tasks = append(s.tasks, Task{
+        ID: s.nextID, Title: title, CreatedAt: time.Now(),
+    })
     s.nextID++
-    s.tasks = append(s.tasks, t)
-    return t
 }
 
-func (s *TaskStore) Toggle(id int) (Task, bool) {
+func (s *TaskStore) Toggle(id int) {
     s.mu.Lock()
     defer s.mu.Unlock()
     for i := range s.tasks {
         if s.tasks[i].ID == id {
             s.tasks[i].Done = !s.tasks[i].Done
-            return s.tasks[i], true
+            return
         }
     }
-    return Task{}, false
 }
 
-func (s *TaskStore) Delete(id int) bool {
+func (s *TaskStore) Delete(id int) {
     s.mu.Lock()
     defer s.mu.Unlock()
     for i := range s.tasks {
         if s.tasks[i].ID == id {
             s.tasks = append(s.tasks[:i], s.tasks[i+1:]...)
-            return true
+            return
         }
     }
-    return false
-}
-
-// ============== 辅助函数 ==============
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(status)
-    json.NewEncoder(w).Encode(data)
-}
-
-func writeError(w http.ResponseWriter, status int, msg string) {
-    writeJSON(w, status, map[string]string{"error": msg})
 }
 
 // ============== 模板 ==============
 
-var pageTemplate = template.Must(template.New("tasks").Parse(`
+var tmpl = template.Must(template.New("tasks").Parse(`
 &lt;!DOCTYPE html&gt;
 &lt;html lang="zh-CN"&gt;
 &lt;head&gt;
     &lt;meta charset="UTF-8"&gt;
-    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
     &lt;title&gt;Task Manager&lt;/title&gt;
     &lt;style&gt;
         body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
         .task { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
         .task.done span { text-decoration: line-through; color: #999; }
-        .task form { margin-left: auto; }
+        .task form { margin: 0; }
         button { cursor: pointer; }
     &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
     &lt;h1&gt;Task Manager&lt;/h1&gt;
 
-    &lt;form action="/tasks" method="post"&gt;
-        &lt;input type="text" name="title" placeholder="新任务..." required&gt;
+    &lt;form action="/add" method="post" style="display:flex;gap:8px;margin-bottom:20px"&gt;
+        &lt;input type="text" name="title" placeholder="新任务..." required style="flex:1;padding:8px"&gt;
         &lt;button type="submit"&gt;添加&lt;/button&gt;
     &lt;/form&gt;
 
-    &lt;div class="task-list"&gt;
-        {{range .Tasks}}
-        &lt;div class="task {{if .Done}}done{{end}}"&gt;
-            &lt;form action="/tasks/{{.ID}}/toggle" method="post" style="display:inline"&gt;
-                &lt;button type="submit"&gt;{{if .Done}}✓{{else}}○{{end}}&lt;/button&gt;
-            &lt;/form&gt;
-            &lt;span&gt;{{.Title}}&lt;/span&gt;
-            &lt;form action="/tasks/{{.ID}}" method="post"&gt;
-                &lt;input type="hidden" name="_method" value="DELETE"&gt;
-                &lt;button type="submit"&gt;删除&lt;/button&gt;
-            &lt;/form&gt;
-        &lt;/div&gt;
-        {{else}}
-        &lt;p&gt;暂无任务&lt;/p&gt;
-        {{end}}
+    {{range .Tasks}}
+    &lt;div class="task {{if .Done}}done{{end}}"&gt;
+        &lt;form action="/toggle" method="post" style="display:inline"&gt;
+            &lt;input type="hidden" name="id" value="{{.ID}}"&gt;
+            &lt;button type="submit"&gt;{{if .Done}}✓{{else}}○{{end}}&lt;/button&gt;
+        &lt;/form&gt;
+        &lt;span style="flex:1;margin:0 12px"&gt;{{.Title}}&lt;/span&gt;
+        &lt;small style="color:#999"&gt;{{.CreatedAt.Format "15:04"}}&lt;/small&gt;
+        &lt;form action="/delete" method="post" style="display:inline;margin-left:12px"&gt;
+            &lt;input type="hidden" name="id" value="{{.ID}}"&gt;
+            &lt;button type="submit" style="color:red"&gt;✕&lt;/button&gt;
+        &lt;/form&gt;
     &lt;/div&gt;
+    {{else}}
+    &lt;p style="color:#999"&gt;暂无任务，快添加一个吧！&lt;/p&gt;
+    {{end}}
+
+    &lt;p style="margin-top:20px;color:#999;font-size:0.85em"&gt;
+        共 {{len .Tasks}} 个任务
+    &lt;/p&gt;
 &lt;/body&gt;
 &lt;/html&gt;
 `))
@@ -347,1184 +745,89 @@ var pageTemplate = template.Must(template.New("tasks").Parse(`
 // ============== 处理器 ==============
 
 func main() {
-    store := &amp;TaskStore{nextID: 1}
-    mux := http.NewServeMux()
+    store := &amp;TaskStore{}
 
-    // 页面路由
-    mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-        pageTemplate.Execute(w, map[string]interface{}{
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        tmpl.Execute(w, map[string]interface{}{
             "Tasks": store.List(),
         })
     })
 
-    // API 路由
-    mux.HandleFunc("POST /tasks", func(w http.ResponseWriter, r *http.Request) {
+    http.HandleFunc("/add", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != "POST" {
+            http.Redirect(w, r, "/", http.StatusSeeOther)
+            return
+        }
         title := r.FormValue("title")
-        if title == "" {
-            writeError(w, http.StatusBadRequest, "title is required")
-            return
-        }
-        task := store.Add(title)
-        writeJSON(w, http.StatusCreated, task)
-    })
-
-    mux.HandleFunc("POST /tasks/{id}/toggle", func(w http.ResponseWriter, r *http.Request) {
-        id, _ := strconv.Atoi(r.PathValue("id"))
-        task, ok := store.Toggle(id)
-        if !ok {
-            writeError(w, http.StatusNotFound, "task not found")
-            return
-        }
-        // HTML 表单提交后重定向回首页
-        http.Redirect(w, r, "/", http.StatusSeeOther)
-        _ = task
-    })
-
-    mux.HandleFunc("POST /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
-        id, _ := strconv.Atoi(r.PathValue("id"))
-        if !store.Delete(id) {
-            writeError(w, http.StatusNotFound, "task not found")
-            return
+        if title != "" {
+            store.Add(title)
         }
         http.Redirect(w, r, "/", http.StatusSeeOther)
     })
 
-    log.Println("Server running at http://localhost:8080")
-    log.Fatal(http.ListenAndServe(":8080", mux))
-}</code></pre>
-
-<h3>6.5 Go 1.22 ServeMux 增强总结</h3>
-
-<table><thead><tr><th>功能</th><th>语法</th><th>说明</th></tr></thead><tbody><tr><td>方法匹配</td><td><code>"GET /path"</code></td><td>只匹配 GET 请求（GET 也匹配 HEAD）</td></tr><tr><td>路径参数</td><td><code>"/users/{id}"</code></td><td><code>r.PathValue("id")</code> 获取</td></tr><tr><td>通配符</td><td><code>"/files/{path...}"</code></td><td>匹配多段路径</td></tr><tr><td>精确尾部</td><td><code>"/{$}"</code></td><td>只匹配 <code>/</code>，不做前缀匹配</td></tr><tr><td>自动 405</td><td>注册了 <code>GET /users/{id}</code> 但收到 <code>DELETE /users/123</code></td><td>自动返回 405 + Allow 头</td></tr><tr><td>冲突检测</td><td>启动时检测模式冲突</td><td>有歧义时 panic</td></tr></tbody></table>
-
-<hr>
-
-<h2>3. 2. 快速开始：Hello World</h2>
-
-<h3>1.1 text/template — 纯文本模板</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "os"
-    "text/template"
-)
-
-func main() {
-    // 方式一：内联字符串
-    tmpl := template.Must(template.New("hello").Parse("Hello, {{.Name}}!\n"))
-    tmpl.Execute(os.Stdout, map[string]string{"Name": "World"})
-
-    // 方式二：从文件加载
-    // tmpl := template.Must(template.ParseFiles("templates/hello.tmpl"))
-    // tmpl.Execute(os.Stdout, map[string]string{"Name": "World"})
-}</code></pre>
-
-<h3>1.2 html/template — HTML 模板（带自动转义）</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "html/template"
-    "net/http"
-)
-
-var tmpl = template.Must(template.New("index").Parse(`
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;&lt;title&gt;{{.Title}}&lt;/title&gt;&lt;/head&gt;
-&lt;body&gt;
-    &lt;h1&gt;{{.Title}}&lt;/h1&gt;
-    &lt;p&gt;{{.Content}}&lt;/p&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-`))
-
-func handler(w http.ResponseWriter, r *http.Request) {
-    data := map[string]string{
-        "Title":   "Hello World",
-        "Content": "这是一段 &lt;script&gt;alert('xss')&lt;/script&gt; 测试内容",
-    }
-    tmpl.Execute(w, data)
-}
-
-func main() {
-    http.HandleFunc("/", handler)
-    http.ListenAndServe(":8080", nil)
-}</code></pre>
-
-<blockquote><p><strong>关键区别</strong>：<code>html/template</code> 会自动对 <code>&lt;script&gt;alert('xss')&lt;/script&gt;</code> 进行 HTML 实体编码，浏览器中显示为纯文本而非执行脚本。<code>text/template</code> 不会做任何转义。</p></blockquote>
-
-<h3>1.3 template.Must — 启动时校验</h3>
-
-<pre><code><span class="code-label">Go</span>// Must 在解析失败时 panic，适合在 init() 或包级变量中使用
-// 模板错误在启动时立即暴露，而不是等到运行时
-var templates = template.Must(template.ParseGlob("templates/*.html"))</code></pre>
-
-<hr>
-
-<h2>4. 3. 模板语法速查</h2>
-
-<h3>2.1 基本输出</h3>
-
-<pre><code><span class="code-label">Go</span>// {{.}}        — 输出当前上下文（"dot"）
-// {{.Name}}    — 输出字段
-// {{.User.Name}} — 嵌套字段访问
-
-type User struct {
-    Name  string
-    Email string
-    Age   int
-}
-
-data := User{Name: "张三", Email: "zhangsan@example.com", Age: 30}</code></pre>
-
-<pre><code><span class="code-label">HTML</span>&lt;p&gt;姓名: {{.Name}}&lt;/p&gt;
-&lt;p&gt;邮箱: {{.Email}}&lt;/p&gt;
-&lt;p&gt;年龄: {{.Age}}&lt;/p&gt;</code></pre>
-
-<h3>2.2 条件判断</h3>
-
-<pre><code><span class="code-label">HTML</span>{{if .IsLoggedIn}}
-    &lt;p&gt;欢迎回来, {{.Username}}!&lt;/p&gt;
-{{else if .IsNewUser}}
-    &lt;p&gt;欢迎新用户!&lt;/p&gt;
-{{else}}
-    &lt;p&gt;请先登录&lt;/p&gt;
-{{end}}</code></pre>
-
-<pre><code><span class="code-label">Go</span>// 比较函数：eq, ne, lt, le, gt, ge
-// 注意：这些是函数调用语法，不是运算符</code></pre>
-
-<pre><code><span class="code-label">HTML</span>{{if eq .Role "admin"}}
-    &lt;a href="/admin"&gt;管理后台&lt;/a&gt;
-{{end}}
-
-{{if ge .Age 18}}
-    &lt;span&gt;成年&lt;/span&gt;
-{{end}}</code></pre>
-
-<h3>2.3 循环</h3>
-
-<pre><code><span class="code-label">HTML</span>&lt;!-- 遍历切片 --&gt;
-&lt;ul&gt;
-{{range .Items}}
-    &lt;li&gt;{{.}}&lt;/li&gt;
-{{else}}
-    &lt;li&gt;暂无数据&lt;/li&gt;
-{{end}}
-&lt;/ul&gt;
-
-&lt;!-- 遍历 map --&gt;
-{{range $key, $value := .MapData}}
-    &lt;dt&gt;{{$key}}&lt;/dt&gt;
-    &lt;dd&gt;{{$value}}&lt;/dd&gt;
-{{end}}
-
-&lt;!-- 遍历切片（带索引） --&gt;
-{{range $i, $item := .Items}}
-    &lt;tr&gt;
-        &lt;td&gt;{{inc $i}}&lt;/td&gt;
-        &lt;td&gt;{{$item.Title}}&lt;/td&gt;
-    &lt;/tr&gt;
-{{end}}</code></pre>
-
-<blockquote><p><strong>注意</strong>：<code>range</code> 内部 dot（<code>.</code>）变为当前元素。如需访问外层数据，在 <code>range</code> 前保存到变量：<code>{{$root := .}}</code></p></blockquote>
-
-<h3>2.4 with — 处理可选嵌套数据</h3>
-
-<pre><code><span class="code-label">HTML</span>{{with .Profile}}
-    &lt;div class="profile"&gt;
-        &lt;img src="{{.Avatar}}" alt="{{.Name}}"&gt;
-        &lt;p&gt;{{.Bio}}&lt;/p&gt;
-    &lt;/div&gt;
-{{else}}
-    &lt;p&gt;未设置个人资料&lt;/p&gt;
-{{end}}</code></pre>
-
-<h3>2.5 管道（Pipeline）</h3>
-
-<pre><code><span class="code-label">Go</span>// 管道将前一个输出作为后一个函数的最后一个参数</code></pre>
-
-<pre><code><span class="code-label">HTML</span>&lt;!-- 等价于 printf("%s", htmlEscape(.Name)) --&gt;
-&lt;p&gt;{{.Name | html}}&lt;/p&gt;
-
-&lt;!-- 链式管道 --&gt;
-&lt;p&gt;{{.Price | printf "%.2f" | printf "¥%s"}}&lt;/p&gt;
-
-&lt;!-- 条件中的管道 --&gt;
-{{if .Content | len | lt 100}}
-    &lt;p&gt;{{.Content}}&lt;/p&gt;
-{{else}}
-    &lt;p&gt;{{.Content | truncate 100}}...&lt;/p&gt;
-{{end}}</code></pre>
-
-<h3>2.6 变量声明</h3>
-
-<pre><code><span class="code-label">HTML</span>{{$name := .FirstName}}
-{{$name = printf "%s %s" $name .LastName}}
-&lt;p&gt;全名: {{$name}}&lt;/p&gt;</code></pre>
-
-<h3>2.7 注释</h3>
-
-<pre><code><span class="code-label">HTML</span>{{/* 这是模板注释，不会出现在输出中 */}}
-&lt;!-- 这是 HTML 注释，会出现在输出中 --&gt;</code></pre>
-
-<hr>
-
-<h2>5. 4. 自定义函数 FuncMap</h2>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "fmt"
-    "html/template"
-    "net/http"
-    "strings"
-    "time"
-)
-
-// 1. 定义 FuncMap（必须在 Parse 之前）
-var funcMap = template.FuncMap{
-    // 使用标准库函数
-    "upper": strings.ToUpper,
-    "lower": strings.ToLower,
-
-    // 自定义函数
-    "formatDate": func(t time.Time) string {
-        return t.Format("2006-01-02 15:04")
-    },
-    "formatPrice": func(price float64) string {
-        return fmt.Sprintf("¥%.2f", price)
-    },
-    "truncate": func(s string, n int) string {
-        runes := []rune(s)
-        if len(runes) &lt;= n {
-            return s
+    http.HandleFunc("/toggle", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != "POST" {
+            http.Redirect(w, r, "/", http.StatusSeeOther)
+            return
         }
-        return string(runes[:n]) + "..."
-    },
-    "add": func(a, b int) int {
-        return a + b
-    },
-    "dict": func(values ...interface{}) (map[string]interface{}, error) {
-        // 在模板中创建 map 的辅助函数
-        if len(values)%2 != 0 {
-            return nil, fmt.Errorf("dict requires even number of arguments")
+        id, _ := strconv.Atoi(r.FormValue("id"))
+        store.Toggle(id)
+        http.Redirect(w, r, "/", http.StatusSeeOther)
+    })
+
+    http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != "POST" {
+            http.Redirect(w, r, "/", http.StatusSeeOther)
+            return
         }
-        dict := make(map[string]interface{}, len(values)/2)
-        for i := 0; i &lt; len(values); i += 2 {
-            key, ok := values[i].(string)
-            if !ok {
-                return nil, fmt.Errorf("dict keys must be strings")
-            }
-            dict[key] = values[i+1]
-        }
-        return dict, nil
-    },
-}
-
-// 2. 创建模板时绑定 FuncMap
-var templates = template.Must(
-    template.New("").Funcs(funcMap).ParseGlob("templates/*.html"),
-)
-
-func handler(w http.ResponseWriter, r *http.Request) {
-    data := map[string]interface{}{
-        "Title":     "商品列表",
-        "CreatedAt": time.Now(),
-        "Products": []map[string]interface{}{
-            {"Name": "Go 编程", "Price": 59.9, "Desc": "这是一本关于 Go 语言的编程书籍，内容深入浅出"},
-            {"Name": "云原生实战", "Price": 79.0, "Desc": "Kubernetes 与 Docker 实践指南"},
-        },
-    }
-    templates.ExecuteTemplate(w, "products.html", data)
-}
-
-func main() {
-    http.HandleFunc("/", handler)
-    http.ListenAndServe(":8080", nil)
-}</code></pre>
-
-<p>对应的模板文件 <code>templates/products.html</code>：</p>
-
-<pre><code><span class="code-label">HTML</span>{{define "products.html"}}
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;&lt;title&gt;{{.Title}}&lt;/title&gt;&lt;/head&gt;
-&lt;body&gt;
-    &lt;h1&gt;{{.Title | upper}}&lt;/h1&gt;
-    &lt;p&gt;生成时间: {{.CreatedAt | formatDate}}&lt;/p&gt;
-
-    &lt;table&gt;
-        &lt;thead&gt;&lt;tr&gt;&lt;th&gt;商品&lt;/th&gt;&lt;th&gt;价格&lt;/th&gt;&lt;th&gt;描述&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
-        &lt;tbody&gt;
-        {{range .Products}}
-            &lt;tr&gt;
-                &lt;td&gt;{{.Name | upper}}&lt;/td&gt;
-                &lt;td&gt;{{.Price | formatPrice}}&lt;/td&gt;
-                &lt;td&gt;{{.Desc | truncate 20}}&lt;/td&gt;
-            &lt;/tr&gt;
-        {{end}}
-        &lt;/tbody&gt;
-    &lt;/table&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-{{end}}</code></pre>
-
-<h3>内置函数速查</h3>
-
-<table><thead><tr><th>函数</th><th>用途</th><th>示例</th></tr></thead><tbody><tr><td><code>print</code> / <code>printf</code> / <code>println</code></td><td>格式化输出</td><td><code>{{printf "%s-%d" .Name .Age}}</code></td></tr><tr><td><code>len</code></td><td>长度</td><td><code>{{len .Items}}</code></td></tr><tr><td><code>index</code></td><td>索引访问</td><td><code>{{index .Items 0}}</code></td></tr><tr><td><code>slice</code></td><td>切片</td><td><code>{{slice .Items 0 3}}</code></td></tr><tr><td><code>html</code></td><td>HTML 转义</td><td>`{{.Content \</td><td>html}}`</td></tr><tr><td><code>js</code></td><td>JS 转义</td><td>`{{.Value \</td><td>js}}`</td></tr><tr><td><code>urlquery</code></td><td>URL 编码</td><td>`{{.Query \</td><td>urlquery}}`</td></tr><tr><td><code>and</code> / <code>or</code> / <code>not</code></td><td>逻辑运算</td><td><code>{{and .A .B}}</code></td></tr><tr><td><code>eq</code> / <code>ne</code> / <code>lt</code> / <code>le</code> / <code>gt</code> / <code>ge</code></td><td>比较</td><td><code>{{if ge .Age 18}}</code></td></tr><tr><td><code>call</code></td><td>调用函数</td><td><code>{{call .Func .Arg}}</code></td></tr></tbody></table>
-
-<hr>
-
-<h2>6. 5. 模板组合：Layout + Partial 模式</h2>
-
-<h3>4.1 目录结构</h3>
-
-<pre><code>templates/
-├── layout.html      # 基础布局（骨架）
-├── partials/
-│   ├── header.html  # 页头
-│   ├── nav.html     # 导航
-│   └── footer.html  # 页脚
-└── pages/
-    ├── home.html    # 首页
-    └── about.html   # 关于页</code></pre>
-
-<h3>4.2 layout.html（基础布局）</h3>
-
-<pre><code><span class="code-label">HTML</span>{{define "layout"}}
-&lt;!DOCTYPE html&gt;
-&lt;html lang="zh-CN"&gt;
-&lt;head&gt;
-    &lt;meta charset="UTF-8"&gt;
-    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
-    &lt;title&gt;{{block "title" .}}默认标题{{end}} - My Site&lt;/title&gt;
-    &lt;link rel="stylesheet" href="/static/style.css"&gt;
-&lt;/head&gt;
-&lt;body&gt;
-    {{template "header" .}}
-
-    {{template "nav" .}}
-
-    &lt;main class="container"&gt;
-        {{block "content" .}}{{end}}
-    &lt;/main&gt;
-
-    {{template "footer" .}}
-&lt;/body&gt;
-&lt;/html&gt;
-{{end}}</code></pre>
-
-<h3>4.3 partials/header.html</h3>
-
-<pre><code><span class="code-label">HTML</span>{{define "header"}}
-&lt;header class="site-header"&gt;
-    &lt;h1&gt;&lt;a href="/"&gt;My Site&lt;/a&gt;&lt;/h1&gt;
-&lt;/header&gt;
-{{end}}</code></pre>
-
-<h3>4.4 partials/nav.html</h3>
-
-<pre><code><span class="code-label">HTML</span>{{define "nav"}}
-&lt;nav class="site-nav"&gt;
-    &lt;a href="/"&gt;首页&lt;/a&gt;
-    &lt;a href="/about"&gt;关于&lt;/a&gt;
-    &lt;a href="/posts"&gt;文章&lt;/a&gt;
-    {{if .IsLoggedIn}}
-        &lt;a href="/profile"&gt;{{.Username}}&lt;/a&gt;
-        &lt;a href="/logout"&gt;退出&lt;/a&gt;
-    {{else}}
-        &lt;a href="/login"&gt;登录&lt;/a&gt;
-    {{end}}
-&lt;/nav&gt;
-{{end}}</code></pre>
-
-<h3>4.5 partials/footer.html</h3>
-
-<pre><code><span class="code-label">HTML</span>{{define "footer"}}
-&lt;footer class="site-footer"&gt;
-    &lt;p&gt;&amp;copy; {{.Year}} My Site. All rights reserved.&lt;/p&gt;
-&lt;/footer&gt;
-{{end}}</code></pre>
-
-<h3>4.6 pages/home.html</h3>
-
-<pre><code><span class="code-label">HTML</span>{{define "title"}}首页{{end}}
-
-{{define "content"}}
-&lt;section class="hero"&gt;
-    &lt;h2&gt;欢迎来到 My Site&lt;/h2&gt;
-    &lt;p&gt;{{.Greeting}}&lt;/p&gt;
-&lt;/section&gt;
-
-&lt;section class="posts"&gt;
-    &lt;h3&gt;最新文章&lt;/h3&gt;
-    {{range .Posts}}
-    &lt;article class="post-card"&gt;
-        &lt;h4&gt;&lt;a href="/posts/{{.ID}}"&gt;{{.Title}}&lt;/a&gt;&lt;/h4&gt;
-        &lt;p class="meta"&gt;{{.Author}} · {{.CreatedAt | formatDate}}&lt;/p&gt;
-        &lt;p&gt;{{.Summary | truncate 100}}&lt;/p&gt;
-    &lt;/article&gt;
-    {{else}}
-    &lt;p&gt;暂无文章&lt;/p&gt;
-    {{end}}
-&lt;/section&gt;
-{{end}}</code></pre>
-
-<h3>4.7 Go 代码</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "fmt"
-    "html/template"
-    "net/http"
-    "strings"
-    "time"
-)
-
-var funcMap = template.FuncMap{
-    "upper": strings.ToUpper,
-    "formatDate": func(t time.Time) string {
-        return t.Format("2006-01-02")
-    },
-    "truncate": func(s string, n int) string {
-        runes := []rune(s)
-        if len(runes) &lt;= n {
-            return s
-        }
-        return string(runes[:n]) + "..."
-    },
-}
-
-// 启动时一次性解析所有模板
-var templates = template.Must(
-    template.New("").Funcs(funcMap).ParseGlob("templates/**/*.html"),
-)
-
-type Post struct {
-    ID        int
-    Title     string
-    Author    string
-    Summary   string
-    CreatedAt time.Time
-}
-
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-    data := map[string]interface{}{
-        "Year":     time.Now().Year(),
-        "Greeting": "欢迎！这是一个 Go 模板渲染的页面。",
-        "IsLoggedIn": true,
-        "Username":  "张三",
-        "Posts": []Post{
-            {
-                ID: 1, Title: "Go 模板入门",
-                Author: "李四", Summary: "介绍 Go 标准库模板引擎的基础用法",
-                CreatedAt: time.Now().AddDate(0, 0, -2),
-            },
-            {
-                ID: 2, Title: "Web 框架对比",
-                Author: "王五", Summary: "Gin vs Echo vs Fiber 深度对比",
-                CreatedAt: time.Now().AddDate(0, 0, -1),
-            },
-        },
-    }
-    // 执行 layout 模板，它会自动拉入 title/content/header/nav/footer
-    templates.ExecuteTemplate(w, "layout", data)
-}
-
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-    data := map[string]interface{}{
-        "Year": time.Now().Year(),
-        "IsLoggedIn": false,
-    }
-    templates.ExecuteTemplate(w, "layout", data)
-}
-
-func main() {
-    http.HandleFunc("/", homeHandler)
-    http.HandleFunc("/about", aboutHandler)
-    http.Handle("/static/", http.StripPrefix("/static/",
-        http.FileServer(http.Dir("static"))))
-
-    fmt.Println("Server running at http://localhost:8080")
-    http.ListenAndServe(":8080", nil)
-}</code></pre>
-
-<h3>4.8 block vs template 的区别</h3>
-
-<pre><code><span class="code-label">HTML</span>&lt;!-- template：调用的模板必须存在，否则报错 --&gt;
-{{template "sidebar" .}}
-
-&lt;!-- block：如果模板不存在，使用默认内容 --&gt;
-{{block "sidebar" .}}
-    &lt;p&gt;默认侧边栏内容&lt;/p&gt;
-{{end}}</code></pre>
-
-<blockquote><p><strong>最佳实践</strong>：布局用 <code>block</code> 定义可覆盖的插槽，partial 用 <code>template</code> 调用必须存在的组件。</p></blockquote>
-
-<hr>
-
-<h2>7. 6. embed.FS：将模板嵌入二进制</h2>
-
-<p>Go 1.16+ 支持 <code>embed.FS</code>，将模板文件编译进二进制，部署时无需额外文件。</p>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "embed"
-    "html/template"
-    "net/http"
-    "time"
-)
-
-//go:embed templates/*
-var templateFS embed.FS
-
-// 使用 ParseFS 从嵌入文件系统加载模板
-var templates = template.Must(
-    template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/**/*.html"),
-)
-
-// ... 其余代码不变
-
-func main() {
-    http.HandleFunc("/", homeHandler)
-    http.ListenAndServe(":8080", nil)
-}</code></pre>
-
-<blockquote><p><strong>关键点</strong>：<br>- <code>//go:embed templates/*</code> 只匹配一层，<code>templates/**/*.html</code> 递归匹配所有 html 文件<br>- <code>ParseFS</code> 的 glob 模式与 <code>filepath.Glob</code> 一致，<strong>不支持</strong> <code>**</code> 递归匹配<br>- 如需递归，需逐层指定：<code>"templates/*.html", "templates/*/*.html", "templates/*/*/*.html"</code><br>- 或者使用 <code>embed.FS</code> 的 <code>ReadDir</code> 手动递归收集文件，再用 <code>ParseFiles</code></p></blockquote>
-
-<h3>递归加载嵌入模板的完整方案</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "embed"
-    "html/template"
-    "io/fs"
-    "path/filepath"
-    "strings"
-)
-
-//go:embed templates
-var templateFS embed.FS
-
-// collectTemplateFiles 递归收集所有 .html 文件路径
-func collectTemplateFiles() ([]string, error) {
-    var files []string
-    err := fs.WalkDir(templateFS, "templates", func(path string, d fs.DirEntry, err error) error {
-        if err != nil {
-            return err
-        }
-        if !d.IsDir() &amp;&amp; strings.HasSuffix(path, ".html") {
-            files = append(files, path)
-        }
-        return nil
-    })
-    return files, err
-}
-
-func loadTemplates() *template.Template {
-    files, err := collectTemplateFiles()
-    if err != nil {
-        panic(err)
-    }
-    return template.Must(
-        template.New("").Funcs(funcMap).ParseFS(templateFS, files...),
-    )
-}</code></pre>
-
-<hr>
-
-<h2>8. 7. Gin 框架模板渲染</h2>
-
-<h3>7.1 安装</h3>
-
-<pre><code><span class="code-label">Shell</span>go get github.com/gin-gonic/gin</code></pre>
-
-<h3>7.2 基础模板渲染</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "net/http"
-    "time"
-
-    "github.com/gin-gonic/gin"
-)
-
-func main() {
-    r := gin.Default()
-
-    // 加载模板
-    r.LoadHTMLGlob("templates/**/*")
-
-    r.GET("/", func(c *gin.Context) {
-        c.HTML(http.StatusOK, "index.html", gin.H{
-            "title": "Gin 模板示例",
-            "items": []string{"Go", "Python", "Rust"},
-        })
-    })
-
-    r.Run(":8080")
-}</code></pre>
-
-<h3>7.3 自定义模板函数</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "fmt"
-    "html/template"
-    "net/http"
-    "time"
-
-    "github.com/gin-gonic/gin"
-)
-
-func formatAsDate(t time.Time) string {
-    return t.Format("2006-01-02")
-}
-
-func main() {
-    r := gin.Default()
-
-    // 设置自定义函数（必须在加载模板之前）
-    r.SetFuncMap(template.FuncMap{
-        "formatAsDate": formatAsDate,
-    })
-    r.LoadHTMLGlob("templates/**/*")
-
-    r.GET("/", func(c *gin.Context) {
-        c.HTML(http.StatusOK, "posts.html", gin.H{
-            "title": "文章列表",
-            "posts": []gin.H{
-                {"title": "Go 入门", "date": time.Now()},
-                {"title": "Gin 框架", "date": time.Now().AddDate(0, 0, -1)},
-            },
-        })
-    })
-
-    r.Run(":8080")
-}</code></pre>
-
-<h3>7.4 多模板引擎（不同目录使用不同 FuncMap）</h3>
-
-<p>Gin 原生不支持多模板引擎，需要借助 <code>multitemplate</code> 库：</p>
-
-<pre><code><span class="code-label">Shell</span>go get github.com/gin-contrib/multitemplate</code></pre>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "html/template"
-    "net/http"
-    "path/filepath"
-    "strings"
-
-    "github.com/gin-contrib/multitemplate"
-    "github.com/gin-gonic/gin"
-)
-
-func createMyRender() multitemplate.Renderer {
-    r := multitemplate.NewRenderer()
-
-    // 前台页面模板
-    layouts, _ := filepath.Glob("templates/layouts/*.html")
-    pages, _ := filepath.Glob("templates/pages/front/*.html")
-    for _, page := range pages {
-        files := append(layouts, page)
-        r.AddFromFilesFuncs(filepath.Base(page),
-            template.FuncMap{"add": func(a, b int) int { return a + b }},
-            files...,
-        )
-    }
-
-    return r
-}
-
-func main() {
-    r := gin.Default()
-    r.HTMLRender = createMyRender()
-
-    r.GET("/", func(c *gin.Context) {
-        c.HTML(http.StatusOK, "home.html", gin.H{
-            "title": "首页",
-        })
-    })
-
-    r.Run(":8080")
-}</code></pre>
-
-<h3>7.5 Gin 模板目录结构建议</h3>
-
-<pre><code>templates/
-├── layouts/
-│   ├── base.html
-│   └── admin.html
-├── partials/
-│   ├── header.html
-│   ├── sidebar.html
-│   └── footer.html
-└── pages/
-    ├── front/
-    │   ├── home.html
-    │   └── about.html
-    └── admin/
-        ├── dashboard.html
-        └── users.html</code></pre>
-
-<hr>
-
-<h2>9. 8. Echo 框架模板渲染</h2>
-
-<h3>8.1 安装</h3>
-
-<pre><code><span class="code-label">Shell</span>go get github.com/labstack/echo/v4</code></pre>
-
-<h3>8.2 基础模板渲染</h3>
-
-<p>Echo 使用 <code>Renderer</code> 接口，需要适配器：</p>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "html/template"
-    "io"
-    "net/http"
-
-    "github.com/labstack/echo/v4"
-)
-
-// TemplateRenderer Echo 的模板渲染适配器
-type TemplateRenderer struct {
-    templates *template.Template
-}
-
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-    return t.templates.ExecuteTemplate(w, name, data)
-}
-
-func main() {
-    e := echo.New()
-
-    // 加载模板
-    funcMap := template.FuncMap{
-        "add": func(a, b int) int { return a + b },
-    }
-    templates := template.Must(
-        template.New("").Funcs(funcMap).ParseGlob("templates/**/*.html"),
-    )
-
-    e.Renderer = &amp;TemplateRenderer{templates: templates}
-
-    e.GET("/", func(c echo.Context) error {
-        return c.Render(http.StatusOK, "home.html", map[string]interface{}{
-            "title": "Echo 模板示例",
-        })
-    })
-
-    e.Logger.Fatal(e.Start(":8080"))
-}</code></pre>
-
-<h3>8.3 完整 Echo 应用示例</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "html/template"
-    "io"
-    "net/http"
-    "strconv"
-    "sync"
-    "time"
-
-    "github.com/labstack/echo/v4"
-    "github.com/labstack/echo/v4/middleware"
-)
-
-// ============== 数据模型 ==============
-
-type Note struct {
-    ID        int       `json:"id"`
-    Title     string    `json:"title"`
-    Content   string    `json:"content"`
-    CreatedAt time.Time `json:"created_at"`
-}
-
-type NoteStore struct {
-    mu     sync.RWMutex
-    notes  []Note
-    nextID int
-}
-
-func (s *NoteStore) List() []Note {
-    s.mu.RLock()
-    defer s.mu.RUnlock()
-    result := make([]Note, len(s.notes))
-    copy(result, s.notes)
-    return result
-}
-
-func (s *NoteStore) Get(id int) (Note, bool) {
-    s.mu.RLock()
-    defer s.mu.RUnlock()
-    for _, n := range s.notes {
-        if n.ID == id {
-            return n, true
-        }
-    }
-    return Note{}, false
-}
-
-func (s *NoteStore) Add(title, content string) Note {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    n := Note{ID: s.nextID, Title: title, Content: content, CreatedAt: time.Now()}
-    s.nextID++
-    s.notes = append(s.notes, n)
-    return n
-}
-
-// ============== 模板 ==============
-
-const baseTemplate = `
-{{define "layout"}}
-&lt;!DOCTYPE html&gt;
-&lt;html lang="zh-CN"&gt;
-&lt;head&gt;
-    &lt;meta charset="UTF-8"&gt;
-    &lt;title&gt;{{block "title" .}}Notes{{end}} - Echo Demo&lt;/title&gt;
-    &lt;style&gt;
-        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; }
-        .note { border: 1px solid #ddd; padding: 16px; margin: 8px 0; border-radius: 4px; }
-        .note h3 { margin: 0 0 8px 0; }
-        .note .meta { color: #999; font-size: 0.85em; }
-        form { margin: 20px 0; }
-        input, textarea { display: block; width: 100%; padding: 8px; margin: 8px 0; }
-    &lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-    &lt;h1&gt;Notes&lt;/h1&gt;
-    {{block "content" .}}{{end}}
-&lt;/body&gt;
-&lt;/html&gt;
-{{end}}
-
-{{define "list.html"}}
-{{template "layout" .}}
-{{end}}
-
-{{define "title"}}笔记列表{{end}}
-
-{{define "content"}}
-&lt;form action="/notes" method="post"&gt;
-    &lt;input type="text" name="title" placeholder="标题" required&gt;
-    &lt;textarea name="content" placeholder="内容" rows="3" required&gt;&lt;/textarea&gt;
-    &lt;button type="submit"&gt;创建笔记&lt;/button&gt;
-&lt;/form&gt;
-
-{{range .Notes}}
-&lt;div class="note"&gt;
-    &lt;h3&gt;&lt;a href="/notes/{{.ID}}"&gt;{{.Title}}&lt;/a&gt;&lt;/h3&gt;
-    &lt;p&gt;{{.Content}}&lt;/p&gt;
-    &lt;p class="meta"&gt;{{.CreatedAt.Format "2006-01-02 15:04"}}&lt;/p&gt;
-&lt;/div&gt;
-{{else}}
-&lt;p&gt;暂无笔记&lt;/p&gt;
-{{end}}
-{{end}}
-
-{{define "detail.html"}}
-{{template "layout" .}}
-{{end}}
-
-{{define "detail-title"}}{{.Note.Title}}{{end}}
-{{define "detail-content"}}
-&lt;div class="note"&gt;
-    &lt;h3&gt;{{.Note.Title}}&lt;/h3&gt;
-    &lt;p&gt;{{.Note.Content}}&lt;/p&gt;
-    &lt;p class="meta"&gt;{{.Note.CreatedAt.Format "2006-01-02 15:04"}}&lt;/p&gt;
-&lt;/div&gt;
-&lt;a href="/"&gt;返回列表&lt;/a&gt;
-{{end}}
-`
-
-// TemplateRenderer Echo 模板渲染适配器
-type TemplateRenderer struct {
-    templates *template.Template
-}
-
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-    return t.templates.ExecuteTemplate(w, name, data)
-}
-
-func main() {
-    store := &amp;NoteStore{nextID: 1}
-
-    // 加载模板
-    funcMap := template.FuncMap{}
-    tmpl := template.Must(
-        template.New("").Funcs(funcMap).Parse(baseTemplate),
-    )
-
-    e := echo.New()
-    e.Renderer = &amp;TemplateRenderer{templates: tmpl}
-
-    // 中间件
-    e.Use(middleware.Logger())
-    e.Use(middleware.Recover())
-
-    // 路由
-    e.GET("/", func(c echo.Context) error {
-        return c.Render(http.StatusOK, "list.html", map[string]interface{}{
-            "Notes": store.List(),
-        })
-    })
-
-    e.POST("/notes", func(c echo.Context) error {
-        title := c.FormValue("title")
-        content := c.FormValue("content")
-        store.Add(title, content)
-        return c.Redirect(http.StatusSeeOther, "/")
-    })
-
-    e.GET("/notes/:id", func(c echo.Context) error {
-        id, _ := strconv.Atoi(c.Param("id"))
-        note, ok := store.Get(id)
-        if !ok {
-            return c.String(http.StatusNotFound, "Note not found")
-        }
-        return c.Render(http.StatusOK, "detail.html", map[string]interface{}{
-            "Note": note,
-        })
-    })
-
-    e.Logger.Fatal(e.Start(":8080"))
-}</code></pre>
-
-<hr>
-
-<h2>10. 9. Fiber 框架模板渲染</h2>
-
-<h3>9.1 安装</h3>
-
-<pre><code><span class="code-label">Shell</span>go get github.com/gofiber/fiber/v3
-go get github.com/gofiber/template/html/v2</code></pre>
-
-<h3>9.2 基础模板渲染</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "github.com/gofiber/fiber/v3"
-    "github.com/gofiber/template/html/v2"
-)
-
-func main() {
-    // 创建模板引擎
-    engine := html.New("./templates", ".html")
-
-    // 可选：开发模式自动重载模板
-    engine.Reload(true)
-
-    app := fiber.New(fiber.Config{
-        Views: engine,
-    })
-
-    app.Get("/", func(c fiber.Ctx) error {
-        return c.Render("index", fiber.Map{
-            "Title": "Fiber 模板示例",
-        })
-    })
-
-    app.Listen(":8080")
-}</code></pre>
-
-<h3>9.3 自定义模板函数</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "time"
-
-    "github.com/gofiber/fiber/v3"
-    "github.com/gofiber/template/html/v2"
-)
-
-func main() {
-    engine := html.New("./templates", ".html")
-
-    // 添加自定义函数
-    engine.AddFunc("formatDate", func(t time.Time) string {
-        return t.Format("2006-01-02 15:04")
-    })
-    engine.AddFunc("add", func(a, b int) int {
-        return a + b
-    })
-
-    app := fiber.New(fiber.Config{
-        Views: engine,
-    })
-
-    app.Get("/", func(c fiber.Ctx) error {
-        return c.Render("index", fiber.Map{
-            "Title": "Fiber 模板示例",
-            "Now":   time.Now(),
-        })
-    })
-
-    app.Listen(":8080")
-}</code></pre>
-
-<h3>9.4 完整 Fiber 应用（带 Layout 支持）</h3>
-
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "strconv"
-    "sync"
-    "time"
-
-    "github.com/gofiber/fiber/v3"
-    "github.com/gofiber/template/html/v2"
-)
-
-type Bookmark struct {
-    ID        int
-    URL       string
-    Title     string
-    CreatedAt time.Time
-}
-
-type BookmarkStore struct {
-    mu       sync.RWMutex
-    bookmarks []Bookmark
-    nextID   int
-}
-
-func (s *BookmarkStore) List() []Bookmark {
-    s.mu.RLock()
-    defer s.mu.RUnlock()
-    result := make([]Bookmark, len(s.bookmarks))
-    copy(result, s.bookmarks)
-    return result
-}
-
-func (s *BookmarkStore) Add(url, title string) Bookmark {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    b := Bookmark{ID: s.nextID, URL: url, Title: title, CreatedAt: time.Now()}
-    s.nextID++
-    s.bookmarks = append(s.bookmarks, b)
-    return b
-}
-
-func (s *BookmarkStore) Delete(id int) bool {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    for i, b := range s.bookmarks {
-        if b.ID == id {
-            s.bookmarks = append(s.bookmarks[:i], s.bookmarks[i+1:]...)
-            return true
-        }
-    }
-    return false
-}
-
-func main() {
-    store := &amp;BookmarkStore{nextID: 1}
-
-    engine := html.New("./templates", ".html")
-    engine.AddFunc("formatDate", func(t time.Time) string {
-        return t.Format("2006-01-02 15:04")
-    })
-
-    app := fiber.New(fiber.Config{
-        Views: engine,
-    })
-
-    app.Get("/", func(c fiber.Ctx) error {
-        return c.Render("index", fiber.Map{
-            "Title":     "我的书签",
-            "Bookmarks": store.List(),
-        })
-    })
-
-    app.Post("/bookmarks", func(c fiber.Ctx) error {
-        url := c.FormValue("url")
-        title := c.FormValue("title")
-        if url == "" || title == "" {
-            return c.Status(fiber.StatusBadRequest).SendString("url and title required")
-        }
-        store.Add(url, title)
-        return c.Redirect().To("/")
-    })
-
-    app.Post("/bookmarks/:id/delete", func(c fiber.Ctx) error {
-        id, _ := strconv.Atoi(c.Params("id"))
+        id, _ := strconv.Atoi(r.FormValue("id"))
         store.Delete(id)
-        return c.Redirect().To("/")
+        http.Redirect(w, r, "/", http.StatusSeeOther)
     })
 
-    app.Listen(":8080")
+    log.Println("Task Manager 启动: http://localhost:8080")
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }</code></pre>
 
-<p>对应的模板文件 <code>templates/index.html</code>：</p>
+<h3>9.3 代码讲解</h3>
 
-<pre><code><span class="code-label">HTML</span>&lt;!DOCTYPE html&gt;
-&lt;html lang="zh-CN"&gt;
-&lt;head&gt;
-    &lt;meta charset="UTF-8"&gt;
-    &lt;title&gt;{{.Title}}&lt;/title&gt;
-    &lt;style&gt;
-        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
-        .bookmark { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
-        .bookmark .info { flex: 1; }
-        .bookmark button { color: red; }
-        form { margin: 20px 0; display: flex; gap: 8px; }
-        input { flex: 1; padding: 8px; }
-    &lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-    &lt;h1&gt;{{.Title}}&lt;/h1&gt;
+<p><strong>sync.Mutex 是什么？为什么需要它？</strong></p>
 
-    &lt;form action="/bookmarks" method="post"&gt;
-        &lt;input type="url" name="url" placeholder="URL" required&gt;
-        &lt;input type="text" name="title" placeholder="标题" required&gt;
-        &lt;button type="submit"&gt;添加&lt;/button&gt;
-    &lt;/form&gt;
+<pre><code><span class="code-label">Go</span>type TaskStore struct {
+    mu     sync.Mutex  // 互斥锁
+    tasks  []Task
+    nextID int
+}</code></pre>
 
-    {{range .Bookmarks}}
-    &lt;div class="bookmark"&gt;
-        &lt;div class="info"&gt;
-            &lt;a href="{{.URL}}" target="_blank"&gt;{{.Title}}&lt;/a&gt;
-            &lt;div style="color:#999;font-size:0.85em"&gt;{{.CreatedAt | formatDate}}&lt;/div&gt;
-        &lt;/div&gt;
-        &lt;form action="/bookmarks/{{.ID}}/delete" method="post"&gt;
-            &lt;button type="submit"&gt;删除&lt;/button&gt;
-        &lt;/form&gt;
-    &lt;/div&gt;
-    {{else}}
-    &lt;p&gt;暂无书签&lt;/p&gt;
-    {{end}}
-&lt;/body&gt;
-&lt;/html&gt;</code></pre>
+<p>Go 的 HTTP 服务器会为<strong>每个请求</strong>启动一个 goroutine（轻量级线程）。如果两个用户同时添加任务，<code>tasks</code> 切片可能被同时修改，导致数据错乱。<code>sync.Mutex</code> 保证同一时间只有一个 goroutine 能修改数据。</p>
 
-<h3>9.5 Fiber 注意事项</h3>
+<blockquote><p>这是 Go 并发编程中最重要的概念之一：<strong>通过互斥锁保护共享数据</strong>。</p></blockquote>
 
-<table><thead><tr><th>注意点</th><th>说明</th></tr></thead><tbody><tr><td><code>*fiber.Ctx</code> 不可传 goroutine</td><td>Fiber 复用 Ctx 对象，goroutine 中使用的 Ctx 可能已被回收</td></tr><tr><td>不兼容 <code>net/http</code> 中间件</td><td>Fiber 基于 Fasthttp，无法直接使用标准库中间件</td></tr><tr><td>不支持 HTTP/2</td><td>Fasthttp 不支持 HTTP/2</td></tr><tr><td>模板引擎</td><td>使用 <code>github.com/gofiber/template</code> 系列包</td></tr></tbody></table>
+<p><strong><code>strconv.Atoi</code></strong>：把字符串转成整数。因为 <code>r.FormValue</code> 返回的是 <code>string</code>，而 <code>id</code> 是 <code>int</code>。</p>
+
+<p><strong>为什么设计成四个独立的路由</strong>（<code>/add</code>, <code>/toggle</code>, <code>/delete</code>）而不是一个 <code>/</code>？</p>
+
+<p>这样每个路由只做一件事，代码清晰，容易维护。这是 Web 开发的常见模式。</p>
+
+<h3>9.4 运行测试</h3>
+
+<pre><code><span class="code-label">Shell</span>go run main.go</code></pre>
+
+<p>打开 <code>http://localhost:8080</code>，添加几个任务，试试标记完成和删除。</p>
 
 <hr>
 
-<h2>11. 10. Go 网络编程：TCP/UDP</h2>
+<h2>11. 10. 进阶网络编程：TCP/UDP</h2>
 
-<p>Go 的 <code>net</code> 包提供了跨平台的网络 I/O 接口，支持 TCP、UDP、Unix Domain Socket 等协议。</p>
+<h3>10.1 目标</h3>
 
-<h3>13.1 TCP 并发服务器</h3>
+<p>前面我们一直在用 HTTP（基于 TCP 的应用层协议）。现在来了解底层——直接用 TCP 和 UDP 收发数据。</p>
+
+<h3>10.2 TCP 服务器与客户端</h3>
+
+<p>TCP 是<strong>可靠</strong>的、面向连接的协议。类似打电话：先拨号建立连接，然后双向通话，最后挂断。</p>
+
+<p><strong>TCP 服务器</strong>：</p>
 
 <pre><code><span class="code-label">Go</span>package main
 
@@ -1534,10 +837,10 @@ import (
     "log"
     "net"
     "strings"
-    "time"
 )
 
 func main() {
+    // 1. 监听端口
     listener, err := net.Listen("tcp", ":8000")
     if err != nil {
         log.Fatal(err)
@@ -1546,36 +849,31 @@ func main() {
     fmt.Println("TCP 服务器监听 :8000")
 
     for {
+        // 2. 等待客户端连接
         conn, err := listener.Accept()
         if err != nil {
-            log.Printf("接受连接失败: %v", err)
             continue
         }
-        // 每个连接一个 goroutine，实现并发处理
+        // 3. 每个连接用独立的 goroutine 处理
         go handleConn(conn)
     }
 }
 
 func handleConn(conn net.Conn) {
     defer conn.Close()
-    // 设置读写超时
-    conn.SetDeadline(time.Now().Add(5 * time.Minute))
-
     reader := bufio.NewReader(conn)
     for {
         msg, err := reader.ReadString('\n')
         if err != nil {
-            return // 客户端断开
+            return
         }
         fmt.Printf("收到: %s", msg)
-
-        // 转换为大写后返回
-        reply := strings.ToUpper(msg)
-        conn.Write([]byte(reply))
+        // 转大写后返回
+        conn.Write([]byte(strings.ToUpper(msg)))
     }
 }</code></pre>
 
-<h3>13.2 TCP 客户端</h3>
+<p><strong>TCP 客户端</strong>：</p>
 
 <pre><code><span class="code-label">Go</span>package main
 
@@ -1584,138 +882,84 @@ import (
     "fmt"
     "log"
     "net"
-    "os"
 )
 
 func main() {
+    // 1. 连接服务器
     conn, err := net.Dial("tcp", "localhost:8000")
     if err != nil {
         log.Fatal(err)
     }
     defer conn.Close()
 
-    // 发送消息
-    fmt.Fprintf(conn, "hello from client\n")
+    // 2. 发送消息
+    fmt.Fprint(conn, "hello from client\n")
 
-    // 读取响应
-    reply, err := bufio.NewReader(conn).ReadString('\n')
-    if err != nil {
-        log.Fatal(err)
-    }
+    // 3. 读取响应
+    reply, _ := bufio.NewReader(conn).ReadString('\n')
     fmt.Printf("服务器响应: %s", reply)
 }</code></pre>
 
-<h3>13.3 UDP 服务器</h3>
+<h3>10.3 UDP 服务器与客户端</h3>
 
-<p>UDP 无连接，无需 <code>Accept</code>，直接读写数据包并记录发送方地址。</p>
+<p>UDP 是<strong>无连接</strong>的、不保证送达的协议。类似寄信：写好地址扔进邮筒，不确认对方是否收到。</p>
 
-<pre><code><span class="code-label">Go</span>package main
+<p><strong>UDP 服务器</strong>：</p>
 
-import (
-    "fmt"
-    "log"
-    "net"
-    "time"
-)
-
-func main() {
+<pre><code><span class="code-label">Go</span>func main() {
     addr, _ := net.ResolveUDPAddr("udp", ":8001")
-    conn, err := net.ListenUDP("udp", addr)
-    if err != nil {
-        log.Fatal(err)
-    }
+    conn, _ := net.ListenUDP("udp", addr)
     defer conn.Close()
     fmt.Println("UDP 服务器监听 :8001")
 
     buf := make([]byte, 1024)
     for {
-        n, clientAddr, err := conn.ReadFromUDP(buf)
-        if err != nil {
-            continue
-        }
+        n, clientAddr, _ := conn.ReadFromUDP(buf)
         fmt.Printf("来自 %v: %s", clientAddr, string(buf[:n]))
-
-        // 回复当前时间戳
-        reply := []byte(time.Now().Format(time.RFC3339) + "\n")
-        conn.WriteToUDP(reply, clientAddr)
+        conn.WriteToUDP([]byte("收到！\n"), clientAddr)
     }
 }</code></pre>
 
-<h3>13.4 UDP 客户端</h3>
+<p><strong>UDP 客户端</strong>：</p>
 
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "fmt"
-    "log"
-    "net"
-)
-
-func main() {
+<pre><code><span class="code-label">Go</span>func main() {
     serverAddr, _ := net.ResolveUDPAddr("udp", "localhost:8001")
-    conn, err := net.DialUDP("udp", nil, serverAddr)
-    if err != nil {
-        log.Fatal(err)
-    }
+    conn, _ := net.DialUDP("udp", nil, serverAddr)
     defer conn.Close()
 
-    // 发送
-    conn.Write([]byte("ping\n"))
-
-    // 读取响应
+    conn.Write([]byte("hello via UDP\n"))
     buf := make([]byte, 1024)
-    n, _, err := conn.ReadFromUDP(buf)
-    if err != nil {
-        log.Fatal(err)
-    }
+    n, _, _ := conn.ReadFromUDP(buf)
     fmt.Printf("服务器响应: %s", string(buf[:n]))
 }</code></pre>
 
-<h3>13.5 net 包核心 API 速查</h3>
+<h3>10.4 TCP vs UDP</h3>
 
-<table><thead><tr><th>函数</th><th>用途</th></tr></thead><tbody><tr><td><code>net.Listen("tcp", ":port")</code></td><td>创建 TCP 监听器</td></tr><tr><td><code>listener.Accept()</code></td><td>阻塞等待客户端连接，返回 <code>net.Conn</code></td></tr><tr><td><code>net.Dial("tcp", "host:port")</code></td><td>连接到 TCP 服务器</td></tr><tr><td><code>net.ListenUDP("udp", addr)</code></td><td>创建 UDP 连接</td></tr><tr><td><code>net.DialUDP("udp", laddr, raddr)</code></td><td>创建 UDP 客户端连接</td></tr><tr><td><code>conn.Read(buf)</code> / <code>conn.Write(buf)</code></td><td>读写数据</td></tr><tr><td><code>conn.SetDeadline(t)</code></td><td>设置读写超时</td></tr><tr><td><code>conn.SetReadDeadline(t)</code> / <code>conn.SetWriteDeadline(t)</code></td><td>分别设置读/写超时</td></tr><tr><td><code>net.DialTimeout("tcp", addr, timeout)</code></td><td>带超时的连接</td></tr><tr><td><code>net.Dialer{DualStack: true}</code></td><td>IPv4/IPv6 双栈连接</td></tr></tbody></table>
+<table><thead><tr><th></th><th>TCP</th><th>UDP</th></tr></thead><tbody><tr><td>连接方式</td><td>面向连接（三次握手）</td><td>无连接</td></tr><tr><td>可靠性</td><td>保证送达、顺序正确</td><td>不保证送达、可能乱序</td></tr><tr><td>速度</td><td>较慢（有确认机制）</td><td>快</td></tr><tr><td>应用场景</td><td>HTTP、文件传输、邮件</td><td>视频直播、DNS、游戏</td></tr></tbody></table>
 
-<h3>13.6 TCP 粘包处理</h3>
+<h3>10.5 net 包核心 API</h3>
 
-<p>TCP 是流式协议，一次 <code>Read</code> 可能读到多个消息或不完整的消息。常见方案：</p>
-
-<pre><code><span class="code-label">Go</span>// 方案一：固定长度头 + 变长体（推荐）
-func readPacket(conn net.Conn) ([]byte, error) {
-    // 先读 4 字节长度头
-    header := make([]byte, 4)
-    if _, err := io.ReadFull(conn, header); err != nil {
-        return nil, err
-    }
-    length := binary.BigEndian.Uint32(header)
-    // 再读变长体
-    body := make([]byte, length)
-    if _, err := io.ReadFull(conn, body); err != nil {
-        return nil, err
-    }
-    return body, nil
-}
-
-// 方案二：分隔符协议（如换行符 \n）
-func readLine(conn net.Conn) (string, error) {
-    return bufio.NewReader(conn).ReadString('\n')
-}</code></pre>
+<table><thead><tr><th>函数</th><th>用途</th></tr></thead><tbody><tr><td><code>net.Listen("tcp", ":port")</code></td><td>创建 TCP 监听器</td></tr><tr><td><code>listener.Accept()</code></td><td>阻塞等待客户端连接</td></tr><tr><td><code>net.Dial("tcp", "host:port")</code></td><td>连接 TCP 服务器</td></tr><tr><td><code>net.ListenUDP("udp", addr)</code></td><td>创建 UDP 监听</td></tr><tr><td><code>net.DialUDP("udp", laddr, raddr)</code></td><td>创建 UDP 客户端</td></tr><tr><td><code>conn.SetDeadline(t)</code></td><td>设置读写超时（防止连接永久挂起）</td></tr></tbody></table>
 
 <hr>
 
-<h2>12. 11. RPC 远程调用：net/rpc 与 gRPC</h2>
+<h2>12. 11. RPC 远程调用：服务之间如何通信</h2>
 
-<h3>14.1 net/rpc — Go 标准库 RPC</h3>
+<h3>11.1 目标</h3>
 
-<p>Go 标准库内置 <code>net/rpc</code>，使用 Go 的 <code>gob</code> 编码。</p>
+<p>当你有多个服务时，需要一种方式让它们互相调用函数。这就是 RPC（Remote Procedure Call，远程过程调用）。</p>
 
-<p><strong>服务定义</strong>（共享类型）：</p>
+<h3>11.2 net/rpc（Go 标准库）</h3>
+
+<p>Go 标准库自带 RPC 支持，但只适用于 Go 服务之间的通信。</p>
+
+<p><strong>共享类型定义</strong>：</p>
 
 <pre><code><span class="code-label">Go</span>package shared
 
 type Args struct {
     A, B int
 }
-
 type Result struct {
     Value int
 }</code></pre>
@@ -1733,747 +977,254 @@ import (
 
 type Calculator int
 
-// 方法签名必须满足：func (t *T) MethodName(args *Args, reply *Result) error
 func (c *Calculator) Multiply(args *Args, reply *Result) error {
     reply.Value = args.A * args.B
     return nil
 }
 
-func (c *Calculator) Divide(args *Args, reply *Result) error {
-    if args.B == 0 {
-        return errors.New("除数不能为零")
-    }
-    reply.Value = args.A / args.B
-    return nil
-}
-
 func main() {
-    calc := new(Calculator)
-    rpc.Register(calc)     // 注册服务
-    rpc.HandleHTTP()       // 通过 HTTP 传输
-
-    l, err := net.Listen("tcp", ":1234")
-    if err != nil {
-        log.Fatal(err)
-    }
-    log.Println("RPC 服务器监听 :1234")
+    rpc.Register(new(Calculator))
+    rpc.HandleHTTP()
+    l, _ := net.Listen("tcp", ":1234")
+    log.Println("RPC 服务器 :1234")
     http.Serve(l, nil)
 }</code></pre>
 
 <p><strong>RPC 客户端</strong>：</p>
 
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "fmt"
-    "log"
-    "net/rpc"
-)
-
-func main() {
-    client, err := rpc.DialHTTP("tcp", "localhost:1234")
-    if err != nil {
-        log.Fatal(err)
-    }
+<pre><code><span class="code-label">Go</span>func main() {
+    client, _ := rpc.DialHTTP("tcp", "localhost:1234")
     defer client.Close()
 
-    // 同步调用
     args := &amp;Args{A: 7, B: 8}
     var result Result
-    err = client.Call("Calculator.Multiply", args, &amp;result)
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Printf("%d * %d = %d\n", args.A, args.B, result.Value)
-
-    // 异步调用
-    divCall := client.Go("Calculator.Divide", args, &amp;result, nil)
-    &lt;-divCall.Done // 等待完成
-    fmt.Printf("%d / %d = %d\n", args.A, args.B, result.Value)
+    client.Call("Calculator.Multiply", args, &amp;result)
+    fmt.Printf("7 * 8 = %d\n", result.Value)
 }</code></pre>
 
-<h3>14.2 JSON-RPC</h3>
+<h3>11.3 gRPC（现代微服务通信）</h3>
 
-<p>Go 标准库也支持 JSON-RPC，只需更换 Codec：</p>
+<p>gRPC 是 Google 开发的 RPC 框架，基于 HTTP/2 + Protocol Buffers（二进制序列化）。优点：</p>
 
-<pre><code><span class="code-label">Go</span>// 服务端
-import "net/rpc/jsonrpc"
+<ul><li>跨语言（Go、Java、Python、Node.js 等都能用）</li><li>高性能（二进制编码，比 JSON 小很多）</li><li>支持流式传输（服务端推送、客户端流式上传、双向流）</li></ul>
 
-// 客户端使用 jsonrpc.Dial 而非 rpc.DialHTTP
-client, err := jsonrpc.Dial("tcp", "localhost:1234")
-
-// 或用 net/rpc 包内置的 JSON-RPC 服务端
-// rpc.ServeCodec(jsonrpc.NewServerCodec(conn))</code></pre>
-
-<h3>14.3 gRPC — 现代微服务通信</h3>
-
-<p>gRPC 基于 HTTP/2 + Protocol Buffers，支持四种调用模式。</p>
-
-<p><strong>安装工具</strong>：</p>
-
-<pre><code><span class="code-label">Shell</span>go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest</code></pre>
-
-<p><strong>定义 Proto 文件</strong> (<code>echo.proto</code>)：</p>
+<p><strong>定义接口</strong>（<code>echo.proto</code>）：</p>
 
 <pre><code><span class="code-label">Protobuf</span>syntax = "proto3";
 package echo;
 option go_package = "./pb";
 
 service EchoService {
-  // 一元 RPC：请求 → 响应
-  rpc UnaryEcho(EchoRequest) returns (EchoResponse);
-
-  // 服务端流式：请求 → 流&lt;响应&gt;
-  rpc ServerStreamEcho(EchoRequest) returns (stream EchoResponse);
-
-  // 客户端流式：流&lt;请求&gt; → 响应
-  rpc ClientStreamEcho(stream EchoRequest) returns (EchoResponse);
-
-  // 双向流式：流&lt;请求&gt; ↔ 流&lt;响应&gt;
-  rpc BidirectionalEcho(stream EchoRequest) returns (stream EchoResponse);
+  rpc UnaryEcho(EchoRequest) returns (EchoResponse);                           // 一元
+  rpc ServerStreamEcho(EchoRequest) returns (stream EchoResponse);             // 服务端流
+  rpc ClientStreamEcho(stream EchoRequest) returns (EchoResponse);             // 客户端流
+  rpc BidirectionalEcho(stream EchoRequest) returns (stream EchoResponse);     // 双向流
 }
 
-message EchoRequest {
-  string message = 1;
-}
-
-message EchoResponse {
-  string message = 1;
-}</code></pre>
-
-<p><strong>生成代码</strong>：</p>
-
-<pre><code><span class="code-label">Shell</span>protoc --go_out=. --go-grpc_out=. echo.proto</code></pre>
+message EchoRequest { string message = 1; }
+message EchoResponse { string message = 1; }</code></pre>
 
 <p><strong>gRPC 服务端</strong>：</p>
 
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "context"
-    "fmt"
-    "io"
-    "log"
-    "net"
-
-    "google.golang.org/grpc"
-    pb "yourmodule/pb"
-)
-
-type echoServer struct {
+<pre><code><span class="code-label">Go</span>type echoServer struct {
     pb.UnimplementedEchoServiceServer
 }
 
-// 一元 RPC
 func (s *echoServer) UnaryEcho(ctx context.Context, req *pb.EchoRequest) (*pb.EchoResponse, error) {
     return &amp;pb.EchoResponse{Message: "Echo: " + req.Message}, nil
-}
-
-// 服务端流式
-func (s *echoServer) ServerStreamEcho(req *pb.EchoRequest, stream pb.EchoService_ServerStreamEchoServer) error {
-    for i := 0; i &lt; 5; i++ {
-        stream.Send(&amp;pb.EchoResponse{
-            Message: fmt.Sprintf("Echo #%d: %s", i+1, req.Message),
-        })
-    }
-    return nil
-}
-
-// 客户端流式
-func (s *echoServer) ClientStreamEcho(stream pb.EchoService_ClientStreamEchoServer) error {
-    var messages []string
-    for {
-        req, err := stream.Recv()
-        if err == io.EOF {
-            // 客户端发送完毕，返回汇总响应
-            return stream.SendAndClose(&amp;pb.EchoResponse{
-                Message: fmt.Sprintf("收到 %d 条消息: %v", len(messages), messages),
-            })
-        }
-        if err != nil {
-            return err
-        }
-        messages = append(messages, req.Message)
-    }
-}
-
-// 双向流式
-func (s *echoServer) BidirectionalEcho(stream pb.EchoService_BidirectionalEchoServer) error {
-    for {
-        req, err := stream.Recv()
-        if err == io.EOF {
-            return nil
-        }
-        if err != nil {
-            return err
-        }
-        // 收到一条就回复一条
-        stream.Send(&amp;pb.EchoResponse{Message: "Echo: " + req.Message})
-    }
 }
 
 func main() {
     lis, _ := net.Listen("tcp", ":50051")
     s := grpc.NewServer()
     pb.RegisterEchoServiceServer(s, &amp;echoServer{})
-    log.Println("gRPC 服务器监听 :50051")
     log.Fatal(s.Serve(lis))
 }</code></pre>
 
 <p><strong>gRPC 客户端</strong>：</p>
 
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "context"
-    "io"
-    "log"
-    "time"
-
-    "google.golang.org/grpc"
-    "google.golang.org/grpc/credentials/insecure"
-    pb "yourmodule/pb"
-)
-
-func main() {
-    conn, err := grpc.NewClient("localhost:50051",
-        grpc.WithTransportCredentials(insecure.NewCredentials()))
-    if err != nil {
-        log.Fatal(err)
-    }
+<pre><code><span class="code-label">Go</span>func main() {
+    conn, _ := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
     defer conn.Close()
     client := pb.NewEchoServiceClient(conn)
 
-    // 一元调用（带超时）
     ctx, cancel := context.WithTimeout(context.Background(), time.Second)
     defer cancel()
-    resp, _ := client.UnaryEcho(ctx, &amp;pb.EchoRequest{Message: "hello"})
-    log.Printf("一元响应: %s", resp.Message)
 
-    // 服务端流式
-    stream, _ := client.ServerStreamEcho(ctx, &amp;pb.EchoRequest{Message: "world"})
-    for {
-        resp, err := stream.Recv()
-        if err == io.EOF {
-            break
-        }
-        log.Printf("流响应: %s", resp.Message)
-    }
+    resp, _ := client.UnaryEcho(ctx, &amp;pb.EchoRequest{Message: "hello"})
+    fmt.Println(resp.Message)
 }</code></pre>
 
-<h3>14.4 gRPC 四种模式对比</h3>
+<h3>11.4 gRPC 四种调用模式</h3>
 
-<table><thead><tr><th>模式</th><th>Proto 关键字</th><th>场景</th></tr></thead><tbody><tr><td>一元 RPC</td><td>无 <code>stream</code></td><td>普通请求-响应</td></tr><tr><td>服务端流式</td><td><code>stream</code> 在返回值前</td><td>日志推送、实时数据流</td></tr><tr><td>客户端流式</td><td><code>stream</code> 在参数前</td><td>批量上传、数据采集</td></tr><tr><td>双向流式</td><td><code>stream</code> 在参数和返回值前</td><td>聊天、实时协作</td></tr></tbody></table>
-
-<h3>14.5 gRPC vs REST vs net/rpc</h3>
-
-<table><thead><tr><th></th><th>gRPC</th><th>REST (JSON)</th><th>net/rpc</th></tr></thead><tbody><tr><td>协议</td><td>HTTP/2</td><td>HTTP/1.1</td><td>HTTP/1.1 或 TCP</td></tr><tr><td>序列化</td><td>Protobuf (二进制)</td><td>JSON (文本)</td><td>Gob (二进制)</td></tr><tr><td>消息体积</td><td>小</td><td>大</td><td>小</td></tr><tr><td>跨语言</td><td>✅</td><td>✅</td><td>❌ (Go only)</td></tr><tr><td>流式</td><td>原生支持</td><td>需 SSE/WebSocket</td><td>❌</td></tr><tr><td>浏览器直连</td><td>❌ (需 gRPC-Web)</td><td>✅</td><td>❌</td></tr><tr><td>适用场景</td><td>微服务间通信</td><td>对外开放 API</td><td>Go 服务间简单通信</td></tr></tbody></table>
+<table><thead><tr><th>模式</th><th>说明</th><th>场景</th></tr></thead><tbody><tr><td>一元 RPC</td><td>客户端发一个请求，服务端回一个响应</td><td>普通 API 调用</td></tr><tr><td>服务端流式</td><td>客户端发一个请求，服务端持续推送多条响应</td><td>实时推送、日志流</td></tr><tr><td>客户端流式</td><td>客户端持续发送多条请求，服务端最后回一个响应</td><td>批量上传、数据采集</td></tr><tr><td>双向流式</td><td>双方同时收发</td><td>聊天、实时协作</td></tr></tbody></table>
 
 <hr>
 
 <h2>13. 12. WebSocket 实时通信</h2>
 
-<p>WebSocket 在单条 TCP 连接上提供全双工通信。Go 中最常用的库是 <code>gorilla/websocket</code>。</p>
+<h3>12.1 目标</h3>
 
-<h3>15.1 安装</h3>
+<p>HTTP 是"请求-响应"模式，服务器不能主动推送消息给客户端。WebSocket 解决了这个问题：建立连接后，双方可以随时互发消息。</p>
+
+<h3>12.2 最简单的 WebSocket 服务器</h3>
+
+<p>安装依赖：</p>
 
 <pre><code><span class="code-label">Shell</span>go get github.com/gorilla/websocket</code></pre>
-
-<h3>15.2 基础 WebSocket 服务器</h3>
 
 <pre><code><span class="code-label">Go</span>package main
 
 import (
     "log"
     "net/http"
-
     "github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
-    ReadBufferSize:  1024,
-    WriteBufferSize: 1024,
-    // 生产环境必须校验 Origin
-    CheckOrigin: func(r *http.Request) bool { return true },
+    CheckOrigin: func(r *http.Request) bool { return true }, // 开发环境允许所有来源
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
+    // 把 HTTP 连接升级为 WebSocket 连接
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
-        log.Printf("升级失败: %v", err)
+        log.Print("升级失败:", err)
         return
     }
     defer conn.Close()
 
-    log.Printf("客户端连接: %s", conn.RemoteAddr())
-
     for {
+        // 读取客户端消息
         msgType, msg, err := conn.ReadMessage()
         if err != nil {
-            log.Printf("读取错误: %v", err)
             break
         }
         log.Printf("收到: %s", msg)
-
-        // 回显消息
-        if err := conn.WriteMessage(msgType, msg); err != nil {
-            log.Printf("写入错误: %v", err)
-            break
-        }
+        // 原样返回
+        conn.WriteMessage(msgType, msg)
     }
 }
 
 func main() {
     http.HandleFunc("/ws", wsHandler)
-    log.Println("WebSocket 服务器启动 :8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }</code></pre>
 
-<h3>15.3 完整聊天服务器（Hub 模式）</h3>
+<h3>12.3 聊天室（Hub 模式）</h3>
 
-<p>Hub 模式是 WebSocket 生产环境的标准架构：一个 Hub goroutine 管理所有 Client，避免并发写冲突。</p>
+<p>当多个客户端需要互相通信时，需要一个"中心"来管理连接和广播消息：</p>
 
-<pre><code><span class="code-label">Go</span>package main
-
-import (
-    "bytes"
-    "log"
-    "net/http"
-    "sync"
-    "time"
-
-    "github.com/gorilla/websocket"
-)
-
-// ===== 常量 =====
-
-const (
-    writeWait      = 10 * time.Second
-    pongWait       = 60 * time.Second
-    pingPeriod     = (pongWait * 9) / 10
-    maxMessageSize = 512
-)
-
-var upgrader = websocket.Upgrader{
-    ReadBufferSize:  1024,
-    WriteBufferSize: 1024,
-    CheckOrigin:     func(r *http.Request) bool { return true },
-}
-
-// ===== Client =====
-
-type Client struct {
-    hub  *Hub
-    conn *websocket.Conn
-    send chan []byte
-}
-
-func (c *Client) readPump() {
-    defer func() {
-        c.hub.unregister &lt;- c
-        c.conn.Close()
-    }()
-    c.conn.SetReadLimit(maxMessageSize)
-    c.conn.SetReadDeadline(time.Now().Add(pongWait))
-    c.conn.SetPongHandler(func(string) error {
-        c.conn.SetReadDeadline(time.Now().Add(pongWait))
-        return nil
-    })
-
-    for {
-        _, msg, err := c.conn.ReadMessage()
-        if err != nil {
-            break
-        }
-        msg = bytes.TrimSpace(msg)
-        c.hub.broadcast &lt;- msg
-    }
-}
-
-func (c *Client) writePump() {
-    ticker := time.NewTicker(pingPeriod)
-    defer func() {
-        ticker.Stop()
-        c.conn.Close()
-    }()
-
-    for {
-        select {
-        case msg, ok := &lt;-c.send:
-            c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-            if !ok {
-                c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-                return
-            }
-            if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-                return
-            }
-        case &lt;-ticker.C:
-            c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-            if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-                return
-            }
-        }
-    }
-}
-
-// ===== Hub =====
-
-type Hub struct {
+<pre><code><span class="code-label">Go</span>type Hub struct {
     clients    map[*Client]bool
     broadcast  chan []byte
     register   chan *Client
     unregister chan *Client
-    mu         sync.RWMutex
-}
-
-func newHub() *Hub {
-    return &amp;Hub{
-        clients:    make(map[*Client]bool),
-        broadcast:  make(chan []byte),
-        register:   make(chan *Client),
-        unregister: make(chan *Client),
-    }
 }
 
 func (h *Hub) run() {
     for {
         select {
         case client := &lt;-h.register:
-            h.mu.Lock()
             h.clients[client] = true
-            h.mu.Unlock()
-
         case client := &lt;-h.unregister:
-            h.mu.Lock()
-            if _, ok := h.clients[client]; ok {
-                delete(h.clients, client)
-                close(client.send)
-            }
-            h.mu.Unlock()
-
+            delete(h.clients, client)
+            close(client.send)
         case msg := &lt;-h.broadcast:
-            h.mu.RLock()
             for client := range h.clients {
                 select {
                 case client.send &lt;- msg:
-                default:
-                    // send 缓冲区满，认为客户端已死
-                    close(client.send)
+                default: // 客户端 send 缓冲区满，认为已断开
                     delete(h.clients, client)
+                    close(client.send)
                 }
             }
-            h.mu.RUnlock()
         }
-    }
-}
-
-// ===== HTTP Handler =====
-
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
-    conn, err := upgrader.Upgrade(w, r, nil)
-    if err != nil {
-        log.Printf("升级失败: %v", err)
-        return
-    }
-    client := &amp;Client{
-        hub:  hub,
-        conn: conn,
-        send: make(chan []byte, 256),
-    }
-    hub.register &lt;- client
-
-    go client.writePump()
-    go client.readPump()
-}
-
-func main() {
-    hub := newHub()
-    go hub.run()
-
-    http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-        serveWs(hub, w, r)
-    })
-
-    log.Println("聊天服务器启动 :8080")
-    log.Fatal(http.ListenAndServe(":8080", nil))
-}</code></pre>
-
-<h3>15.4 测试用 HTML 客户端</h3>
-
-<pre><code><span class="code-label">HTML</span>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;&lt;title&gt;Chat&lt;/title&gt;&lt;/head&gt;
-&lt;body&gt;
-    &lt;div id="chat" style="height:300px;overflow-y:scroll;border:1px solid #ccc;margin-bottom:10px"&gt;&lt;/div&gt;
-    &lt;input id="msg" type="text" placeholder="输入消息..." autofocus&gt;
-    &lt;button onclick="send()"&gt;发送&lt;/button&gt;
-
-    &lt;script&gt;
-    const ws = new WebSocket("ws://localhost:8080/ws");
-    const chat = document.getElementById("chat");
-    const input = document.getElementById("msg");
-
-    ws.onmessage = (e) =&gt; {
-        chat.innerHTML += "&lt;div&gt;" + e.data + "&lt;/div&gt;";
-        chat.scrollTop = chat.scrollHeight;
-    };
-    ws.onclose = () =&gt; chat.innerHTML += "&lt;div style='color:red'&gt;连接已断开&lt;/div&gt;";
-
-    function send() {
-        if (input.value) {
-            ws.send(input.value);
-            input.value = "";
-        }
-    }
-    input.addEventListener("keydown", (e) =&gt; {
-        if (e.key === "Enter") send();
-    });
-    &lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;</code></pre>
-
-<h3>15.5 WebSocket 生产关键点</h3>
-
-<table><thead><tr><th>要点</th><th>说明</th></tr></thead><tbody><tr><td><strong>Ping/Pong 心跳</strong></td><td>服务端定时发 Ping，客户端自动回 Pong；超时未收到 Pong 则断开连接</td></tr><tr><td><strong>并发写保护</strong></td><td><code>gorilla/websocket</code> 不支持并发写，必须通过 channel 串行化（Hub 模式）</td></tr><tr><td><strong>Origin 校验</strong></td><td>生产环境必须在 <code>CheckOrigin</code> 中校验请求来源</td></tr><tr><td><strong>消息大小限制</strong></td><td><code>SetReadLimit</code> 防止恶意超大消息耗尽内存</td></tr><tr><td><strong>优雅关闭</strong></td><td>用 <code>signal.NotifyContext</code> 捕获 SIGTERM，<code>Shutdown</code> 排空连接</td></tr><tr><td><strong>水平扩展</strong></td><td>多实例部署时用 Redis Pub/Sub 广播跨实例消息</td></tr><tr><td><strong>连接数限制</strong></td><td>用 <code>atomic</code> 计数器或信号量控制最大连接数</td></tr><tr><td><strong>认证</strong></td><td>在升级前校验 JWT Token（通过 query param 或 cookie）</td></tr><tr><td><strong>goroutine 泄漏</strong></td><td>确保每个连接在断开时关闭对应的 goroutine</td></tr></tbody></table>
-
-<h3>15.6 coder/websocket（新项目替代方案）</h3>
-
-<p><code>gorilla/websocket</code> 原仓库已于 2022 年归档，新项目推荐使用 <code>coder/websocket</code>：</p>
-
-<pre><code><span class="code-label">Shell</span>go get github.com/coder/websocket</code></pre>
-
-<pre><code><span class="code-label">Go</span>import "github.com/coder/websocket"
-
-func handler(w http.ResponseWriter, r *http.Request) {
-    conn, err := websocket.Accept(w, r, nil)
-    if err != nil {
-        return
-    }
-    defer conn.CloseNow()
-
-    ctx := conn.CloseRead(r.Context())
-    for {
-        _, msg, err := conn.Read(ctx)
-        if err != nil {
-            return
-        }
-        conn.Write(ctx, websocket.MessageText, msg)
     }
 }</code></pre>
 
-<p><strong>coder/websocket 优势</strong>：</p>
+<blockquote><p><strong>Hub 模式</strong>是 WebSocket 的经典架构：Hub 在一个 goroutine 中运行，通过 channel 接收所有操作（注册、注销、广播），避免了并发写冲突。</p></blockquote>
 
-<ul><li>使用 <code>context.Context</code> 传播取消和超时，更符合 Go 惯例</li><li>内部处理并发写入安全，无需 Hub 模式串行化</li><li>活跃维护</li></ul>
+<h3>12.4 WebSocket 关键点</h3>
+
+<table><thead><tr><th>要点</th><th>说明</th></tr></thead><tbody><tr><td>心跳</td><td>定时发送 Ping，超时未收到 Pong 则断开</td></tr><tr><td>并发写保护</td><td>gorilla/websocket 不支持并发写，必须通过 Hub 串行化</td></tr><tr><td>连接数限制</td><td>用计数器限制最大连接数，防止资源耗尽</td></tr><tr><td>认证</td><td>在升级前校验 Token（通过 query 参数或 cookie）</td></tr></tbody></table>
 
 <hr>
 
-<h2>14. 参考资料</h2>
+<h2>14. 13. 安全：XSS 防护与最佳实践</h2>
 
-<ul><li><a href="https://go.dev/blog/routing-enhancements">Go 官方博客：Go 1.22 路由增强</a></li><li><a href="https://pkg.go.dev/html/template">html/template 官方文档</a></li><li><a href="https://pkg.go.dev/text/template">text/template 官方文档</a></li><li><a href="https://lets-go.alexedwards.net/sample/02.08-html-templating-and-inheritance.html">Alex Edwards - Let's Go: HTML 模板与继承</a></li><li><a href="https://eli.thegreenplace.net/2023/better-http-server-routing-in-go-122/">Eli Bendersky - Go 1.22 HTTP 路由</a></li><li><a href="https://gin-gonic.com/docs/">Gin 官方文档</a></li><li><a href="https://echo.labstack.com/">Echo 官方文档</a></li><li><a href="https://docs.gofiber.io/">Fiber 官方文档</a></li><li><a href="https://encore.dev/articles/gin-vs-echo-vs-fiber">Encore - Gin vs Echo vs Fiber 对比</a></li><li><a href="https://pkg.go.dev/net">net 包官方文档</a></li><li><a href="https://www.kelche.co/blog/go/socket-programming/">Go Socket Programming (Kelche)</a></li><li><a href="https://grpc.io/docs/languages/go/basics/">gRPC Go 官方教程</a></li><li><a href="https://codelabs.developers.google.com/grpc/getting-started-grpc-go-streaming">gRPC 四种调用模式 Codelab</a></li><li><a href="https://pkg.go.dev/net/rpc">net/rpc 官方文档</a></li><li><a href="https://pkg.go.dev/github.com/gorilla/websocket">gorilla/websocket 官方文档</a></li><li><a href="https://github.com/gorilla/websocket/tree/main/examples/chat">gorilla/websocket Chat 示例</a></li><li><a href="https://websocket.org/guides/languages/go/">coder/websocket Go WebSocket 指南</a></li></ul>
+<h3>13.1 最重要的规则</h3>
 
-<h2>15. 13. 安全：XSS 防护与自动转义</h2>
-
-<h3>10.1 核心规则</h3>
-
-<pre><code><span class="code-label">Go</span>// ❌ 错误：text/template 用于 HTML —— 无任何转义，直接输出原始 HTML
+<pre><code><span class="code-label">Go</span>// ❌ 渲染 HTML 时用 text/template —— 没有任何安全保护
 import "text/template"
 
-// ✅ 正确：html/template 用于 HTML —— 自动上下文转义
+// ✅ 渲染 HTML 时用 html/template —— 自动转义，防止 XSS 攻击
 import "html/template"</code></pre>
 
-<h3>10.2 自动上下文转义</h3>
+<h3>13.2 自动转义演示</h3>
 
-<p><code>html/template</code> 根据数据出现的上下文自动选择转义方式：</p>
+<pre><code><span class="code-label">Go</span>// 假设用户输入了恶意脚本
+userInput := `&lt;script&gt;alert('Hacked!')&lt;/script&gt;`
 
-<pre><code><span class="code-label">HTML</span>&lt;!-- 假设 .Data = `O'Reilly: How are &lt;i&gt;you&lt;/i&gt;?` --&gt;
+// 放入模板
+tmpl.Execute(w, map[string]string{"Content": userInput})
+// 浏览器显示：&lt;script&gt;alert('Hacked!')&lt;/script&gt;（纯文本，不会执行）
+// 而不是弹出 alert 对话框</code></pre>
 
-&lt;!-- HTML 文本上下文 → HTML 实体编码 --&gt;
-&lt;p&gt;{{.Data}}&lt;/p&gt;
-&lt;!-- 输出: O'Reilly: How are &amp;lt;i&amp;gt;you&amp;lt;/i&amp;gt;? --&gt;
+<p><code>html/template</code> 会自动根据上下文选择转义方式：</p>
 
-&lt;!-- HTML 属性上下文 → 属性转义 --&gt;
-&lt;a title="{{.Data}}"&gt;link&lt;/a&gt;
-&lt;!-- 输出: O&amp;#39;Reilly: How are you? --&gt;
+<ul><li>HTML 文本中 → HTML 实体编码（<code>&lt;</code> → <code>&amp;lt;</code>）</li><li>HTML 属性中 → 属性值转义</li><li>JavaScript 中 → JS 字符串转义</li><li>URL 中 → URL 编码</li></ul>
 
-&lt;!-- URL 上下文 → URL 编码 --&gt;
-&lt;a href="/search?q={{.Data}}"&gt;search&lt;/a&gt;
-&lt;!-- 输出: O%27Reilly%3a%20How%20are%3ci%3eyou%3c%2fi%3e --&gt;
+<h3>13.3 禁止事项</h3>
 
-&lt;!-- JavaScript 字符串上下文 → JS 转义 --&gt;
-&lt;script&gt;var x = "{{.Data}}";&lt;/script&gt;
-&lt;!-- 输出: O\x27Reilly: How are \x3ci\x3eyou... --&gt;</code></pre>
+<pre><code><span class="code-label">Go</span>// ❌ 绝对不要对用户输入用 template.HTML（绕过转义）
+safeHTML := template.HTML(userInput)  // XSS 漏洞！
 
-<h3>10.3 安全类型（谨慎使用）</h3>
-
-<pre><code><span class="code-label">Go</span>// 只有在你 100% 确信内容是安全的情况下，才使用这些类型
-
-// template.HTML — 标记为安全 HTML，不转义
-type Comment struct {
-    Body template.HTML
-}
-// tmpl.Execute(w, Comment{Body: template.HTML("&lt;b&gt;bold&lt;/b&gt;")})
-// 输出: &lt;b&gt;bold&lt;/b&gt; （而不是 &amp;lt;b&amp;gt;bold&amp;lt;/b&amp;gt;）
-
-// ❌ 绝对不要对用户输入这样做
-// safeHTML := template.HTML(userInput) // 这是 XSS 漏洞！</code></pre>
-
-<table><thead><tr><th>类型</th><th>用途</th><th>风险</th></tr></thead><tbody><tr><td><code>template.HTML</code></td><td>安全 HTML 片段</td><td>用户输入使用 → XSS</td></tr><tr><td><code>template.HTMLAttr</code></td><td>安全 HTML 属性</td><td>用户输入使用 → XSS</td></tr><tr><td><code>template.JS</code></td><td>安全 JavaScript</td><td>用户输入使用 → XSS</td></tr><tr><td><code>template.JSStr</code></td><td>安全 JS 字符串</td><td>用户输入使用 → XSS</td></tr><tr><td><code>template.CSS</code></td><td>安全 CSS</td><td>用户输入使用 → CSS 注入</td></tr><tr><td><code>template.URL</code></td><td>安全 URL</td><td>用户输入使用 → javascript: 注入</td></tr><tr><td><code>template.Srcset</code></td><td>安全 srcset 属性</td><td>用户输入使用 → XSS</td></tr></tbody></table>
-
-<h3>10.4 直接写 ResponseWriter 的危险</h3>
-
-<pre><code><span class="code-label">Go</span>// ❌ 绕过模板引擎，无自动转义
-func handler(w http.ResponseWriter, r *http.Request) {
-    name := r.URL.Query().Get("name")
-    fmt.Fprintf(w, "&lt;h1&gt;Hello, %s&lt;/h1&gt;", name) // XSS 漏洞！
-    // io.WriteString(w, "&lt;h1&gt;Hello, "+name+"&lt;/h1&gt;") // 同样危险
-    // w.Write([]byte("&lt;h1&gt;Hello, " + name + "&lt;/h1&gt;")) // 同样危险
-}
+// ❌ 不要直接往 ResponseWriter 写字符串
+fmt.Fprintf(w, "&lt;h1&gt;%s&lt;/h1&gt;", userInput)  // XSS 漏洞！
 
 // ✅ 使用模板引擎
-func handler(w http.ResponseWriter, r *http.Request) {
-    name := r.URL.Query().Get("name")
-    tmpl.Execute(w, map[string]string{"Name": name})
-}</code></pre>
-
-<h3>10.5 Content Security Policy（防御纵深）</h3>
-
-<pre><code><span class="code-label">Go</span>func securityHeadersMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Security-Policy",
-            "default-src 'self'; script-src 'self'; object-src 'none';")
-        w.Header().Set("X-Content-Type-Options", "nosniff")
-        w.Header().Set("X-Frame-Options", "DENY")
-        next.ServeHTTP(w, r)
-    })
-}</code></pre>
+tmpl.Execute(w, map[string]string{"Title": userInput})</code></pre>
 
 <hr>
 
-<h2>16. 14. View Model 模式</h2>
+<h2>15. 14. 生产环境 Checklist</h2>
 
-<p><strong>不要直接把数据库模型传给模板。</strong> 创建专门的 View Model 结构体，只包含模板需要的数据。</p>
+<p>在把代码部署到生产环境之前，检查以下项目：</p>
 
-<h3>反例</h3>
+<h3>14.1 代码质量</h3>
 
-<pre><code><span class="code-label">Go</span>// ❌ 直接把数据库模型传给模板
-type User struct {
-    ID             int
-    Email          string
-    PasswordHash   string   // 不应该暴露给模板
-    ResetToken     *string  // 不应该暴露给模板
-    BillingPlan    int      // 模板需要判断
-    SubscriptionID *string
-    CreatedAt      time.Time
-    UpdatedAt      time.Time
-    // ... 30+ 字段
-}</code></pre>
+<ul><li>[ ] 使用 <code>html/template</code> 而非 <code>text/template</code> 渲染 HTML</li><li>[ ] 模板在启动时解析（<code>template.Must</code>），不在每次请求中解析</li><li>[ ] 不使用 <code>template.HTML</code> 处理用户输入</li><li>[ ] 表单数据做了基本校验（非空、长度限制）</li></ul>
 
-<h3>正例</h3>
+<h3>14.2 错误处理</h3>
 
-<pre><code><span class="code-label">Go</span>// ✅ 专门的 View Model
-type ProfilePageVM struct {
-    DisplayName    string
-    MemberSince    string // 已格式化
-    PlanLabel      string // "免费版" / "专业版" / "企业版"
-    CanManageBilling bool
-    RecentInvoices []InvoiceSummaryVM
-    ShowTrialBanner bool
-}
-
-type InvoiceSummaryVM struct {
-    ID     string
-    Amount string // 已格式化 "¥99.00"
-    Date   string // 已格式化 "2024-01-15"
-    Status string // "已支付" / "待支付"
-}
-
-func buildProfilePageVM(user User) ProfilePageVM {
-    return ProfilePageVM{
-        DisplayName: user.DisplayName(),
-        MemberSince: user.CreatedAt.Format("2006年01月"),
-        PlanLabel:   planLabel(user.BillingPlan),
-        CanManageBilling: user.BillingPlan &gt; 0,
-        ShowTrialBanner:  user.BillingPlan == 0,
-        RecentInvoices: buildInvoiceVMs(user.RecentInvoices()),
-    }
-}</code></pre>
-
-<blockquote><p><strong>View Model 原则</strong>：<br>- 模板不包含业务逻辑判断（如 <code>{{if eq .Plan 1}}</code> → 改为 <code>{{if .CanManageBilling}}</code>）<br>- 字符串已格式化，模板直接输出<br>- 列表已排序，模板直接遍历<br>- 不暴露数据库内部字段</p></blockquote>
-
-<hr>
-
-<h2>17. 15. 生产环境最佳实践</h2>
-
-<h3>12.1 模板解析策略</h3>
-
-<pre><code><span class="code-label">Go</span>// ✅ 启动时一次性解析
-var templates = template.Must(
-    template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/**/*.html"),
-)
-
-// ❌ 每次请求都解析（性能灾难）
-func handler(w http.ResponseWriter, r *http.Request) {
-    tmpl, _ := template.ParseFiles("templates/home.html") // 不要这样做！
-    tmpl.Execute(w, data)
-}</code></pre>
-
-<blockquote><p><code>html/template.Template</code> 是并发安全的，多个 goroutine 可以同时调用 <code>Execute</code>。</p></blockquote>
-
-<h3>12.2 FuncMap 规范</h3>
-
-<pre><code><span class="code-label">Go</span>// ✅ 短小、确定性的辅助函数
-var funcMap = template.FuncMap{
-    "formatDate":  func(t time.Time) string { return t.Format("2006-01-02") },
-    "formatPrice": func(p float64) string { return fmt.Sprintf("¥%.2f", p) },
-    "truncate":    func(s string, n int) string { /* ... */ },
-}
-
-// ❌ 不要在 FuncMap 中做数据库调用、网络请求、权限检查
-// 这些逻辑应该在 Go 代码中处理，结果放入 View Model</code></pre>
-
-<h3>12.3 错误处理</h3>
-
-<pre><code><span class="code-label">Go</span>func renderTemplate(w http.ResponseWriter, tmpl *template.Template, name string, data interface{}) {
-    // 先渲染到 buffer，出错时不会污染 ResponseWriter
+<pre><code><span class="code-label">Go</span>// ✅ 渲染到 buffer 先检查错误，再写入响应
+func render(w http.ResponseWriter, tmpl *template.Template, data interface{}) {
     var buf bytes.Buffer
-    if err := tmpl.ExecuteTemplate(&amp;buf, name, data); err != nil {
-        log.Printf("template error: %v", err)
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    if err := tmpl.Execute(&amp;buf, data); err != nil {
+        log.Printf("模板错误: %v", err)
+        http.Error(w, "内部错误", http.StatusInternalServerError)
         return
     }
     buf.WriteTo(w)
 }</code></pre>
 
-<h3>12.4 模板测试（Golden File）</h3>
+<h3>14.3 安全</h3>
 
-<pre><code><span class="code-label">Go</span>func TestHomePageTemplate(t *testing.T) {
-    data := buildTestHomePageData()
-    var buf bytes.Buffer
-    err := templates.ExecuteTemplate(&amp;buf, "home.html", data)
-    if err != nil {
-        t.Fatal(err)
-    }
+<ul><li>[ ] 设置 Content-Security-Policy 头</li><li>[ ] 限制请求体大小（<code>http.MaxBytesReader</code>）</li><li>[ ] 设置读写超时</li></ul>
 
-    // 与 golden file 对比
-    golden := filepath.Join("testdata", "home.html.golden")
-    if *update {
-        os.WriteFile(golden, buf.Bytes(), 0644)
-    }
-    expected, _ := os.ReadFile(golden)
-    if diff := cmp.Diff(string(expected), buf.String()); diff != "" {
-        t.Errorf("template output mismatch (-want +got):\n%s", diff)
-    }
+<pre><code><span class="code-label">Go</span>server := &amp;http.Server{
+    Addr:         ":8080",
+    ReadTimeout:  5 * time.Second,
+    WriteTimeout: 10 * time.Second,
+    IdleTimeout:  120 * time.Second,
 }</code></pre>
 
-<h3>12.5 框架选择建议</h3>
+<h3>14.4 学习路线建议</h3>
 
-<table><thead><tr><th>场景</th><th>推荐</th><th>理由</th></tr></thead><tbody><tr><td>简单 API / 内部工具</td><td><code>net/http</code> (Go 1.22+)</td><td>零依赖，足够强大</td></tr><tr><td>中小型 REST API</td><td>Gin</td><td>生态最成熟，文档最丰富</td></tr><tr><td>注重代码质量</td><td>Echo</td><td>API 最优雅，错误处理模型最好</td></tr><tr><td>极致性能 / Express.js 迁移</td><td>Fiber</td><td>基于 Fasthttp，比 net/http 快 60%</td></tr><tr><td>服务端渲染 HTML 为主</td><td>Gin + multitemplate 或 Echo</td><td>模板集成成熟</td></tr><tr><td>微型服务</td><td><code>net/http</code></td><td>最简单，无框架开销</td></tr></tbody></table>
+<p>作为 Go 初学者，建议按以下顺序学习：</p>
 
-<h3>12.6 上线前检查清单</h3>
-
-<ul><li>[ ] 使用 <code>html/template</code> 而非 <code>text/template</code> 渲染 HTML</li><li>[ ] 模板在启动时解析，不在请求中解析</li><li>[ ] <code>FuncMap</code> 中的函数是确定性的，无副作用</li><li>[ ] 使用 View Model 而非直接传递数据库模型</li><li>[ ] 渲染前先写入 buffer，出错时返回 500 而非半截 HTML</li><li>[ ] 未对用户输入使用 <code>template.HTML</code> 等安全类型</li><li>[ ] 设置了 CSP 头（<code>Content-Security-Policy</code>）</li><li>[ ] 模板错误有日志记录</li><li>[ ] 有 golden file 测试覆盖关键模板</li></ul>
+<ol><li><strong>本教程</strong>（net/http 基础 + 模板 + 实战项目）← 你已经在这里</li><li>学习使用 <strong>Gin 框架</strong>（更简洁的路由、中间件、参数绑定）</li><li>学习<strong>数据库操作</strong>（<code>database/sql</code> + PostgreSQL/MySQL）</li><li>学习<strong>用户认证</strong>（JWT、Session、Cookie）</li><li>学习<strong>测试</strong>（<code>net/http/httptest</code> 测试 Handler）</li><li>学习 <strong>gRPC</strong>（微服务间通信）</li><li>学习 <strong>WebSocket</strong>（实时通信）</li></ol>
 
 <hr>
 

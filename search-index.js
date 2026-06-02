@@ -217,7 +217,7 @@ window.SEARCH_INDEX = [
   },
   {
     title: "Go 网络模板与 Web 应用完全指南",
-    desc: "Go 标准库模板引擎、net/http 路由、Gin/Echo/Fiber 框架、TCP/UDP 网络编程、gRPC 远程调用、WebSocket 实时通信全覆盖，所有代码可直接运行。",
+    desc: "面向 Go 初学者的 Web 开发教程：从零搭建 HTTP 服务器、模板引擎、表单处理、完整 Task Manager 项目，进阶 TCP/UDP、gRPC、WebSocket 实战。",
     tags: ["go", "devops", "network"],
     category: "go",
     date: "2026-06-02",
