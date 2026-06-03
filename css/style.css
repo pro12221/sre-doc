@@ -694,12 +694,13 @@ img { max-width: 100%; height: auto; }
 
 /* ============ Article Page ============ */
 .article-page {
-  max-width: 860px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 36px var(--content-padding) 80px;
 }
 
 .article-header {
+  max-width: 860px;
   margin-bottom: 48px;
   padding-bottom: 28px;
   border-bottom: 1px solid var(--border);
@@ -899,17 +900,16 @@ img { max-width: 100%; height: auto; }
 .flow-step strong { display: block; margin-bottom: 2px; }
 
 /* ============ TOC ============ */
-.article-with-toc {
+.article-with-toc,
+.article-layout {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 var(--content-padding);
 }
 
 @media (min-width: 1024px) {
-  .article-with-toc { grid-template-columns: 1fr 220px; gap: 48px; }
+  .article-with-toc,
+  .article-layout { grid-template-columns: 1fr 220px; gap: 48px; }
 }
 
 .toc-container {
@@ -1209,7 +1209,7 @@ img { max-width: 100%; height: auto; }
 .layout .main { margin-left: 0 !important; width: 100% !important; }
 /* Content wrapper for legacy article pages */
 .content-wrapper {
-  max-width: 860px !important;
+  max-width: 1100px !important;
   margin: 0 auto !important;
   padding: 36px var(--content-padding) 80px !important;
 }
@@ -1312,8 +1312,10 @@ img { max-width: 100%; height: auto; }
   .about-contact { grid-template-columns: 1fr; }
 
   .article-page { padding: 24px var(--content-padding) 60px; }
+  .content-wrapper { padding: 24px var(--content-padding) 60px !important; }
   .article-content h2 { font-size: 20px; }
   .article-content pre { font-size: 12px; padding: 14px 16px; }
+  .article-header h1 { font-size: 24px; }
 }
 
 /* Small phone (< 400px) */

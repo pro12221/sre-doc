@@ -309,6 +309,17 @@
     var allCardsContainer = document.getElementById('all-cards-container');
     var allCardsGrid = document.getElementById('all-cards-grid');
 
+    // First: return any cards that were moved to allCardsGrid back to their original containers
+    if (allCardsGrid) {
+      var movedCards = Array.from(allCardsGrid.querySelectorAll('.post-card'));
+      movedCards.forEach(function(card) {
+        var originalParent = card._originalParent;
+        if (originalParent && document.contains(originalParent)) {
+          originalParent.appendChild(card);
+        }
+      });
+    }
+
     if (!currentTag) {
       // "全部" 模式：所有卡片汇集到统一网格，隐藏分类头部
       if (!allCardsContainer) {
@@ -321,14 +332,19 @@
         categoryView.insertBefore(allCardsContainer, categoryView.firstChild);
       }
 
-      // 收集所有卡片
+      // 收集所有卡片，记住原始父容器
       var allCards = [];
       groups.forEach(function(group) {
         group.style.display = 'none';
         var header = group.querySelector('.category-group-header');
         if (header) header.style.display = 'none';
         var cards = group.querySelectorAll('.post-card');
-        cards.forEach(function(card) { allCards.push(card); });
+        cards.forEach(function(card) {
+          if (!card._originalParent) {
+            card._originalParent = card.parentElement;
+          }
+          allCards.push(card);
+        });
       });
 
       // 排序

@@ -156,4 +156,31 @@
     }, 100);
   }
 
+  // getBoundingClientRect is required here: offsetTop is relative to offsetParent,
+  // which is .main-content (position:relative), not the document root
+  var tocLinks = document.querySelectorAll('.toc-link[data-target]');
+  if (tocLinks.length > 0) {
+    var content = document.querySelector('.article-content');
+    if (content) {
+      var headings = content.querySelectorAll('h2, h3');
+      function updateActiveToc() {
+        var currentId = '';
+        headings.forEach(function(h) {
+          if (h.getBoundingClientRect().top <= 100) currentId = h.id;
+        });
+        tocLinks.forEach(function(link) {
+          link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+        });
+      }
+      var tocTicking = false;
+      window.addEventListener('scroll', function() {
+        if (!tocTicking) {
+          window.requestAnimationFrame(function() { updateActiveToc(); tocTicking = false; });
+          tocTicking = true;
+        }
+      });
+      updateActiveToc();
+    }
+  }
+
 })();
