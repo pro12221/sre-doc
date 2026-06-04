@@ -954,6 +954,624 @@ tolerations:
 
 ---
 
+## 四、Pod 均匀调度——topologySpreadConstraints
+
+podAntiAffinity 能让同一 Deployment 的副本分散到不同节点，但它有一个根本缺陷：**它是"尽力分散"，不是"均匀分布"**。当副本数多于拓扑域数时，podAntiAffinity 无法控制每个域内放几个 Pod；它只管"不在同一域"，不管"域间差多少"。
+
+`topologySpreadConstraints` 正是为解决这个问题而引入的——它通过 **maxSkew（最大倾斜度）** 精确控制 Pod 在各拓扑域之间的分布差异上限，实现真正的均匀调度。
+
+### 4.1 API 字段详解
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-pod
+spec:
+  topologySpreadConstraints:
+  - maxSkew: <integer>              # 必填：最大允许倾斜度，默认 1，不允许 0
+    topologyKey: <string>            # 必填：拓扑域标签键
+    whenUnsatisfiable: <string>      # 必填：DoNotSchedule 或 ScheduleAnyway
+    labelSelector:                   # 必填：选择哪些 Pod 参与分布计算
+      matchLabels:
+        app: foo
+    minDomains: <integer>            # 可选 (v1.25+)：最小拓扑域数
+    matchLabelKeys:                  # 可选 (v1.27+ beta)：从 Pod 自身标签取值合并到 labelSelector
+      - pod-template-hash
+    nodeAffinityPolicy: Honor|Ignore # 可选 (v1.26+ beta)：是否考虑 nodeAffinity
+    nodeTaintsPolicy: Honor|Ignore   # 可选 (v1.26+ beta)：是否考虑节点污点
+```
+
+各字段说明：
+
+| 字段 | 说明 |
+|---|---|
+| **maxSkew** | 最大允许的倾斜度。任意两个拓扑域之间匹配 Pod 数量的最大差值不能超过此值。默认 1，不允许设 0 |
+| **topologyKey** | 节点标签键，具有相同标签值的节点属于同一拓扑域。调度器会尝试在每个域内放入均衡数量的 Pod |
+| **whenUnsatisfiable** | 无法满足分布约束时的行为：`DoNotSchedule`（硬约束，Pod 保持 Pending）或 `ScheduleAnyway`（软约束，尽量均匀但仍会调度） |
+| **labelSelector** | 选择参与倾斜度计算的 Pod 组。通常设为与自身 Deployment 的 podLabels 相同 |
+| **minDomains** | 预期的最小拓扑域数量。当实际域数 < minDomains 时，全局最小值视为 0，使所有域都被认为严重不均衡 |
+| **matchLabelKeys** | 从 Pod 自身标签取值并合并到 labelSelector。典型用法：`pod-template-hash`，确保滚动更新时新旧版本各自均匀分布 |
+| **nodeAffinityPolicy** | `Honor`（默认）：计算倾斜度时只考虑满足 Pod nodeAffinity/nodeSelector 的节点；`Ignore`：忽略 nodeAffinity，在所有节点上计算 |
+| **nodeTaintsPolicy** | `Honor`（默认）：计算倾斜度时只考虑 Pod 可容忍污点的节点；`Ignore`：忽略污点，在所有节点上计算 |
+
+### 4.2 Skew 计算算法（核心原理）
+
+Skew（倾斜度）的计算是 topologySpreadConstraints 的核心逻辑。理解它，才能正确配置 maxSkew。
+
+#### 计算公式
+
+```
+全局最小值 (global minimum) = 所有合格拓扑域中匹配 Pod 数量的最小值
+
+某域的 ActualSkew = 该域匹配 Pod 数量 - 全局最小值
+
+约束判断：ActualSkew ≤ maxSkew → 该域可接受新 Pod
+         ActualSkew > maxSkew → 该域拒绝新 Pod (DoNotSchedule)
+```
+
+调度器源码中的判断逻辑（`filtering.go`）：
+
+```
+skew = matchNum + selfMatchNum - minMatchNum
+if skew > maxSkew → 拒绝调度到该域
+```
+
+其中 `selfMatchNum` = 新 Pod 自身是否匹配 labelSelector（匹配为 1，不匹配为 0），`minMatchNum` 取决于 minDomains：
+
+- 当合格域数量 ≥ minDomains 时，`minMatchNum = 所有域中最小的 Pod 数`
+- 当合格域数量 < minDomains 时，`minMatchNum = 0`（全局最小视为 0，触发强烈均衡）
+
+#### 示例推演
+
+**场景 1：三可用区集群，分布 2/2/1，maxSkew=1**
+
+```
+zone-a: 2 个匹配 Pod → ActualSkew = 2 - 1 = 1 ✓ (≤ maxSkew)
+zone-b: 2 个匹配 Pod → ActualSkew = 2 - 1 = 1 ✓ (≤ maxSkew)
+zone-c: 1 个匹配 Pod → ActualSkew = 1 - 1 = 0 ✓ (全局最小域)
+```
+
+新 Pod 只能调度到 zone-c（调度到 zone-a/b 会使 skew 变为 2，超过 maxSkew=1）。
+
+**场景 2：三可用区集群，分布 3/1/0，maxSkew=1**
+
+```
+zone-a: 3 → ActualSkew = 3 - 0 = 3 ✗
+zone-b: 1 → ActualSkew = 1 - 0 = 1 ✗
+zone-c: 0 → ActualSkew = 0 - 0 = 0 ✓ (全局最小域)
+```
+
+如果 `whenUnsatisfiable: DoNotSchedule`，Pod 只能调度到 zone-c。
+如果 `whenUnsatisfiable: ScheduleAnyway`，Pod 优先调度到 zone-c，但在 zone-c 资源不足时也可调度到其他域。
+
+**场景 3：minDomains 的效果**
+
+假设设置了 `minDomains: 3`，但 zone-c 宕机，只剩 2 个域（分布 3/1）：
+
+- 合格域数量(2) < minDomains(3) → **全局最小视为 0**
+- zone-a 的 skew = 3 - 0 = 3，zone-b 的 skew = 1 - 0 = 1
+- 即使 maxSkew=1，两个域都"严重不均衡"，新 Pod 被迫 Pending（DoNotSchedule）
+
+minDomains 的设计意图：当拓扑域减少（如可用区故障）时，提醒调度器"本来应该有 3 个域"，触发更强的均衡约束。
+
+#### ScheduleAnyway 的打分逻辑
+
+当 `whenUnsatisfiable: ScheduleAnyway` 时，调度器不会拒绝任何节点，但会通过打分优先选择减少倾斜度的域。打分公式（`scoring.go`）：
+
+```
+score = matchCount × topologyNormalizingWeight + (maxSkew - 1)
+```
+
+其中 `topologyNormalizingWeight = log(domainCount + 2)`，用于避免大域（zone 级）的 Pod 数量稀释小域（hostname 级）的权重。匹配 Pod 越少的域得分越低（因为 matchCount 小），反而更受青睐——调度器倾向把 Pod 放到"最缺 Pod 的域"。
+
+### 4.3 单约束 vs 多约束分布策略
+
+#### 单约束：仅按可用区均匀分布
+
+最简单的用法——确保 Pod 在各可用区之间均匀分布：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: web
+      containers:
+      - name: nginx
+        image: nginx:1.25
+```
+
+效果：6 个副本在 3 个 zone 中分布为 2/2/2，任何 zone 不会超过 3 个副本。
+
+#### 多约束：Zone + Hostname 混用（生产推荐）
+
+单约束只保证**跨 zone 均匀**，但不保证**zone 内跨节点均匀**。比如 2/2/2 的分布可能变成 zone-a 内 2 个副本全挤在同一节点。
+
+生产环境推荐**双约束策略**——同时约束 zone 级和 hostname 级：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      topologySpreadConstraints:
+      # 第一约束：跨可用区均匀分布（硬约束）
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: web
+      # 第二约束：跨节点均匀分布（硬约束）
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: web
+      containers:
+      - name: nginx
+        image: nginx:1.25
+```
+
+**多约束求交集**：调度器寻找同时满足**所有**约束的节点。以上双约束的效果：
+
+- zone 约束保证每个可用区不超过 2 个副本
+- hostname 约束保证每个节点不超过 1 个副本
+- 结果：6 个副本在 3 个 zone × 2 节点/zone 中分布为 zone-a[node1:1, node2:1]、zone-b[node3:1, node4:1]、zone-c[node5:1, node6:1]
+
+> **重要**：当定义多个 topologySpreadConstraints 时，调度器要求节点**必须同时拥有所有 topologyKey 标签**。缺少任何一个 topologyKey 标签的节点会被跳过，上面已有的 Pod 也不计入倾斜度计算。因此，所有节点必须同时标注 `topology.kubernetes.io/zone` 和 `kubernetes.io/hostname`（hostname 默认存在，zone 需确保标注）。
+
+#### 灵活策略：zone 硬约束 + hostname 软约束
+
+当节点数量不足以满足 hostname 级硬约束时（比如 zone 内只有 1 个节点），硬约束会导致 Pod Pending。更实用的做法：
+
+```yaml
+topologySpreadConstraints:
+# 跨可用区：硬约束，必须均匀
+- maxSkew: 1
+  topologyKey: topology.kubernetes.io/zone
+  whenUnsatisfiable: DoNotSchedule
+  labelSelector:
+    matchLabels:
+      app: web
+# 跨节点：软约束，尽量均匀但不阻塞调度
+- maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+  labelSelector:
+    matchLabels:
+      app: web
+```
+
+这样即使 zone 内只有 1 个节点，Pod 也不会 Pending，只是"尽量分散"。
+
+### 4.4 与 podAntiAffinity 的对比
+
+| 维度 | podAntiAffinity | topologySpreadConstraints |
+|---|---|---|
+| **核心语义** | "不要和某 Pod 在同一拓扑域" | "各拓扑域的 Pod 数量差值不超过 maxSkew" |
+| **均衡效果** | 尽力分散，无法控制精确分布 | 精确控制各域 Pod 数量差异 |
+| **域数 > Pod 数** | 每个 Pod 去不同域，效果很好 | 每个 Pod 去不同域，效果等同 |
+| **域数 < Pod 数** | 无法控制域间差异（可能 3:1:0） | maxSkew 限制最大差异（如 2:1:1） |
+| **硬约束风险** | 可能导致 Pod Pending | 同样可能，但可通过 ScheduleAnyway 缓解 |
+| **跨多拓扑域** | 需多条反亲和规则，配置冗余 | 多条约束求交集，配置清晰 |
+
+**结论**：需要"均匀分布"时，优先使用 topologySpreadConstraints；需要"绝对不能在同一域"时，仍可使用 podAntiAffinity 硬策略。两者可以组合使用——topologySpreadConstraints 控制宏观均匀，podAntiAffinity 控制微观排斥。
+
+### 4.5 默认约束
+
+如果不定义任何 topologySpreadConstraints，kube-scheduler 会使用以下默认约束（ScheduleAnyway 软约束）：
+
+```yaml
+defaultConstraints:
+- maxSkew: 3
+  topologyKey: "kubernetes.io/hostname"
+  whenUnsatisfiable: ScheduleAnyway
+- maxSkew: 5
+  topologyKey: "topology.kubernetes.io/zone"
+  whenUnsatisfiable: ScheduleAnyway
+```
+
+默认约束是软约束，不会阻塞调度，只是倾向均匀。如果节点没有 zone 标签，hostname 级约束仍然生效。
+
+> **注意**：如果你的节点不都具备 `kubernetes.io/hostname` 和 `topology.kubernetes.io/zone` 标签，应自定义约束而非使用默认值。
+
+---
+
+## 五、Descheduler——故障恢复与重平衡
+
+### 5.1 为什么需要 Descheduler
+
+kube-scheduler 是一个**一次性决策系统**——它只在 Pod 创建时做出调度决定，之后不再回头看。这意味着：
+
+- 节点故障恢复后，原来集中在剩余节点的 Pod **不会自动回流**
+- 新节点加入集群后，已有 Pod **不会自动迁移到新节点**
+- 长期运行中，Pod 分布可能变得**严重不均衡**
+
+Descheduler 的工作就是**定期检查并纠正这些偏差**——找出应该迁移的 Pod，驱逐它们，让 kube-scheduler 重新调度到更合适的位置。
+
+```
+kube-scheduler: 创建时决策 → 不再调整
+Descheduler: 定期巡检 → 驱逐偏差 Pod → kube-scheduler 重新调度
+```
+
+> Descheduler **不负责调度**，它只负责驱逐。被驱逐的 Pod 由 kube-scheduler 根据当前集群状态重新调度。
+
+### 5.2 Descheduler 策略
+
+Descheduler 提供两类策略插件：
+
+**Deschedule 类**（检查单个 Pod 是否应该被驱逐）：
+
+| 策略 | 说明 |
+|---|---|
+| **RemovePodsViolatingNodeAffinity** | 驱逐不再满足节点亲和规则的 Pod（如节点标签变化后） |
+| **RemovePodsViolatingNodeTaints** | 驱逐不再容忍节点污点的 Pod（如新打了 NoSchedule 污点） |
+| **RemovePodsViolatingInterPodAntiAffinity** | 驱逐违反 Pod 反亲和规则的 Pod |
+| **RemovePodsHavingTooManyRestarts** | 驱逐重启次数过多的 Pod |
+| **PodLifeTime** | 驱逐超过指定年龄的 Pod |
+| **RemoveFailedPods** | 驱逐处于 Failed 状态的 Pod |
+
+**Balance 类**（检查一组 Pod 的整体分布是否合理）：
+
+| 策略 | 说明 |
+|---|---|
+| **RemoveDuplicates** | 确保同一 RS/Deployment 的副本不在同一节点重复 |
+| **LowNodeUtilization** | 从高利用率节点驱逐 Pod 到低利用率节点 |
+| **HighNodeUtilization** | 反向操作——将 Pod 从低利用率节点迁移到高利用率节点，减少碎片 |
+| **RemovePodsViolatingTopologySpreadConstraint** | 驱逐违反 topologySpreadConstraints 的 Pod，使域间分布回到 maxSkew 限制内 |
+
+### 5.3 RemovePodsViolatingTopologySpreadConstraint 详解
+
+这是与均匀调度直接相关的策略。它的工作流程：
+
+1. 找到所有定义了 topologySpreadConstraints 的 Pod
+2. 计算各拓扑域的实际倾斜度
+3. 如果实际 skew > maxSkew，从倾斜度最大的域中驱逐最少数量的 Pod
+4. 驱逐后 kube-scheduler 重新调度，自然流向倾斜度小的域
+
+**配置示例**：
+
+```yaml
+apiVersion: "descheduler/v1alpha2"
+kind: "DeschedulerPolicy"
+profiles:
+  - name: topology-rebalance
+    pluginConfig:
+    - name: "RemovePodsViolatingTopologySpreadConstraint"
+      args:
+        constraints:
+          - DoNotSchedule          # 默认只处理硬约束
+          # - ScheduleAnyway       # 加上此行也处理软约束
+        namespaces:
+          include: ["production"]
+        labelSelector:
+          matchLabels:
+            app: critical-app
+    plugins:
+      balance:
+        enabled:
+          - "RemovePodsViolatingTopologySpreadConstraint"
+```
+
+**支持的约束字段**：
+
+| 字段 | 支持 |
+|---|---|
+| maxSkew | ✅ |
+| topologyKey | ✅ |
+| whenUnsatisfiable | ✅ |
+| labelSelector | ✅ |
+| matchLabelKeys | ✅ |
+| nodeAffinityPolicy | ✅ |
+| nodeTaintsPolicy | ✅ |
+| minDomains | ❌ |
+
+### 5.4 故障恢复重平衡场景
+
+**场景：可用区故障恢复**
+
+```
+初始状态：6 副本均匀分布在 zone-a(2) / zone-b(2) / zone-c(2)
+
+zone-a 宕机 → 副本集中在 zone-b(3) / zone-c(3)  ← 严重不均衡！
+
+zone-a 恢复 → 但 Pod 不会自动回流，仍然 zone-b(3) / zone-c(3)
+                ← kube-scheduler 不做回顾性调整
+
+Descheduler 运行：
+  1. 检测到 skew=3-0=3 > maxSkew=1
+  2. 从 zone-b 和 zone-c 各驱逐 1 个 Pod
+  3. kube-scheduler 将新 Pod 调度到 zone-a
+  4. 最终回到 zone-a(2) / zone-b(2) / zone-c(2) ✓
+```
+
+**场景：新节点加入集群**
+
+```
+初始：4 副本分布在 node1(2) / node2(2)  ← hostname skew=0 没问题
+
+node3 加入集群 → 但已有 Pod 不会自动迁移
+
+Descheduler 运行：
+  1. hostname skew: node1(2) vs node3(0) → skew=2 > maxSkew=1
+  2. 从 node1 驱逐 1 个 Pod
+  3. kube-scheduler 调度到 node3
+  4. 最终 node1(1) / node2(2) / node3(1) → 继续调整直到均衡
+```
+
+### 5.5 安装 Descheduler
+
+#### Helm 安装（推荐）
+
+```bash
+# 添加 Helm 仓库
+helm repo add descheduler https://kubernetes-sigs.github.io/descheduler/
+helm repo update
+
+# 安装到 kube-system
+helm install descheduler descheduler/descheduler \
+  --namespace kube-system \
+  --set deschedulingIntervalSeconds=3600   # 每 3600 秒运行一次
+```
+
+#### 完整策略配置示例
+
+```yaml
+apiVersion: "descheduler/v1alpha2"
+kind: "DeschedulerPolicy"
+profiles:
+  - name: production-rebalance
+    pluginConfig:
+    # 拓扑分布重平衡
+    - name: "RemovePodsViolatingTopologySpreadConstraint"
+      args:
+        constraints:
+          - DoNotSchedule
+    # 去重：同一节点不放同一 RS 的多个副本
+    - name: "RemoveDuplicates"
+      args:
+        excludeOwnerKinds:
+          - "DaemonSet"
+    # 节点亲和/污点违规
+    - name: "RemovePodsViolatingNodeAffinity"
+      args:
+        nodeAffinityType:
+          - "requiredDuringSchedulingIgnoredDuringExecution"
+    - name: "RemovePodsViolatingNodeTaints"
+    # 低利用率节点重平衡
+    - name: "LowNodeUtilization"
+      args:
+        thresholds:
+          "cpu": 20
+          "memory": 20
+          "pods": 20
+        targetThresholds:
+          "cpu": 60
+          "memory": 60
+          "pods": 60
+    plugins:
+      balance:
+        enabled:
+          - "RemovePodsViolatingTopologySpreadConstraint"
+          - "RemoveDuplicates"
+          - "LowNodeUtilization"
+      deschedule:
+        enabled:
+          - "RemovePodsViolatingNodeAffinity"
+          - "RemovePodsViolatingNodeTaints"
+```
+
+#### Dry-run 模式
+
+先查看哪些 Pod 会被驱逐，不实际执行：
+
+```bash
+# 运行 dry-run
+kubectl exec -n kube-system descheduler-xxx -- /bin/descheduler --dry-run
+```
+
+### 5.6 Descheduler 与 PDB 的交互
+
+Descheduler 在驱逐 Pod 时**必须遵守 PodDisruptionBudget**。如果 PDB 的 `disruptionsAllowed=0`，Descheduler 无法驱逐该 Pod，重平衡操作被阻塞。
+
+因此：
+- 为关键服务设置合理的 PDB（如 `maxUnavailable: 1`），既允许逐步驱逐又保护可用性
+- 不要设置 `maxUnavailable: 0` 或 `minAvailable: 100%`，这会完全阻止 Descheduler 工作
+- Descheduler 不会绕过 PDB——如果 PDB 阻止驱逐，Descheduler 会跳过该 Pod
+
+---
+
+## 六、PodDisruptionBudget（PDB）
+
+### 6.1 自愿中断与非自愿中断
+
+Kubernetes 将 Pod 中断分为两类：
+
+| 类型 | 说明 | PDB 是否保护 |
+|---|---|---|
+| **非自愿中断** | 节点硬件故障、内核崩溃、云厂商 Spot 实例回收、OOM Kill | ❌ 无法保护 |
+| **自愿中断** | `kubectl drain`、节点维护、Cluster Autoscaler 缩容、Descheduler 驱逐 | ✅ PDB 保护 |
+
+> PDB **只保护自愿中断**，对非自愿中断无效。但非自愿中断导致的 Pod 丢失**也会计入 PDB 预算**——如果节点故障已经把健康 Pod 数降到 `desiredHealthy` 以下，后续的 `kubectl drain` 会被 PDB 阻止。
+
+### 6.2 PDB API
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-app-pdb
+spec:
+  # 以下两个字段只能选一个
+  minAvailable: 2            # 驱逐后至少保留 2 个健康 Pod
+  # maxUnavailable: 1        # 驱逐后最多 1 个 Pod 不可用
+
+  selector:
+    matchLabels:
+      app: web-app            # 选择目标 Pod
+
+  # v1.26+ 可选：不健康 Pod 的驱逐策略
+  unhealthyPodEvictionPolicy: AlwaysAllow
+```
+
+#### minAvailable vs maxUnavailable
+
+| 字段 | 含义 | 适用场景 | 百分比取整 |
+|---|---|---|---|
+| **minAvailable** | 驱逐后必须保持的最小健康 Pod 数 | 基于仲裁的有状态服务（如 etcd: minAvailable=2） | 向上取整（保守：保护更多） |
+| **maxUnavailable** | 驱逐后允许的最大不可用 Pod 数 | 无状态服务（推荐，随副本数自适应） | 向上取整（宽松：允许更多中断） |
+
+**推荐**：大多数无状态服务使用 `maxUnavailable`，因为它随副本数自动适应。有状态仲裁服务使用 `minAvailable` 设为仲裁数。
+
+#### unhealthyPodEvictionPolicy（v1.26+）
+
+| 策略 | 说明 |
+|---|---|
+| **IfHealthyBudget**（默认） | 不健康 Pod（如 CrashLoopBackOff）只能在应用整体健康时被驱逐。保守但可能导致 drain 死锁 |
+| **AlwaysAllow** | 不健康 Pod 总是可以被驱逐，不管 PDB 预算。推荐用于大多数服务，避免 CrashLoopBackOff Pod 阻塞 drain |
+
+> **强烈建议**：除非运行基于仲裁的有状态服务，都应设 `AlwaysAllow`。默认的 `IfHealthyBudget` 会让 CrashLoopBackOff 的 Pod 永远阻塞 `kubectl drain`。
+
+### 6.3 PDB 状态字段
+
+```bash
+kubectl get pdb web-app-pdb
+```
+
+输出示例：
+
+```
+NAME          MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   CURRENT HEALTHY   DESIRED HEALTHY
+web-app-pdb   N/A             1                 1                     5                 4
+```
+
+| 字段 | 说明 |
+|---|---|
+| **ALLOWED DISRUPTIONS** | 当前可以同时驱逐的 Pod 数量。如果为 0，所有自愿中断被阻止 |
+| **CURRENT HEALTHY** | 当前健康的 Pod 数量 |
+| **DESIRED HEALTHY** | PDB 要求的最小健康 Pod 数量 |
+
+### 6.4 PDB 配置示例
+
+#### 无状态服务——maxUnavailable
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-api-pdb
+  namespace: production
+spec:
+  maxUnavailable: 1                        # 一次只允许驱逐 1 个 Pod
+  unhealthyPodEvictionPolicy: AlwaysAllow   # 不健康 Pod 可随时驱逐
+  selector:
+    matchLabels:
+      app: web-api
+```
+
+效果：`kubectl drain` 每次只驱逐 1 个 Pod，等待新 Pod Ready 后再驱逐下一个。
+
+#### 有状态仲裁服务——minAvailable
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: etcd-pdb
+  namespace: kube-system
+spec:
+  minAvailable: 2                           # 3 艘集群仲裁数 = floor(3/2)+1 = 2
+  unhealthyPodEvictionPolicy: IfHealthyBudget # 有状态服务保守策略
+  selector:
+    matchLabels:
+      app: etcd
+```
+
+#### 百分比配置
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-app-pdb
+spec:
+  maxUnavailable: "25%"     # 5 副本时允许 1 个不可用（ceil(5×0.25)=2，实际宽松）
+  selector:
+    matchLabels:
+      app: web-app
+```
+
+### 6.5 PDB 与其他机制的交互
+
+#### PDB vs Deployment 滚动更新
+
+PDB **不约束** Deployment 的滚动更新。Deployment 控制器通过 `maxSurge` 和 `maxUnavailable` 自行管理更新节奏。PDB 只约束外部自愿中断（drain、Descheduler、Cluster Autoscaler）。
+
+> 如果 `kubectl drain` 和滚动更新同时发生，两者叠加的不可用 Pod 数会受 PDB 检查。
+
+#### PDB vs Cluster Autoscaler
+
+Cluster Autoscaler 在缩容前检查节点上的 Pod 是否可被驱逐。如果任何 PDB 阻止驱逐，该节点不会被缩容。
+
+常见阻塞场景：
+- `maxUnavailable: 0` → 永远阻止驱逐，节点永远不缩容
+- `minAvailable: 100%` → 同上
+- 单副本 Deployment + 任何限制性 PDB → drain 永远阻塞
+
+#### PDB vs Descheduler
+
+Descheduler 驱逐 Pod 时调用 Eviction API，必须遵守 PDB。如果 `disruptionsAllowed=0`，Descheduler 跳过该 Pod。
+
+### 6.6 常见陷阱
+
+| 陷阱 | 说明 |
+|---|---|
+| **maxUnavailable: 0** | 阻止所有自愿中断，集群维护无法进行，AKS/GKE/EKS 升级会超时失败 |
+| **单副本 + PDB** | 1 副本 Deployment + maxUnavailable:1 的 PDB 没有保护效果（唯一 Pod 可自由驱逐）；minAvailable:1 则永远阻塞 drain |
+| **重叠 PDB** | 两个 PDB 选择相同的 Pod，Eviction API 返回 HTTP 500，导致不可预料的驱逐失败 |
+| **HPA 缩容 + PDB** | HPA 缩容不受 PDB 限制，但缩容后可能使 disruptionsAllowed=0，阻塞并发 drain |
+| **百分比取整** | 7 副本 + maxUnavailable:"50%" → ceil(7×0.5)=4，实际允许 4 个不可用，比预期宽松 |
+
+### 6.7 PDB 最佳实践
+
+1. **为每个 Deployment/StatefulSet 设置 PDB**——无状态用 `maxUnavailable: 1`，有状态用 `minAvailable` 设为仲裁数
+2. **至少运行 2 个副本**——单副本服务无法通过 PDB 同时保护可用性和允许维护
+3. **使用 `unhealthyPodEvictionPolicy: AlwaysAllow`**——避免 CrashLoopBackOff Pod 阻塞 drain
+4. **不要设 maxUnavailable: 0**——这会让集群维护和节点缩容完全阻塞
+5. **每个 PDB 选择唯一的 Pod 集**——不要让两个 PDB 覆盖相同的 Pod
+6. **Descheduler + PDB 联合配置**——PDB 允许逐步驱逐（maxUnavailable: 1），Descheduler 定期重平衡
+
+---
+
 ## 调度策略对比总结
 
 | 策略 | 作用方向 | 约束类型 | 粒度 | 适用场景 |
@@ -962,6 +1580,9 @@ tolerations:
 | **nodeAffinity** | Pod → Node | 硬 + 轟 | In/NotIn/Exists 等 | 复杂节点选择逻辑 |
 | **podAffinity** | Pod → Pod | 硬 + 轟 | topologyKey | 让相关 Pod 跑在一起 |
 | **podAntiAffinity** | Pod → Pod | 硬 + 轟 | topologyKey | 让 Pod 分散避免单点 |
+| **topologySpreadConstraints** | Pod → 拓扑域 | 硬 + 轟 (maxSkew) | topologyKey | 精确均匀分布 |
 | **Taint/Toleration** | Node → Pod | NoSchedule/NoExecute | 节点级 | 专用节点、故障隔离 |
+| **Descheduler** | 定期重平衡 | 驱逐违规 Pod | 多策略 | 故障恢复、分布纠正 |
+| **PDB** | 中断保护 | 限制自愿中断 | Pod 组 | 维护期间保持可用 |
 
-> **组合使用建议**：生产环境中，通常用 nodeAffinity 硬策略确保 Pod 跑在指定区域，podAntiAffinity 硬策略确保副本分散到不同节点，Taint/Toleration 实现专用节点准入控制。三者互补，缺一不可。
+> **组合使用建议**：生产环境中，通常用 nodeAffinity 硬策略确保 Pod 跑在指定区域，topologySpreadConstraints 双约束确保跨可用区和跨节点均匀分布，Taint/Toleration 实现专用节点准入控制，PDB 保护维护期间的可用性，Descheduler 定期纠正分布偏差。五者互补，缺一不可。
