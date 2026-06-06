@@ -222,5 +222,13 @@ window.SEARCH_INDEX = [
     category: "go",
     date: "2026-06-02",
     url: "posts/go-网络模板与-web-应用完全指南.html"
+  },
+  {
+    title: "Pod调度与节点选择",
+    desc: "Kubernetes 调度全解析：预选优选终选流程、NodeSelector、亲和性/反亲和性、污点容忍、topologySpreadConstraints、Descheduler、PDB、PriorityClass、QoS、节点压力驱逐。",
+    tags: ["kubernetes", "devops"],
+    category: "kubernetes",
+    date: "2026-06-06",
+    url: "posts/kubernetes调度.html"
   }
 ];
