@@ -1572,17 +1572,523 @@ Descheduler 驱逐 Pod 时调用 Eviction API，必须遵守 PDB。如果 `disru
 
 ---
 
+## 七、优先级调度与抢占（PriorityClass & Preemption）
+
+### 7.1 介绍
+
+**Pod 优先级（Priority）** 是 Kubernetes 为 Pod 赋予的数值化重要性标记——值越大，优先级越高，调度器越优先调度，资源紧张时也越不容易被驱逐。
+
+**抢占（Preemption）** 是优先级机制的延伸——当高优先级 Pod 无法调度时，调度器会**驱逐（抢占）** 低优先级 Pod 来腾出资源。
+
+```
+Pod 优先级 → 调度队列排序 → 高优先级 Pod 先调度
+         ↓
+   无法调度 → 触发抢占 → 驱逐低优先级 Pod → 高优先级 Pod 获得资源
+```
+
+> **关键区别**：priority 影响**调度顺序**和**抢占能力**，QoS 影响**驱逐顺序**。两者是**正交**的——一个高优先级 + BestEffort 的 Pod 在调度时优先，但在节点压力驱逐时会被优先驱逐（因为 BestEffort）。详见第八、九节。
+
+PriorityClass 是 Kubernetes 用来定义优先级级别的集群级资源（无命名空间），Pod 通过 `priorityClassName` 引用它。
+
+### 7.2 PriorityClass API
+
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority          # 名称，Pod 通过 priorityClassName 引用
+value: 1000000                  # 必填：优先级整数值，越大越优先
+globalDefault: false            # 可选：是否作为默认优先级（集群中只能有一个）
+preemptionPolicy: PreemptLowerPriority  # 可选：抢占策略（v1.24+ stable）
+description: "此优先级类应用于 XYZ 服务"
+```
+
+| 字段 | 说明 |
+|---|---|
+| **value** | 32 位整数，范围 -2,147,483,648 到 1,000,000,000。值越大优先级越高。大于 10 亿的值保留给系统内置 PriorityClass |
+| **globalDefault** | 设为 `true` 时，所有未指定 `priorityClassName` 的 Pod 使用此优先级。集群中最多一个 PriorityClass 的 `globalDefault` 为 `true`。如果没有任何 globalDefault，未指定优先级的 Pod 优先级为 0 |
+| **preemptionPolicy** | `PreemptLowerPriority`（默认）：允许抢占低优先级 Pod；`Never`：禁止抢占。设为 `Never` 的 Pod 仍优先调度，但不会驱逐其他 Pod |
+| **description** | 任意字符串，用于告知集群用户该 PriorityClass 的使用场景 |
+
+#### 系统内置 PriorityClass
+
+Kubernetes 默认提供两个高优先级 PriorityClass，确保关键组件始终被调度：
+
+| 内置 PriorityClass | value | 用途 |
+|---|---|---|
+| `system-cluster-critical` | 2000000000 | 集群关键组件（如 CoreDNS、kube-proxy 等） |
+| `system-node-critical` | 2000001000 | 节点关键组件（如 kubelet 依赖的 DaemonSet） |
+
+> 自定义 PriorityClass 的 `name` **不能**以 `system-` 为前缀。
+
+#### 非抢占式 PriorityClass
+
+`preemptionPolicy: Never` 的 Pod 会被放在调度队列中优先级较低 Pod 之前，但**不会抢占**其他 Pod。适用场景：数据科学工作负载——希望优先调度于其他作业，但不愿意因为抢占而丢弃正在运行的计算结果。
+
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority-nonpreempting
+value: 1000000
+preemptionPolicy: Never
+globalDefault: false
+description: "高优先级但不会抢占其他 Pod"
+```
+
+### 7.3 Pod 使用 PriorityClass
+
+Pod 通过 `spec.priorityClassName` 引用 PriorityClass：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  priorityClassName: high-priority   # 引用 PriorityClass 名称
+  containers:
+  - name: nginx
+    image: nginx:1.25
+```
+
+对 Deployment 来说，只需在 Pod 模板中指定：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+spec:
+  replicas: 3
+  template:
+    spec:
+      priorityClassName: high-priority
+      containers:
+      - name: nginx
+        image: nginx:1.25
+```
+
+### 7.4 优先级对调度的影响
+
+#### 调度队列排序
+
+当启用 Pod 优先级时，调度器按优先级**降序**排列所有 Pending Pod，高优先级 Pod 总是排在调度队列前面。
+
+#### 抢占流程
+
+当高优先级 Pod **P** 无法调度时：
+
+1. 调度器寻找一个节点，如果在该节点上驱逐一个或多个优先级低于 **P** 的 Pod，**P** 就能被调度
+2. 找到后，驱逐低优先级 Pod（称为"牺牲者"）
+3. 牺牲者被终止后，**P** 被调度到该节点
+
+**关键行为**：
+
+- 抢占只驱逐**必要的**低优先级 Pod，不会全部驱逐
+- 牺牲者获得**体面终止期**（默认 30s），然后被强制终止
+- **P** 的 `status.nominatedNodeName` 被设为目标节点名，标记"已为该 Pod 预留资源"
+- 如果牺牲者终止期间有更高优先级 Pod 到达，该节点可能被更高优先级的 Pod 获取
+
+> **抢占不保证 PDB**：调度器会尽量寻找不违反 PDB 的牺牲者，但如果找不到，**仍然执行抢占**，即使违反 PDB。这是"尽力而为"而非"保证"。
+
+### 7.5 抢占的限制
+
+| 限制 | 说明 |
+|---|---|
+| **Pod 间亲和性** | 如果 P 与低优先级 Pod 有 Pod 间亲和性，则不会抢占它们。推荐只对同等或更高优先级 Pod 设置亲和性 |
+| **跨节点抢占** | 不支持。调度器不会驱逐另一个节点上的 Pod 来满足 P 的反亲和约束 |
+| **体面终止延迟** | 牺牲者需要时间终止，高优先级 Pod 在此期间可能被抢占（被更高优先级 Pod 替代） |
+
+### 7.6 常见问题
+
+| 问题 | 原因 | 解决 |
+|---|---|---|
+| **Pod 被不必要地抢占** | 错误地给 Pod 设置了高优先级 | 降低 `priorityClassName` 或清空（默认优先级 0） |
+| **有 Pod 被抢占，但抢占者没被调度** | 牺牲者终止期间来了更高优先级 Pod | 正常行为——高优先级理应替代低优先级 |
+| **高优先级 Pod 在低优先级 Pod 之前被抢占** | 调度器选择具有最低优先级 Pod 集合的节点，但如果该节点 Pod 受 PDB 保护，则选择其他节点 | 正常行为，PDB 影响抢占目标选择 |
+
+### 7.7 优先级与 QoS 的关系
+
+Pod 优先级和 QoS 是**两个正交的维度**：
+
+- **调度抢占**：只看优先级，不看 QoS
+- **节点压力驱逐**：kubelet 综合考虑 QoS、优先级和资源使用量（详见第九节）
+
+| 维度 | 优先级（Priority） | QoS |
+|---|---|---|
+| **作用者** | kube-scheduler | kubelet |
+| **触发时机** | Pod 创建/调度时 | 节点资源压力时 |
+| **影响范围** | 调度顺序 + 抢占 | 驱逐顺序 + OOM 评分 |
+| **决定因素** | PriorityClass 的 value | 容器的 requests 和 limits 配置 |
+
+---
+
+## 八、QoS（服务质量）类
+
+### 8.1 介绍
+
+**QoS（Quality of Service）** 是 Kubernetes 根据 Pod 中容器的资源 requests 和 limits 自动分配给 Pod 的"质量等级"。它决定了节点资源紧张时 **Pod 被驱逐的优先级顺序**。
+
+Kubernetes 将 Pod 分为三个 QoS 类：
+
+```
+BestEffort（最差保护） → Burstable（中等保护） → Guaranteed（最强保护）
+   先被驱逐 ←              中间              ←    最后被驱逐
+```
+
+> **核心原则**：QoS 由 Pod 创建时确定，**整个生命周期不变**。原地资源调整如果导致 QoS 变化，会被准入阶段拒绝。
+
+### 8.2 Guaranteed（保证类）
+
+**最严格的资源限制，最不可能被驱逐**。Pod 中获得 **Guaranteed QoS 需要满足**：
+
+- Pod 中的**每个容器**都必须设置 **memory limit 和 memory request**，且两者**相等**
+- Pod 中的**每个容器**都必须设置 **CPU limit 和 CPU request**，且两者**相等**
+- 以上所有值必须大于 0
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: guaranteed-pod
+spec:
+  containers:
+  - name: app
+    image: nginx:1.25
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "500m"
+      limits:
+        memory: "256Mi"   # limit == request → Guaranteed
+        cpu: "500m"        # limit == request → Guaranteed
+```
+
+**关键特性**：
+- 这些 Pod **不会被节点压力驱逐**（除非所有容器的资源使用量都超过其 request）
+- 可以使用 `static` CPU 管理策略独占 CPU 核心
+- OOM 时 `oom_score_adj` 为 **-997**（最不容易被 OOM Killer 杀死）
+
+### 8.3 Burstable（可突发类）
+
+**有一些资源保证下限，但不要求严格的 limit 匹配**。处于中间保护级别。
+
+**满足以下条件即为 Burstable**：
+- 不满足 Guaranteed 的条件
+- Pod 中**至少有一个容器**设置了内存或 CPU 的 request 或 limit
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: burstable-pod
+spec:
+  containers:
+  - name: app
+    image: nginx:1.25
+    resources:
+      requests:
+        memory: "256Mi"    # 设置了 request
+        cpu: "500m"
+      # 没有设置 limits → Burstable（limit 默认等于节点容量）
+```
+
+另一种 Burstable 场景——request 和 limit 不相等：
+
+```yaml
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "500m"
+  limits:
+    memory: "512Mi"        # limit != request → Burstable
+    cpu: "1000m"
+```
+
+**关键特性**：
+- 有 request 下限保证，但可在资源充裕时"突发"使用更多资源
+- 只有在所有 BestEffort Pod 被驱逐后，才可能被驱逐
+- **资源使用量未超过 request 的 Burstable Pod 不会被驱逐**
+- OOM 时 `oom_score_adj` 计算公式：`min(max(2, 1000 - (1000 × memoryRequestBytes) / machineMemoryCapacityBytes), 999)`
+
+### 8.4 BestEffort（尽力而为类）
+
+**没有任何资源保证，优先级最低**。Pod 是 BestEffort 当且仅当：
+
+- Pod 中**所有容器**都没有设置内存或 CPU 的 request 或 limit
+- Pod 本身也没有设置任何 Pod 级别的内存或 CPU 的 request 或 limit
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: besteffort-pod
+spec:
+  containers:
+  - name: app
+    image: nginx:1.25
+    # 没有 resources 字段 → BestEffort
+```
+
+**关键特性**：
+- 可以使用节点上未被 Guaranteed 和 Burstable Pod 预留的**所有剩余资源**
+- 节点资源紧张时**最先被驱逐**
+- OOM 时 `oom_score_adj` 为 **1000**（最容易被 OOM Killer 杀死）
+
+### 8.5 QoS 判定逻辑总结
+
+```
+Pod 中每个容器是否都设置了 memory limit == memory request
+        且 CPU limit == CPU request（都 > 0）？
+        ├── 是 → Guaranteed
+        └── 否 → 是否至少有一个容器设置了 memory 或 CPU 的 request 或 limit？
+                ├── 是 → Burstable
+                └── 否 → BestEffort
+```
+
+### 8.6 QoS 对驱逐的影响
+
+| QoS 类 | 驱逐优先级 | OOM oom_score_adj | 说明 |
+|---|---|---|---|
+| **BestEffort** | 最先被驱逐 | 1000 | 没有任何资源保证 |
+| **Burstable**（超过 request） | 第二优先驱逐 | ~2-999 | 取决于 request 占节点内存比例 |
+| **Burstable**（未超过 request） | 最后被驱逐 | 同上 | **不会被驱逐**，除非 Guaranteed Pod 也不够 |
+| **Guaranteed** | 最后被驱逐 | -997 | 只有所有容器都超过 request 才可能被驱逐 |
+
+> **重要**：kubelet 驱逐时**不直接使用 QoS 类**来决定驱逐顺序，而是综合考虑资源使用量、优先级和 request 的关系。但 QoS 类可以很好地预测驱逐顺序，两者高度一致。
+
+### 8.7 独立于 QoS 的行为
+
+以下行为与 QoS 类**无关**：
+
+- 所有超过 limit 的容器都会被 kubelet **杀死并重启**（不影响同 Pod 其他容器）
+- 容器超出 request 时，所在 Pod 成为驱逐候选对象（驱逐时整个 Pod 所有容器被终止）
+- kube-scheduler 的抢占逻辑**不考虑 QoS 类**，只看优先级
+- QoS 类在 Pod 创建时确定，整个生命周期不变
+
+---
+
+## 九、节点压力驱逐（Node-pressure Eviction）
+
+### 9.1 介绍
+
+**节点压力驱逐**是 kubelet 主动终止 Pod 以回收节点资源的过程。当节点的内存、磁盘空间或 inode 等资源达到特定消耗水平时，kubelet 会驱逐 Pod 以防止资源耗尽（饥饿）。
+
+```
+kubelet 监控节点资源 → 达到驱逐阈值 → 驱逐 Pod → 回收资源 → 节点恢复健康
+```
+
+节点压力驱逐不同于 API 发起的驱逐（`kubectl drain`、Descheduler 等）：
+
+| 维度 | 节点压力驱逐 | API 发起驱逐 |
+|---|---|---|
+| **触发者** | kubelet（自动） | 用户/控制器（手动或自动） |
+| **遵守 PDB** | ❌ 不遵守 | ✅ 遵守 |
+| **遵守 terminationGracePeriodSeconds** | 硬驱逐不遵守，软驱逐有限遵守 | ✅ 遵守 |
+| **Pod 状态** | 设为 `Failed` | 正常终止 |
+
+### 9.2 驱逐信号与阈值
+
+kubelet 使用**驱逐信号**（当前资源状态）与**驱逐条件**（阈值）进行比较，决定是否触发驱逐。
+
+#### 驱逐信号
+
+| 驱逐信号 | 描述 | Linux 专用 |
+|---|---|---|
+| **memory.available** | `node.status.capacity[memory] - node.stats.memory.workingSet` | |
+| **nodefs.available** | 节点主文件系统可用空间 | |
+| **nodefs.inodesFree** | 节点主文件系统可用 inode | |
+| **imagefs.available** | 容器镜像文件系统可用空间 | |
+| **imagefs.inodesFree** | 容器镜像文件系统可用 inode | |
+| **containerfs.available** | 容器可写层文件系统可用空间 | |
+| **containerfs.inodesFree** | 容器可写层文件系统可用 inode | |
+| **pid.available** | 可用进程 ID 数量 | ✅ |
+
+> **memory.available 的计算**：在 Linux 上来自 cgroupfs，而非 `free -m`。kubelet 排除了 `inactive_file`（非活动 LRU 列表上的文件缓存），因为假设在压力下可回收。在 Windows 上来自全局内存提交级别。
+
+#### 文件系统分类
+
+| 文件系统 | 存储内容 |
+|---|---|
+| **nodefs** | 节点主文件系统：本地磁盘卷、emptyDir、日志、临时存储（如 `/var/lib/kubelet`） |
+| **imagefs** | 容器运行时专用：容器镜像（只读层）和可写层 |
+| **containerfs** | 容器可写层专用（v1.31+ beta，镜像存储分离到 imagefs） |
+
+### 9.3 硬驱逐 vs 软驱逐
+
+#### 硬驱逐条件（Hard Eviction）
+
+**没有宽限期**——达到阈值立即杀死 Pod：
+
+```yaml
+# kubelet 配置
+evictionHard:
+  memory.available: "100Mi"      # 内存不足 100Mi 时立即驱逐
+  nodefs.available: "10%"        # 节点文件系统不足 10% 时立即驱逐
+  imagefs.available: "15%"       # 镜像文件系统不足 15% 时立即驱逐
+  nodefs.inodesFree: "5%"        # 节点 inode 不足 5% 时立即驱逐
+```
+
+kubelet 默认硬驱逐条件（Linux）：
+
+| 条件 | 默认值 |
+|---|---|
+| `memory.available` | `< 100Mi` |
+| `nodefs.available` | `< 10%`（Windows 节点） |
+| `imagefs.available` | `< 15%` |
+| `nodefs.inodesFree` | `< 5%` |
+| `imagefs.inodesFree` | `< 5%` |
+
+> 如果你修改了任何驱逐参数，其他参数的默认值会被清零。为保持默认值，设置 `mergeDefaultEvictionSettings: true`。
+
+#### 软驱逐条件（Soft Eviction）
+
+**有宽限期**——阈值持续超过宽限期后才触发驱逐：
+
+```yaml
+evictionSoft:
+  memory.available: "1.5Gi"       # 软驱逐条件
+evictionSoftGracePeriod:
+  memory.available: "1m30s"       # 条件持续 1 分 30 秒后才触发
+evictionMaxPodGracePeriod: 60     # Pod 终止的最大宽限期（秒）
+```
+
+| 参数 | 说明 |
+|---|---|
+| `evictionSoft` | 软驱逐阈值，形式 `signal<quantity` |
+| `evictionSoftGracePeriod` | 软条件需持续多久才触发驱逐 |
+| `evictionMaxPodGracePeriod` | 软驱逐时 Pod 终止的最大允许宽限期。kubelet 取此值与 Pod 自身 `terminationGracePeriodSeconds` 的较小值 |
+
+### 9.4 驱逐监控间隔
+
+- kubelet 每 **`housekeeping-interval`**（默认 **10s**）评估一次驱逐条件
+- 节点状况更新频率：**`--node-status-update-frequency`**（默认 **10s**）
+- 节点状况转换过渡期：**`eviction-pressure-transition-period`**（默认 **5m**），防止震荡
+
+### 9.5 节点状况映射
+
+kubelet 将驱逐信号映射为节点状况，控制平面再将其映射为污点：
+
+| 节点状况 | 对应驱逐信号 | 说明 |
+|---|---|---|
+| **MemoryPressure** | `memory.available` | 节点内存压力，`True` 表示触发驱逐 |
+| **DiskPressure** | `nodefs.available`、`nodefs.inodesFree`、`imagefs.available`、`imagefs.inodesFree`、`containerfs.available`、`containerfs.inodesFree` | 节点磁盘压力 |
+| **PIDPressure** | `pid.available`（Linux） | 节点 PID 不足 |
+
+### 9.6 驱逐前资源回收
+
+kubelet 在驱逐用户 Pod 之前，**先尝试回收节点级资源**：
+
+**DiskPressure 时**：
+
+```
+1. 对已死亡的 Pod 和容器进行垃圾收集
+2. 删除未使用的容器镜像
+3. 如果仍不足 → 驱逐用户 Pod
+```
+
+**无 imagefs/containerfs**（单一 nodefs）：
+```
+nodefs 达阈值 → 1. 垃圾收集死亡 Pod/容器 → 2. 删除未使用镜像 → 3. 驱逐 Pod
+```
+
+**有 imagefs**（镜像单独存储）：
+```
+nodefs 达阈值 → 垃圾收集死亡 Pod/容器
+imagefs 达阈值 → 删除未使用镜像
+```
+
+### 9.7 驱逐时 Pod 的选择
+
+kubelet 按以下优先级决定驱逐哪些 Pod（**同时考虑三个因素**）：
+
+1. **资源使用量是否超过 request**
+2. **Pod 优先级**
+3. **相对于 request 的资源使用量**
+
+驱逐顺序：
+
+```
+第一优先（最容易被驱逐）：
+  BestEffort / Burstable Pod 中资源使用量超过其 request 的
+  → 按优先级排序，优先级低的先被驱逐
+  → 同等优先级按超出 request 的程度排序
+
+第二优先：
+  Burstable Pod 中资源使用量未超过其 request 的
+  + Guaranteed Pod
+  → 按优先级排序，优先级低的先被驱逐
+```
+
+> **关键理解**：Guaranteed Pod 只有在所有容器都被指定了相等的 request 和 limit 时才**保证不被驱逐**。但如果系统守护进程（如 kubelet、journald）消耗的资源超过预留值，即使 Guaranteed Pod 也可能被驱逐——此时 kubelet 会选择优先级最低的 Guaranteed Pod。
+
+### 9.8 最小驱逐回收
+
+有时驱逐一个 Pod 只能回收少量资源，导致 kubelet 反复触发驱逐。通过 `evictionMinimumReclaim` 设置每次驱逐后**额外回收**的资源量：
+
+```yaml
+evictionHard:
+  memory.available: "500Mi"
+  nodefs.available: "1Gi"
+evictionMinimumReclaim:
+  memory.available: "0Mi"     # 回收到 500Mi 后不再额外回收
+  nodefs.available: "500Mi"   # 回收到 1Gi 后额外回收 500Mi，直到 1.5Gi
+```
+
+### 9.9 OOM 行为与 QoS
+
+如果 kubelet 来不及驱逐就被 OOM，内核的 `oom_killer` 接管。kubelet 根据 QoS 为每个容器设置 `oom_score_adj`：
+
+| QoS | oom_score_adj | 说明 |
+|---|---|---|
+| **Guaranteed** | -997 | 几乎不会被 OOM 杀死 |
+| **BestEffort** | 1000 | 最容易被 OOM 杀死 |
+| **Burstable** | `min(max(2, 1000 - 1000×request/总内存), 999)` | 内存 request 越大，越不容易被杀死 |
+
+> `system-node-critical` 优先级的 Pod 容器 `oom_score_adj` 也设为 **-997**。
+
+### 9.10 良好实践
+
+#### 驱逐策略与资源预留配合
+
+确保调度器不会把 Pod 调度到"刚调度就触发驱逐"的节点：
+
+```
+节点内存：10GiB
+system-reserved: 1.5Gi  （系统预留 10% + 驱逐阈值 500Mi）
+eviction-hard: memory.available<500Mi
+```
+
+这样系统预留 + 驱逐阈值 = 1.5Gi，节点实际上有 8.5Gi 可调度内存。
+
+#### DaemonSet 与驱逐
+
+如果希望 DaemonSet Pod 不被驱逐，给它设置**足够高的 priorityClass**。
+
+### 9.11 已知问题
+
+| 问题 | 说明 | 缓解措施 |
+|---|---|---|
+| **kubelet 可能延迟感知内存压力** | 默认轮询 cAdvisor（10s 间隔），内存峰值可能错过 | 使用 `--kernel-memcg-notification` 启用即时通知 |
+| **active_file 不被视为可用内存** | 大量 I/O 工作负载的页缓存被计入 active_file，导致 kubelet 误判内存不足 | 为 I/O 密集型容器设置相同的内存 limit 和 request |
+
+---
+
 ## 调度策略对比总结
 
 | 策略 | 作用方向 | 约束类型 | 粒度 | 适用场景 |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | **nodeSelector** | Pod → Node | 硬约束 | 精确匹配 | 简单的节点分类 |
-| **nodeAffinity** | Pod → Node | 硬 + 轟 | In/NotIn/Exists 等 | 复杂节点选择逻辑 |
-| **podAffinity** | Pod → Pod | 硬 + 轟 | topologyKey | 让相关 Pod 跑在一起 |
-| **podAntiAffinity** | Pod → Pod | 硬 + 轟 | topologyKey | 让 Pod 分散避免单点 |
-| **topologySpreadConstraints** | Pod → 拓扑域 | 硬 + 轟 (maxSkew) | topologyKey | 精确均匀分布 |
+| **nodeAffinity** | Pod → Node | 硬 + 軟 | In/NotIn/Exists 等 | 复杂节点选择逻辑 |
+| **podAffinity** | Pod → Pod | 硬 + 軟 | topologyKey | 让相关 Pod 跑在一起 |
+| **podAntiAffinity** | Pod → Pod | 硬 + 軟 | topologyKey | 让 Pod 分散避免单点 |
+| **topologySpreadConstraints** | Pod → 拓扑域 | 硬 + 軟 (maxSkew) | topologyKey | 精确均匀分布 |
 | **Taint/Toleration** | Node → Pod | NoSchedule/NoExecute | 节点级 | 专用节点、故障隔离 |
+| **PriorityClass** | Pod → 调度队列 | 抢占低优先级 Pod | Pod 级 | 确保关键服务优先调度 |
+| **QoS** | kubelet 驱逐排序 | Guaranteed/Burstable/BestEffort | Pod 级 | 资源紧张时的 Pod 保护级别 |
+| **节点压力驱逐** | kubelet → Pod | 硬驱逐 + 軟驱逐 | 节点级 | 自动回收资源，防止节点饥饿 |
 | **Descheduler** | 定期重平衡 | 驱逐违规 Pod | 多策略 | 故障恢复、分布纠正 |
 | **PDB** | 中断保护 | 限制自愿中断 | Pod 组 | 维护期间保持可用 |
 
-> **组合使用建议**：生产环境中，通常用 nodeAffinity 硬策略确保 Pod 跑在指定区域，topologySpreadConstraints 双约束确保跨可用区和跨节点均匀分布，Taint/Toleration 实现专用节点准入控制，PDB 保护维护期间的可用性，Descheduler 定期纠正分布偏差。五者互补，缺一不可。
+> **组合使用建议**：生产环境中，通常用 PriorityClass 确保关键服务优先（如支付服务高优先级），nodeAffinity 硬策略确保 Pod 跑在指定区域，topologySpreadConstraints 双约束确保跨可用区和跨节点均匀分布，Taint/Toleration 实现专用节点准入控制，合理配置资源 requests/limits 以获得合适的 QoS 类（关键服务用 Guaranteed），PDB 保护维护期间的可用性，Descheduler 定期纠正分布偏差，节点压力驱逐作为兜底的自动保护机制。多者互补，缺一不可。
