@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kubernetes 持久化存储 - SRE Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="article-page">
+
+  <div class="article-header">
+    <div class="breadcrumb">
+      <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">Kubernetes</a>
+    </div>
+    <h1>Kubernetes 持久化存储</h1>
+    <div class="article-meta">
+      <span>
+        <span class="tag tag-k8s">Kubernetes</span><span class="tag tag-devops">DevOps</span><span class="tag tag-linux">Linux</span>
+      </span>
+      <span>2026-06-07</span>
+    </div>
+  </div>
+
+  <div class="article-with-toc">
+
+    <div class="article-content">
+
+      <p>Kubernetes 中 Pod 的生命周期是短暂的，Pod 重启或重新调度后，容器内的数据会丢失。为了实现数据持久化，Kubernetes 提供了一套完整的存储抽象体系——PV（PersistentVolume）、PVC（PersistentVolumeClaim）和 StorageClass，将存储资源的"提供"与"消费"彻底解耦。本章从核心概念入手，逐步深入到 Local PV、local-path-provisioner、FlexVolume 和 CSI 等存储插件机制。</p>
+
+      <h2>1. PV、PVC、StorageClass 概念和区别</h2>
+
+      <h3>为什么需要这套抽象？</h3>
+      <p>在 Kubernetes 中，Pod 本身是无状态的，容器内的文件系统是临时的。如果希望 Pod 在重新调度（例如节点故障或升级）后依然能访问之前的数据，就必须使用具备持久化能力的网络存储。但问题在于：底层存储类型多种多样（NFS、iSCSI、Ceph、云盘等），如果让应用开发者直接配置这些存储细节，会带来巨大的耦合和维护负担。</p>
+      <p>Kubernetes 通过 PV/PVC/StorageClass 这套资源抽象，实现了"接口与实现的分离"——让开发者只关心"我需要什么"，让运维只关心"我有什么"。</p>
+
+      <h3>三者关系概览</h3>
+      <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│                        开发者 (Dev)                          │
+│                                                             │
+│  创建 PVC：声明需求（容量、访问模式、StorageClass）            │
+│       │                                                     │
+│       ▼                                                     │
+│  ┌─────────┐     绑定      ┌─────────┐                      │
+│  │   PVC   │ ◄──────────► │   PV    │                      │
+│  └─────────┘              └─────────┘                      │
+│       │                        ▲                            │
+│       │                        │ 动态创建                    │
+│       ▼                        │                            │
+│  ┌─────────┐              ┌──────────────┐                  │
+│  │   Pod   │              │ StorageClass │                  │
+│  └─────────┘              │ + Provisioner│                  │
+│                           └──────────────┘                  │
+│                                  ▲                          │
+│                                  │ 定义                      │
+│                            运维人员 (Ops)                    │
+└─────────────────────────────────────────────────────────────┘
+      </div>
+
+      <h3>PersistentVolume（PV）</h3>
+      <p><strong>PV 是集群级别的存储资源</strong>，代表集群中一块已经存在的、具体的存储空间。它由集群管理员预先配置，包含了存储的全部细节：</p>
+      <table>
+        <thead><tr><th>字段</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>capacity.storage</code></td><td>存储容量大小（如 10Gi）</td></tr>
+          <tr><td><code>accessModes</code></td><td>访问模式：RWO / ROX / RWX</td></tr>
+          <tr><td><code>persistentVolumeReclaimPolicy</code></td><td>回收策略：Retain / Delete / Recycle（已废弃）</td></tr>
+          <tr><td><code>storageClassName</code></td><td>所属 StorageClass 名称</td></tr>
+          <tr><td><code>volumeMode</code></td><td>卷模式：Filesystem（默认）/ Block</td></tr>
+          <tr><td>后端存储配置</td><td>NFS、iSCSI、Ceph、云盘等具体配置</td></tr>
+        </tbody>
+      </table>
+      <p><strong>创建静态 PV 示例（NFS）：</strong></p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-10gi
+spec:
+  capacity:
+    storage: 10Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: slow
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    server: 192.168.1.100
+    path: /data/nfs/share</code></pre>
+      <p>PV 有以下几个生命周期状态：</p>
+      <table>
+        <thead><tr><th>状态</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Available</strong></td><td>PV 已创建，尚未被任何 PVC 绑定，处于可用状态</td></tr>
+          <tr><td><strong>Bound</strong></td><td>PV 已被 PVC 绑定，正在被使用</td></tr>
+          <tr><td><strong>Released</strong></td><td>PVC 已删除，但 PV 尚未被回收（取决于回收策略）</td></tr>
+          <tr><td><strong>Failed</strong></td><td>自动回收失败（如 Delete 策略下无法删除底层存储）</td></tr>
+        </tbody>
+      </table>
+
+      <h3>PersistentVolumeClaim（PVC）</h3>
+      <p><strong>PVC 是命名空间级别的存储"申请单"</strong>，由应用开发者创建，描述应用需要什么样的存储，而不关心这些存储具体从哪里来。PVC 的定义只包含"我需要什么"：</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: slow</code></pre>
+      <p><strong>PVC 与 PV 的绑定规则：</strong></p>
+      <p>Kubernetes 控制平面的 <code>persistent-volume-controller</code> 持续监听并匹配满足 PVC 要求的 PV：</p>
+      <ol>
+        <li><strong>容量匹配</strong>：PV 的 <code>capacity.storage</code> 必须 ≥ PVC 的 <code>requests.storage</code></li>
+        <li><strong>访问模式匹配</strong>：PV 的 <code>accessModes</code> 必须包含 PVC 声明的访问模式</li>
+        <li><strong>StorageClass 匹配</strong>：
+          <ul>
+            <li>PVC 指定了 <code>storageClassName: "slow"</code> → 只绑定 <code>storageClassName: slow</code> 的 PV</li>
+            <li>PVC 指定了 <code>storageClassName: ""</code> → 只绑定没有设置 <code>storageClassName</code> 的 PV（静态 PV）</li>
+            <li>PVC 未指定 <code>storageClassName</code> → 如果有默认 StorageClass，则使用默认 StorageClass 动态创建 PV</li>
+          </ul>
+        </li>
+        <li><strong>LabelSelector</strong>（可选）：通过标签精确匹配</li>
+        <li><strong>VolumeMode</strong>：PV 和 PVC 的 <code>volumeMode</code> 必须一致</li>
+      </ol>
+      <p>绑定是一对一的：一个 PVC 只能绑定一个 PV，一个 PV 也只能被一个 PVC 绑定。绑定后，Pod 即可通过 PVC 名称挂载存储卷。</p>
+      <p><strong>Pod 中使用 PVC：</strong></p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-with-pvc
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine
+      volumeMounts:
+        - name: data
+          mountPath: /usr/share/nginx/html
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: my-app-pvc</code></pre>
+
+      <h3>访问模式（Access Modes）</h3>
+      <table>
+        <thead><tr><th>模式</th><th>缩写</th><th>说明</th><th>适用场景</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ReadWriteOnce</strong></td><td>RWO</td><td>只能被单个节点以读写方式挂载</td><td>数据库、单实例应用</td></tr>
+          <tr><td><strong>ReadOnlyMany</strong></td><td>ROX</td><td>可以被多个节点以只读方式挂载</td><td>配置文件、静态资源</td></tr>
+          <tr><td><strong>ReadWriteMany</strong></td><td>RWX</td><td>可以被多个节点以读写方式挂载</td><td>共享文件系统、多 Pod 共享数据</td></tr>
+        </tbody>
+      </table>
+      <p>不同存储后端支持的访问模式不同。例如块存储（EBS、云盘）通常只支持 RWO，NFS/CephFS 支持 RWX。</p>
+
+      <h3>StorageClass（存储类）</h3>
+      <p><strong>StorageClass 是动态创建 PV 的"模板"</strong>。手动管理成百上千个 PV 是运维灾难，StorageClass 定义了一个"存储模板"，告诉 Kubernetes 如何按需自动创建 PV。当用户创建指定了 <code>storageClassName</code> 的 PVC 时，如果找不到匹配的静态 PV，对应的 Provisioner 就会自动创建 PV 和底层存储。</p>
+      <p><strong>StorageClass YAML 示例：</strong></p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"  # 设为默认
+provisioner: ebs.csi.aws.com        # 指定使用哪个 Provisioner
+parameters:                          # 传递给 Provisioner 的参数
+  type: gp3
+  iops: "4000"
+  throughput: "200"
+  encrypted: "true"
+reclaimPolicy: Delete                # 回收策略
+volumeBindingMode: WaitForFirstConsumer  # 卷绑定模式
+allowVolumeExpansion: true           # 允许在线扩容
+mountOptions:                        # 挂载选项
+  - debug</code></pre>
+      <p><strong>StorageClass 核心字段说明：</strong></p>
+      <table>
+        <thead><tr><th>字段</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>provisioner</code></td><td><strong>必填</strong>，指定使用哪个存储插件（Provisioner）来创建卷</td></tr>
+          <tr><td><code>parameters</code></td><td>传递给 Provisioner 的具体参数，不同 Provisioner 支持的参数不同</td></tr>
+          <tr><td><code>reclaimPolicy</code></td><td>回收策略：<code>Delete</code>（删除 PVC 时自动删除 PV 和底层存储）或 <code>Retain</code>（保留，需要手动清理）。默认 <code>Delete</code></td></tr>
+          <tr><td><code>volumeBindingMode</code></td><td>绑定模式：<code>Immediate</code>（默认，PVC 创建后立即绑定）/ <code>WaitForFirstConsumer</code>（延迟到 Pod 使用时才创建）</td></tr>
+          <tr><td><code>allowVolumeExpansion</code></td><td>是否允许在线扩容（修改 PVC 的 <code>storage</code> 请求后自动扩容）</td></tr>
+          <tr><td><code>mountOptions</code></td><td>挂载选项，由 StorageClass 动态创建的 PV 会使用这些选项</td></tr>
+        </tbody>
+      </table>
+      <p><strong>默认 StorageClass：</strong></p>
+      <p>集群管理员可以将某个 StorageClass 标记为默认：</p>
+      <pre><code><span class="code-label">bash</span>kubectl patch storageclass fast-ssd -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'</code></pre>
+      <p>当 PVC 没有指定 <code>storageClassName</code> 时，会自动使用默认 StorageClass 动态创建 PV。如果集群中多个 StorageClass 都标记为默认，Kubernetes 使用最新创建的那个。</p>
+
+      <h3>静态供应 vs 动态供应</h3>
+      <table>
+        <thead><tr><th>维度</th><th>静态供应（Static Provisioning）</th><th>动态供应（Dynamic Provisioning）</th></tr></thead>
+        <tbody>
+          <tr><td><strong>PV 创建方式</strong></td><td>管理员手动创建 PV</td><td>Provisioner 根据 StorageClass 自动创建</td></tr>
+          <tr><td><strong>适用场景</strong></td><td>小规模、已有存储资源、特殊配置</td><td>大规模、云环境、自动化运维</td></tr>
+          <tr><td><strong>PVC 写法</strong></td><td>可指定 <code>volumeName</code> 精确绑定</td><td>指定 <code>storageClassName</code> 即可</td></tr>
+          <tr><td><strong>运维成本</strong></td><td>高，需要提前规划和创建 PV</td><td>低，按需自动创建</td></tr>
+          <tr><td><strong>灵活性</strong></td><td>低，扩容需要手动操作</td><td>高，支持在线扩容、快照等</td></tr>
+        </tbody>
+      </table>
+      <p><strong>动态供应 PVC 示例：</strong></p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd    # 指定 StorageClass
+  resources:
+    requests:
+      storage: 20Gi</code></pre>
+      <p>创建此 PVC 后，<code>fast-ssd</code> StorageClass 对应的 Provisioner 会自动创建 20Gi 的 PV 和底层存储，并与 PVC 绑定。</p>
+
+      <h3>回收策略（Reclaim Policy）</h3>
+      <table>
+        <thead><tr><th>策略</th><th>行为</th><th>适用场景</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Retain</strong></td><td>PVC 删除后，PV 和底层存储保留，需要手动清理</td><td>生产环境、重要数据</td></tr>
+          <tr><td><strong>Delete</strong></td><td>PVC 删除后，自动删除 PV 和底层存储</td><td>测试环境、临时数据</td></tr>
+          <tr><td><strong>Recycle</strong></td><td>已废弃（Kubernetes 1.33+ 移除），执行 <code>rm -rf</code> 后重新可用</td><td>不再推荐使用</td></tr>
+        </tbody>
+      </table>
+
+      <h3>卷绑定模式（VolumeBindingMode）</h3>
+      <p>这个参数对云环境至关重要，直接影响 Pod 能否成功挂载卷。</p>
+      <p><strong>Immediate（默认）：</strong></p>
+      <p>PVC 创建后立即创建 PV 和底层存储。问题是：在云环境中，块存储（如 AWS EBS）是可用区（AZ）级别的资源。如果 Pod 最终被调度到与存储卷不同的可用区，Pod 将永远无法挂载该卷。</p>
+      <p><strong>WaitForFirstConsumer（推荐）：</strong></p>
+      <p>延迟 PV 的创建，直到第一个使用该 PVC 的 Pod 被成功调度到某个节点上。此时 Provisioner 会在 Pod 所在可用区创建卷，确保亲和性。</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: zonal-storage
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer  # 关键配置</code></pre>
+
+      <h3>最佳实践</h3>
+      <ol>
+        <li><strong>生产环境使用动态供应</strong>：配置合适的 StorageClass，避免手动管理 PV</li>
+        <li><strong>重要数据使用 Retain 策略</strong>：防止误删 PVC 导致数据丢失</li>
+        <li><strong>云环境启用 WaitForFirstConsumer</strong>：解决跨可用区挂载问题</li>
+        <li><strong>合理选择访问模式</strong>：大部分场景用 RWO 即可，避免引入不必要的复杂度</li>
+        <li><strong>监控存储使用情况</strong>：PVC 的 <code>storage</code> 字段是限制值，实际使用量需要监控底层存储</li>
+      </ol>
+
+      <h2>2. Local PV</h2>
+
+      <h3>概念与原理</h3>
+      <p>Local Persistent Volume（Local PV）表示<strong>挂载在节点本地的存储设备</strong>，如本地磁盘、SSD、NVMe 等。与 hostPath 不同，Local PV 通过 PV/PVC 机制管理，具有持久化能力，且 Kubernetes 调度器会感知 Local PV 的节点亲和性。</p>
+      <p>Local PV 的核心特性是 <code>nodeAffinity</code>——PV 必须声明自己位于哪个节点上，调度器会确保使用该 PV 的 Pod 被调度到该节点。</p>
+
+      <h3>为什么需要 Local PV？</h3>
+      <table>
+        <thead><tr><th>场景</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>极低延迟需求</strong></td><td>本地 NVMe SSD 的延迟远低于网络存储（如 Kafka、Elasticsearch）</td></tr>
+          <tr><td><strong>高吞吐 IO</strong></td><td>绕过网络协议栈，直接访问本地磁盘</td></tr>
+          <tr><td><strong>成本优化</strong></td><td>利用节点已有的本地磁盘，无需额外购买网络存储</td></tr>
+          <tr><td><strong>缓存/临时数据</strong></td><td>对数据持久性要求不高，但需要高性能的场景</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Local PV vs hostPath</h3>
+      <table>
+        <thead><tr><th>维度</th><th>hostPath</th><th>Local PV</th></tr></thead>
+        <tbody>
+          <tr><td><strong>持久性</strong></td><td>Pod 删除后数据可能丢失</td><td>独立于 Pod 生命周期</td></tr>
+          <tr><td><strong>调度感知</strong></td><td>调度器不了解 hostPath 所在节点</td><td>通过 <code>nodeAffinity</code> 保证调度到正确节点</td></tr>
+          <tr><td><strong>动态供应</strong></td><td>不支持</td><td>部分 Provisioner 支持（如 local-path-provisioner）</td></tr>
+          <tr><td><strong>管理方式</strong></td><td>直接在 Pod 中指定路径</td><td>通过 PV/PVC 标准 API 管理</td></tr>
+          <tr><td><strong>适用场景</strong></td><td>测试、临时挂载</td><td>生产环境的本地高性能存储</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Local PV 的 StorageClass 定义</h3>
+      <p>Local PV 不支持自动制备（没有内置 Provisioner），需要手动创建 PV。但 StorageClass 仍然需要定义，用于设置 <code>volumeBindingMode: WaitForFirstConsumer</code>：</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner  # 表示不支持自动制备
+volumeBindingMode: WaitForFirstConsumer    # 延迟绑定，等待 Pod 调度</code></pre>
+
+      <h3>创建 Local PV</h3>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-pv-ssd-node1
+spec:
+  capacity:
+    storage: 100Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /mnt/disks/ssd1
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node1</code></pre>
+      <p><strong>关键点：</strong></p>
+      <ul>
+        <li><code>local.path</code> 指定节点上的本地路径</li>
+        <li><code>nodeAffinity</code> 必须指定，确保 Pod 被调度到该节点</li>
+        <li><code>storageClassName</code> 与 StorageClass 定义一致</li>
+      </ul>
+
+      <h3>Local PV 的限制与风险</h3>
+      <table>
+        <thead><tr><th>限制</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>数据不具备高可用性</strong></td><td>节点宕机后数据不可访问，需要应用层有副本机制</td></tr>
+          <tr><td><strong>不支持动态扩容</strong></td><td>本地磁盘容量固定，无法在线扩容</td></tr>
+          <tr><td><strong>调度耦合</strong></td><td>Pod 必须调度到特定节点，降低调度灵活性</td></tr>
+          <tr><td><strong>手动管理</strong></td><td>需要手动创建 PV 和准备磁盘</td></tr>
+        </tbody>
+      </table>
+      <p><strong>适用场景</strong>：Kafka、Elasticsearch、Cassandra 等应用层已实现数据副本的分布式系统，它们可以利用本地高性能存储，同时通过应用层副本保证数据安全。</p>
+
+      <h2>3. local-path-provisioner</h2>
+
+      <h3>什么是 local-path-provisioner</h3>
+      <p>local-path-provisioner 是 Rancher 开源的一个轻量级存储 Provisioner，它为 Kubernetes 集群提供了一种<strong>利用节点本地存储自动创建 PV</strong> 的能力。K3s 默认自带此组件。</p>
+      <p>它本质上是一个<strong>自动管理 hostPath 的控制器</strong>，让用户像使用 NFS/Longhorn 那样通过 PVC 申请存储，但数据实际存储在节点本地磁盘上。</p>
+
+      <h3>工作原理</h3>
+      <div class="flow-diagram">
+PVC 创建（指定 storageClassName: local-path）
+    │
+    ▼
+local-path-provisioner 控制器检测到 PVC 事件
+    │
+    ▼
+WaitForFirstConsumer → 等待 Pod 调度到具体节点
+    │
+    ▼
+在目标节点上启动 helper Pod
+    │
+    ▼
+helper Pod 在节点上创建目录：/opt/local-path-provisioner/pvc-&lt;uuid&gt;
+    │
+    ▼
+控制器创建 hostPath 类型的 PV，指向该目录
+    │
+    ▼
+PV 与 PVC 绑定 → Pod 挂载成功
+      </div>
+
+      <h3>安装与部署</h3>
+      <p>K3s 默认自带，无需额外安装。对于标准 Kubernetes 集群：</p>
+      <pre><code><span class="code-label">bash</span>kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml</code></pre>
+      <p>安装后会自动创建：</p>
+      <ul>
+        <li>命名空间 <code>local-path-storage</code></li>
+        <li>StorageClass <code>local-path</code></li>
+        <li>Deployment <code>local-path-provisioner</code></li>
+        <li>ConfigMap <code>local-path-config</code></li>
+      </ul>
+
+      <h3>默认 StorageClass</h3>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete</code></pre>
+
+      <h3>使用方式</h3>
+      <pre><code><span class="code-label">yaml</span># PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-path-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+# Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-test
+spec:
+  containers:
+    - name: volume-test
+      image: nginx:stable-alpine
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: local-path-pvc</code></pre>
+
+      <h3>配置自定义路径</h3>
+      <p>默认存储路径为 <code>/opt/local-path-provisioner/</code>。通过 ConfigMap 可自定义每个节点的路径：</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-path-config
+  namespace: local-path-storage
+data:
+  config.json: |
+    {
+      "nodePathMap": [
+        {
+          "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+          "paths": ["/opt/local-path-provisioner"]
+        },
+        {
+          "node": "node-with-ssd",
+          "paths": ["/data/ssd", "/data/ssd2"]
+        }
+      ]
+    }</code></pre>
+
+      <h3>多 StorageClass 配置</h3>
+      <p>local-path-provisioner 支持定义多个 StorageClass，使用不同的节点路径：</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ssd-local-path
+provisioner: rancher.io/local-path
+parameters:
+  nodePath: /data/ssd
+  pathPattern: "{{ .PVC.Namespace }}/{{ .PVC.Name }}"
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete</code></pre>
+
+      <h3>优缺点</h3>
+      <table>
+        <thead><tr><th>优点</th><th>缺点</th></tr></thead>
+        <tbody>
+          <tr><td>轻量、部署极简单（一个 Deployment + ConfigMap）</td><td>数据不具备高可用性（只在单节点）</td></tr>
+          <tr><td>动态创建与自动清理</td><td>节点损坏或被调度走，数据无法访问</td></tr>
+          <tr><td>非常适合开发、测试环境</td><td>不支持多节点访问（非网络存储）</td></tr>
+          <tr><td>支持标准 PVC/PV API</td><td>性能依赖节点本地磁盘 IO，无数据同步</td></tr>
+          <tr><td>K3s 默认集成，开箱即用</td><td>不支持卷容量限制（容量字段被忽略）</td></tr>
+        </tbody>
+      </table>
+
+      <h2>4. StorageClass 如何与 Provisioner 关联</h2>
+
+      <h3>关联机制</h3>
+      <p>StorageClass 与 Provisioner 的关联是通过 <code>provisioner</code> 字段完成的，这是一个<strong>名称匹配</strong>机制：</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: my-sc
+provisioner: rancher.io/local-path    # 这个名称必须与运行中的 Provisioner 一致</code></pre>
+
+      <h3>完整的关联流程</h3>
+      <div class="flow-diagram">
+┌──────────────────────────────────────────────────────────────────┐
+│ 1. 集群管理员部署 Provisioner（如 local-path-provisioner）         │
+│    - Provisioner 以 Deployment 形式运行在集群中                    │
+│    - Provisioner 启动时注册自己能处理的 provisioner 名称            │
+│    - 例如：rancher.io/local-path                                  │
+│                                                                  │
+│ 2. 集群管理员创建 StorageClass                                    │
+│    - provisioner 字段设置为 "rancher.io/local-path"               │
+│    - 这个名称必须与 Provisioner 注册的名称一致                      │
+│                                                                  │
+│ 3. 用户创建 PVC，指定 storageClassName: my-sc                     │
+│                                                                  │
+│ 4. Kubernetes 控制平面：                                          │
+│    a. 查找名为 "my-sc" 的 StorageClass                            │
+│    b. 读取其 provisioner 字段：rancher.io/local-path              │
+│    c. 查找注册了该名称的 Provisioner                               │
+│    d. 调用 Provisioner 的 Provision(volumeOptions) 方法           │
+│                                                                  │
+│ 5. Provisioner 创建底层存储和 PV 对象                              │
+│                                                                  │
+│ 6. PV 与 PVC 绑定                                                 │
+└──────────────────────────────────────────────────────────────────┘
+      </div>
+
+      <h3>常用 Provisioner 名称对照</h3>
+      <table>
+        <thead><tr><th>Provisioner 名称</th><th>存储类型</th><th>来源</th></tr></thead>
+        <tbody>
+          <tr><td><code>kubernetes.io/no-provisioner</code></td><td>静态 Local PV（不自动制备）</td><td>Kubernetes 内置</td></tr>
+          <tr><td><code>rancher.io/local-path</code></td><td>本地路径（hostPath/local）</td><td>Rancher</td></tr>
+          <tr><td><code>ebs.csi.aws.com</code></td><td>AWS EBS 云盘</td><td>AWS CSI Driver</td></tr>
+          <tr><td><code>efs.csi.aws.com</code></td><td>AWS EFS 文件存储</td><td>AWS CSI Driver</td></tr>
+          <tr><td><code>diskplugin.csi.alibabacloud.com</code></td><td>阿里云云盘</td><td>阿里云 CSI Driver</td></tr>
+          <tr><td><code>nasplugin.csi.alibabacloud.com</code></td><td>阿里云 NAS</td><td>阿里云 CSI Driver</td></tr>
+          <tr><td><code>everest-csi-provisioner</code></td><td>华为云存储</td><td>华为云 CCE</td></tr>
+          <tr><td><code>kubernetes.io/gce-pd</code></td><td>Google Cloud Persistent Disk</td><td>Kubernetes 内置（树内）</td></tr>
+          <tr><td><code>kubernetes.io/aws-ebs</code></td><td>AWS EBS（树内，已废弃）</td><td>Kubernetes 内置（树内）</td></tr>
+          <tr><td><code>kubernetes.io/nfs</code></td><td>NFS（树内，已废弃）</td><td>Kubernetes 内置（树内）</td></tr>
+        </tbody>
+      </table>
+
+      <h3>树内 Provisioner vs CSI Provisioner</h3>
+      <p>Kubernetes 早期版本的存储插件是"树内（in-tree）"的，即编译在 Kubernetes 核心代码中。这种方式存在严重问题：</p>
+      <ul>
+        <li>存储插件与 Kubernetes 版本强绑定</li>
+        <li>新增存储插件需要修改 Kubernetes 核心代码</li>
+        <li>插件 bug 可能影响整个集群稳定性</li>
+      </ul>
+      <p>因此社区正在将所有树内卷插件迁移到 CSI（Container Storage Interface）驱动。CSI 是树外（out-of-tree）的，独立于 Kubernetes 版本发布。</p>
+
+      <h3>关键注意事项</h3>
+      <ol>
+        <li><strong>provisioner 名称必须精确匹配</strong>：大小写敏感，不能有空格</li>
+        <li><strong>一个 Provisioner 可以对应多个 StorageClass</strong>：通过不同的 <code>parameters</code> 区分存储类型</li>
+        <li><strong>Provisioner 必须提前部署</strong>：在创建 StorageClass 之前，Provisioner 必须已经在集群中运行</li>
+        <li><strong>parameters 由 Provisioner 定义</strong>：不同 Provisioner 支持的参数完全不同，需要查阅对应文档</li>
+      </ol>
+
+      <h2>5. FlexVolume</h2>
+
+      <h3>什么是 FlexVolume</h3>
+      <p>FlexVolume 是 Kubernetes v1.8+ 引入的一种存储插件扩展方式，允许用户编写外部可执行文件来实现自定义存储插件，而无需修改 Kubernetes 核心代码。</p>
+
+      <h3>工作原理</h3>
+      <p>FlexVolume 基于<strong>可执行文件接口</strong>：Kubernetes 在需要执行 Attach/Detach/Mount/Unmount 等操作时，调用预先放置在指定目录下的可执行文件（如 shell 脚本或二进制文件），并传递 JSON 格式的参数。</p>
+      <div class="flow-diagram">
+┌──────────────────────────────────────────────────────────────┐
+│  kubelet / Controller Manager                                │
+│       │                                                      │
+│       │ 调用可执行文件                                         │
+│       ▼                                                      │
+│  /usr/libexec/kubernetes/kubelet-plugins/volume/exec/        │
+│       └── k8s~nfs/                                           │
+│              └── nfs    ← 可执行文件（shell 脚本/二进制）        │
+│                                                              │
+│  调用方式：                                                    │
+│  ./nfs init                                                  │
+│  ./nfs mount &lt;mount-dir&gt; &lt;json-params&gt;                       │
+│  ./nfs unmount &lt;mount-dir&gt;                                   │
+│  ./nfs attach &lt;json-params&gt; &lt;node-name&gt;                      │
+│  ./nfs detach &lt;mount-device&gt; &lt;node-name&gt;                     │
+└──────────────────────────────────────────────────────────────┘
+      </div>
+
+      <h3>插件目录结构</h3>
+      <pre><code><span class="code-label">text</span>/usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+└── &lt;vendor~driver&gt;/
+    └── &lt;driver&gt;          ← 可执行文件</code></pre>
+      <p>例如 NFS 插件：</p>
+      <pre><code><span class="code-label">text</span>/usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+└── k8s~nfs/
+    └── nfs</code></pre>
+
+      <h3>FlexVolume 接口</h3>
+      <p>FlexVolume 插件需要实现以下操作（根据存储类型，部分可选）：</p>
+      <table>
+        <thead><tr><th>操作</th><th>说明</th><th>必需</th></tr></thead>
+        <tbody>
+          <tr><td><code>init</code></td><td>初始化插件，kubelet 启动时调用</td><td>是</td></tr>
+          <tr><td><code>attach</code></td><td>将卷附加到节点（如挂载云盘到虚拟机）</td><td>块存储需要</td></tr>
+          <tr><td><code>detach</code></td><td>从节点分离卷</td><td>块存储需要</td></tr>
+          <tr><td><code>waitforattach</code></td><td>等待卷附加完成</td><td>块存储需要</td></tr>
+          <tr><td><code>isattached</code></td><td>检查卷是否已附加</td><td>块存储需要</td></tr>
+          <tr><td><code>mountdevice</code></td><td>将附加的设备挂载到全局目录</td><td>块存储需要</td></tr>
+          <tr><td><code>unmountdevice</code></td><td>卸载设备</td><td>块存储需要</td></tr>
+          <tr><td><code>mount</code></td><td>将卷挂载到 Pod 目录</td><td>是</td></tr>
+          <tr><td><code>unmount</code></td><td>卸载卷</td><td>是</td></tr>
+        </tbody>
+      </table>
+
+      <h3>NFS FlexVolume 示例</h3>
+      <p><strong>插件脚本（nfs）：</strong></p>
+      <pre><code><span class="code-label">bash</span>#!/bin/bash
+
+operation=$1
+
+case "$operation" in
+  init)
+    # 初始化，返回插件能力
+    echo '{"status": "Success", "capabilities": {"attach": false}}'
+    ;;
+  mount)
+    # 参数：mount &lt;mount-dir&gt; &lt;json-params&gt;
+    mount_dir=$2
+    json_params=$3
+
+    # 解析 JSON 参数
+    server=$(echo "$json_params" | jq -r '.server')
+    share=$(echo "$json_params" | jq -r '.share')
+
+    mount -t nfs "${server}:${share}" "${mount_dir}"
+    if [ $? -eq 0 ]; then
+      echo '{"status": "Success"}'
+    else
+      echo '{"status": "Failure", "message": "Failed to mount NFS"}'
+    fi
+    ;;
+  unmount)
+    mount_dir=$2
+    umount "${mount_dir}"
+    if [ $? -eq 0 ]; then
+      echo '{"status": "Success"}'
+    else
+      echo '{"status": "Failure", "message": "Failed to unmount"}'
+    fi
+    ;;
+  *)
+    echo '{"status": "Not supported"}'
+    ;;
+esac</code></pre>
+      <p><strong>PV 定义（使用 FlexVolume）：</strong></p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-flex-nfs
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  flexVolume:
+    driver: k8s/nfs        # 对应 vendor~driver = k8s~nfs
+    options:                # 传递给 mount 操作的 JSON 参数
+      server: "192.168.1.100"
+      share: "/data/nfs"</code></pre>
+
+      <h3>FlexVolume 的局限性</h3>
+      <table>
+        <thead><tr><th>问题</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>不支持动态供应</strong></td><td>FlexVolume 自身不支持 Dynamic Provisioning（除非编写额外的 External Provisioner）</td></tr>
+          <tr><td><strong>无状态管理</strong></td><td>脚本执行是无状态的，无法在 mount 和 unmount 之间保留状态</td></tr>
+          <tr><td><strong>依赖宿主机环境</strong></td><td>需要在每个节点上安装依赖（如 NFS 客户端工具）</td></tr>
+          <tr><td><strong>需要 root 权限</strong></td><td>部署插件文件需要对主节点和宿主机文件系统有 root 访问权限</td></tr>
+          <tr><td><strong>操作系统耦合</strong></td><td>可执行文件与操作系统绑定，跨平台兼容性差</td></tr>
+          <tr><td><strong>已过时</strong></td><td>Kubernetes 社区已将其标记为 deprecated，推荐使用 CSI</td></tr>
+        </tbody>
+      </table>
+
+      <h3>迁移建议</h3>
+      <p>FlexVolume 已被 Kubernetes 社区标记为 deprecated。如果你仍在使用 FlexVolume 插件，建议尽快迁移到对应的 CSI 驱动。大多数主流存储厂商都提供了 CSI 驱动替代方案。</p>
+
+      <h2>6. CSI（Container Storage Interface）</h2>
+
+      <h3>什么是 CSI</h3>
+      <p>CSI（Container Storage Interface）是 Kubernetes 存储扩展的<strong>现代标准</strong>，它将存储插件的开发从 Kubernetes 核心代码中完全解耦出来。CSI 通过 gRPC 协议定义了一套标准化的接口，存储厂商只需实现这些接口，就能让 Kubernetes 无缝使用其存储系统。</p>
+      <p>CSI 的设计目标是：</p>
+      <ul>
+        <li><strong>标准化</strong>：一套接口适配所有存储系统</li>
+        <li><strong>解耦</strong>：存储插件独立于 Kubernetes 版本发布</li>
+        <li><strong>容器化</strong>：插件以容器方式部署，无需修改宿主机</li>
+      </ul>
+
+      <h3>⚠️ CSI 三层结构：哪个自带？哪个要安装？</h3>
+      <p>这是最容易混淆的地方。<strong>CSI 不是"一个东西"，而是三层不同的组件</strong>：</p>
+      <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                    CSI 三层结构                                   │
+│                                                                 │
+│  ① CSI 规范（gRPC 接口标准）                                      │
+│     ├── 定义在 Kubernetes 核心代码中（pkg/volume/csi）             │
+│     ├── kubelet / Controller Manager 内置了 CSI 调用逻辑           │
+│     └── 状态：✅ K8s 自带，不需要安装                              │
+│                                                                 │
+│  ② CSI Sidecar 容器（桥接组件）                                    │
+│     ├── external-provisioner, external-attacher 等                │
+│     ├── 由 Kubernetes SIG-Storage 社区维护                        │
+│     ├── 镜像是现成的（registry.k8s.io/sig-storage/...）            │
+│     └── 状态：⚠️ 需要部署，但镜像是官方提供的，无需自己写代码        │
+│                                                                 │
+│  ③ CSI Driver 驱动（存储实现）                                     │
+│     ├── 由存储厂商编写（AWS、阿里云、Ceph 等）                       │
+│     ├── 实现实际的后端存储操作（创建/挂载/删除磁盘）                  │
+│     └── 状态：❌ 必须手动安装，否则对应的存储类型无法使用             │
+└─────────────────────────────────────────────────────────────────┘
+      </div>
+      <p><strong>打个比方</strong>：CSI 规范相当于"USB 接口标准"（K8s 内置），Sidecar 相当于"USB 控制器芯片驱动"（官方提供），CSI Driver 相当于"U 盘 / 移动硬盘"（存储厂商提供）。没有 USB 标准就无法通信，没有芯片驱动就认不出设备，没有 U 盘就没有实际存储。</p>
+
+      <h3>如果不安装 CSI 驱动，K8s 怎么实现存储？</h3>
+      <p><strong>不是所有存储都需要 CSI</strong>。Kubernetes 自带一套"树内（in-tree）存储插件"，无需安装任何 CSI 驱动即可使用：</p>
+
+      <h4>方式一：直接用树内卷类型（最简单，无需任何插件）</h4>
+      <p>直接在 Pod 中声明，不需要创建 PV/PVC：</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      emptyDir: {}          # ← 树内插件，K8s 自带，不需要任何安装</code></pre>
+      <p>常用树内卷类型（K8s 自带，零安装）：</p>
+      <table>
+        <thead><tr><th>卷类型</th><th>说明</th><th>持久化</th></tr></thead>
+        <tbody>
+          <tr><td><code>emptyDir</code></td><td>Pod 生命周期内的临时目录，Pod 删除即消失</td><td>否</td></tr>
+          <tr><td><code>hostPath</code></td><td>挂载宿主机目录到容器</td><td>是（绑定节点）</td></tr>
+          <tr><td><code>nfs</code></td><td>挂载 NFS 共享目录</td><td>是（网络存储）</td></tr>
+          <tr><td><code>configMap</code></td><td>注入 ConfigMap 为文件</td><td>否</td></tr>
+          <tr><td><code>secret</code></td><td>注入 Secret 为文件</td><td>否</td></tr>
+          <tr><td><code>downwardAPI</code></td><td>注入 Pod 元数据</td><td>否</td></tr>
+        </tbody>
+      </table>
+
+      <h4>方式二：静态 PV + 树内存储类型</h4>
+      <p>手动创建 PV，不依赖任何 StorageClass / Provisioner：</p>
+      <pre><code><span class="code-label">yaml</span># 1. 管理员手动创建 PV（使用树内 NFS 插件）
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-static-nfs
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:                          # ← 树内 NFS 插件，K8s 自带
+    server: 192.168.1.100
+    path: /data/nfs
+
+---
+# 2. 用户创建 PVC 绑定此 PV
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: pv-static-nfs     # 直接指定 PV 名称
+
+---
+# 3. Pod 使用 PVC
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-nfs
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: my-pvc</code></pre>
+      <p><strong>这种方式的特点</strong>：全程不需要任何 CSI 驱动、不需要 StorageClass、不需要 Provisioner。缺点是管理员需要手动创建每一个 PV。</p>
+
+      <h3>什么场景必须安装 CSI 驱动？</h3>
+      <table>
+        <thead><tr><th>场景</th><th>是否需要 CSI</th></tr></thead>
+        <tbody>
+          <tr><td>使用 <code>hostPath</code> / <code>emptyDir</code> / <code>nfs</code> 树内插件</td><td>❌ 不需要</td></tr>
+          <tr><td>手动创建静态 PV（NFS、iSCSI 等）</td><td>❌ 不需要</td></tr>
+          <tr><td>使用云盘（AWS EBS、阿里云盘、华为云 EVS）动态创建</td><td>✅ <strong>必须安装对应 CSI 驱动</strong></td></tr>
+          <tr><td>使用分布式存储（Ceph RBD、Longhorn、Rook）</td><td>✅ <strong>必须安装对应 CSI 驱动</strong></td></tr>
+          <tr><td>PVC 自动动态创建 PV（Dynamic Provisioning）</td><td>✅ 需要 Provisioner（通常是 CSI 驱动的一部分）</td></tr>
+          <tr><td>在线扩容（<code>allowVolumeExpansion</code>）</td><td>✅ 需要支持扩容的 CSI 驱动</td></tr>
+          <tr><td>卷快照（VolumeSnapshot）</td><td>✅ 需要支持快照的 CSI 驱动</td></tr>
+        </tbody>
+      </table>
+
+      <h3>组件关系总结</h3>
+      <div class="flow-diagram">
+                          ┌─────────────┐
+                          │  用户创建    │
+                          │    PVC      │
+                          └──────┬──────┘
+                                 │ storageClassName: csi-sc
+                                 ▼
+┌────────────────────────────────────────────────────────────┐
+│              StorageClass (provisioner: xxx.csi.com)       │
+│                     ↓ 名称匹配                              │
+│                                                           │
+│    ┌─────────────────────────────────────────────┐        │
+│    │  CSI Controller Pod (StatefulSet)          │        │
+│    │                                            │        │
+│    │  ┌──────────────┐  ←gRPC→  ┌─────────────┐ │        │
+│    │  │ Sidecar 容器  │         │ CSI Driver  │ │        │
+│    │  │ (官方维护)    │         │ (厂商实现)   │ │        │
+│    │  └──────────────┘         └─────────────┘ │        │
+│    └─────────────────────────────────────────────┘        │
+│                          │                                │
+│                          │ 创建底层存储 + PV                │
+│                          ▼                                │
+│    ┌─────────────────────────────────────────────┐        │
+│    │  CSI Node Pod (DaemonSet)                   │        │
+│    │                                            │        │
+│    │  ┌──────────────┐  ←gRPC→  ┌─────────────┐ │        │
+│    │  │ Sidecar 容器  │         │ CSI Driver  │ │        │
+│    │  └──────────────┘         └─────────────┘ │        │
+│    └─────────────────────────────────────────────┘        │
+│                          │                                │
+│                          │ NodeStage + NodePublish        │
+│                          ▼                                │
+│                    Pod 成功挂载存储                          │
+└────────────────────────────────────────────────────────────┘
+      </div>
+      <p><strong>一句话总结</strong>：</p>
+      <ul>
+        <li><strong>Sidecar</strong> 是"翻译官"——监听 K8s API 事件，翻译成 gRPC 调用传给 Driver</li>
+        <li><strong>CSI Driver</strong> 是"干活的"——收到 gRPC 调用后，去实际操作后端存储系统（调用云厂商 API 创建磁盘等）</li>
+        <li><strong>K8s 内置的 CSI 规范</strong>是"通信协议"——定义了 Sidecar 和 Driver 之间怎么说话</li>
+      </ul>
+
+      <h3>CSI 架构</h3>
+      <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Master 节点                                   │
+│                                                                     │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐           │
+│  │  API Server  │    │  Scheduler   │    │  Controller   │           │
+│  │              │    │              │    │   Manager     │           │
+│  └──────┬───────┘    └──────────────┘    └──────┬───────┘           │
+│         │                                       │                    │
+│         │  Watch PVC/PV/VolumeAttachment       │                    │
+│         ▼                                       │                    │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │              CSI Controller 插件 (StatefulSet)              │       │
+│  │                                                          │       │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐     │       │
+│  │  │   External   │ │   External   │ │   External   │     │       │
+│  │  │ Provisioner  │ │   Attacher   │ │   Resizer    │     │       │
+│  │  │  (Sidecar)   │ │  (Sidecar)   │ │  (Sidecar)   │     │       │
+│  │  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘     │       │
+│  │         │                │                │               │       │
+│  │         ▼                ▼                ▼               │       │
+│  │  ┌──────────────────────────────────────────────────┐    │       │
+│  │  │        CSI Driver (CSI Controller Service)       │    │       │
+│  │  │  - CreateVolume / DeleteVolume                   │    │       │
+│  │  │  - ControllerPublishVolume / UnpublishVolume     │    │       │
+│  │  │  - CreateSnapshot / DeleteSnapshot               │    │       │
+│  │  │  - ControllerExpandVolume                        │    │       │
+│  │  └──────────────────────────────────────────────────┘    │       │
+│  └──────────────────────────────────────────────────────────┘       │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Worker 节点                                  │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │              CSI Node 插件 (DaemonSet)                      │       │
+│  │                                                          │       │
+│  │  ┌──────────────────────┐                                 │       │
+│  │  │  Node Driver         │                                 │       │
+│  │  │  Registrar (Sidecar) │                                 │       │
+│  │  └──────────┬───────────┘                                 │       │
+│  │             │                                              │       │
+│  │             ▼                                              │       │
+│  │  ┌──────────────────────────────────────────────────┐    │       │
+│  │  │        CSI Driver (CSI Node Service)             │    │       │
+│  │  │  - NodeStageVolume / NodeUnstageVolume           │    │       │
+│  │  │  - NodePublishVolume / NodeUnpublishVolume       │    │       │
+│  │  │  - NodeGetVolumeStats                            │    │       │
+│  │  │  - NodeExpandVolume                              │    │       │
+│  │  └──────────────────────────────────────────────────┘    │       │
+│  └──────────────────────────────────────────────────────────┘       │
+│                                                                     │
+│  ┌──────────┐                                                      │
+│  │  kubelet  │ ←── 通过 UNIX Socket 调用 CSI Node Service            │
+│  └──────────┘                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+      </div>
+
+      <h3>CSI 三大 gRPC 服务</h3>
+      <p>CSI 插件通过 gRPC 对外提供三个服务，每个服务定义了不同的接口：</p>
+
+      <h4>1. CSI Identity Service（身份服务）</h4>
+      <p>提供插件的基本信息和能力声明：</p>
+      <pre><code><span class="code-label">protobuf</span>service Identity {
+  rpc GetPluginInfo(GetPluginInfoRequest) returns (GetPluginInfoResponse) {}      // 返回插件名称、版本
+  rpc GetPluginCapabilities(GetPluginCapabilitiesRequest) returns (GetPluginCapabilitiesResponse) {}  // 声明插件能力
+  rpc Probe(ProbeRequest) returns (ProbeResponse) {}                               // 健康检查
+}</code></pre>
+
+      <h4>2. CSI Controller Service（控制器服务）</h4>
+      <p>运行在 Master 节点（StatefulSet），处理<strong>集群级别</strong>的卷管理操作：</p>
+      <table>
+        <thead><tr><th>接口</th><th>调用者</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>CreateVolume</code></td><td>External Provisioner</td><td>创建存储卷（对应 Provision 阶段）</td></tr>
+          <tr><td><code>DeleteVolume</code></td><td>External Provisioner</td><td>删除存储卷</td></tr>
+          <tr><td><code>ControllerPublishVolume</code></td><td>External Attacher</td><td>将卷附加到节点（对应 Attach 阶段）</td></tr>
+          <tr><td><code>ControllerUnpublishVolume</code></td><td>External Attacher</td><td>从节点分离卷</td></tr>
+          <tr><td><code>CreateSnapshot</code></td><td>External Snapshotter</td><td>创建卷快照</td></tr>
+          <tr><td><code>DeleteSnapshot</code></td><td>External Snapshotter</td><td>删除卷快照</td></tr>
+          <tr><td><code>ControllerExpandVolume</code></td><td>External Resizer</td><td>扩容卷</td></tr>
+        </tbody>
+      </table>
+
+      <h4>3. CSI Node Service（节点服务）</h4>
+      <p>运行在每个 Worker 节点（DaemonSet），处理<strong>节点级别</strong>的卷操作：</p>
+      <table>
+        <thead><tr><th>接口</th><th>调用者</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>NodeStageVolume</code></td><td>kubelet</td><td>将块设备格式化并挂载到临时目录（Staging 路径）</td></tr>
+          <tr><td><code>NodeUnstageVolume</code></td><td>kubelet</td><td>卸载临时目录</td></tr>
+          <tr><td><code>NodePublishVolume</code></td><td>kubelet</td><td>将 Staging 路径 bind-mount 到 Pod 目录（对应 Mount 阶段）</td></tr>
+          <tr><td><code>NodeUnpublishVolume</code></td><td>kubelet</td><td>卸载 Pod 目录</td></tr>
+          <tr><td><code>NodeGetVolumeStats</code></td><td>kubelet</td><td>获取卷使用统计</td></tr>
+          <tr><td><code>NodeExpandVolume</code></td><td>kubelet</td><td>节点级卷扩容（文件系统扩容）</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Sidecar 容器</h3>
+      <p>CSI 驱动的部署依赖 Kubernetes 社区维护的 Sidecar 容器，它们负责监听 Kubernetes API 并触发 CSI 接口调用：</p>
+      <table>
+        <thead><tr><th>Sidecar</th><th>功能</th><th>监听对象</th></tr></thead>
+        <tbody>
+          <tr><td><strong>external-provisioner</strong></td><td>动态创建 PV</td><td>PVC（PersistentVolumeClaim）</td></tr>
+          <tr><td><strong>external-attacher</strong></td><td>卷的附加/分离</td><td>VolumeAttachment</td></tr>
+          <tr><td><strong>external-resizer</strong></td><td>在线扩容</td><td>PVC 大小变更</td></tr>
+          <tr><td><strong>external-snapshotter</strong></td><td>卷快照</td><td>VolumeSnapshot</td></tr>
+          <tr><td><strong>node-driver-registrar</strong></td><td>将 CSI 驱动注册到 kubelet</td><td>-</td></tr>
+          <tr><td><strong>livenessprobe</strong></td><td>健康检查</td><td>-</td></tr>
+        </tbody>
+      </table>
+
+      <h3>CSI 卷的完整生命周期</h3>
+      <div class="flow-diagram">
+用户创建 PVC（指定 storageClassName: csi-sc）
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Provision 阶段（创建存储卷）                               │
+│                                                             │
+│    External Provisioner 监听到 PVC 创建事件                   │
+│        │                                                    │
+│        ▼                                                    │
+│    调用 CSI Controller.CreateVolume()                        │
+│        │                                                    │
+│        ▼                                                    │
+│    创建底层存储卷 + 自动创建 PV 对象 + 绑定 PVC               │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+用户创建 Pod（引用该 PVC），Pod 被调度到节点 A
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Attach 阶段（将卷附加到节点）                              │
+│                                                             │
+│    AttachDetachController 检测到卷需要附加到节点 A             │
+│        │                                                    │
+│        ▼                                                    │
+│    创建 VolumeAttachment 对象                                │
+│        │                                                    │
+│        ▼                                                    │
+│    External Attacher 监听到 VolumeAttachment 事件             │
+│        │                                                    │
+│        ▼                                                    │
+│    调用 CSI Controller.ControllerPublishVolume()             │
+│        │                                                    │
+│        ▼                                                    │
+│    卷被附加到节点 A（如云盘挂载到虚拟机）                       │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Mount 阶段（挂载卷到 Pod 目录）                            │
+│                                                             │
+│    kubelet VolumeManagerReconciler 检测到需要执行 Mount 操作   │
+│        │                                                    │
+│        ▼                                                    │
+│    NodeStageVolume：格式化设备 + 挂载到 Staging 路径           │
+│        │         /var/lib/kubelet/plugins/kubernetes.io/csi/ │
+│        │         pv/&lt;pv-name&gt;/globalmount                    │
+│        ▼                                                    │
+│    NodePublishVolume：将 Staging 路径 bind-mount 到 Pod 目录  │
+│        │         /var/lib/kubelet/pods/&lt;pod-uid&gt;/volumes/    │
+│        │         kubernetes.io~csi/&lt;pv-name&gt;/mount           │
+│        ▼                                                    │
+│    Pod 容器可以访问卷中的数据                                  │
+└─────────────────────────────────────────────────────────────┘
+      </div>
+
+      <h3>为什么 Mount 阶段分为 NodeStageVolume 和 NodePublishVolume？</h3>
+      <p>这是 CSI 设计中的一个重要细节：</p>
+      <ul>
+        <li><strong>NodeStageVolume</strong>：将块设备格式化（如果需要）并挂载到<strong>全局 Staging 路径</strong>。这个路径是节点级别的，所有使用该卷的 Pod 共享。</li>
+        <li><strong>NodePublishVolume</strong>：将 Staging 路径 <strong>bind-mount</strong> 到 Pod 特定的目录。每个 Pod 有独立的挂载点。</li>
+      </ul>
+      <p>这种设计的好处是：如果多个 Pod 使用同一个卷，格式化操作只执行一次，后续 Pod 只需要做 bind-mount，性能更好。</p>
+
+      <h3>部署 CSI 驱动</h3>
+      <p>CSI 驱动部署通常包含两个部分：</p>
+      <p><strong>1. Controller 插件（StatefulSet）：</strong></p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: csi-controller
+  namespace: kube-system
+spec:
+  serviceName: csi-controller
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csi-controller
+  template:
+    spec:
+      serviceAccountName: csi-controller-sa
+      containers:
+        # Sidecar 容器
+        - name: external-provisioner
+          image: registry.k8s.io/sig-storage/csi-provisioner:v3.6.0
+          args:
+            - "--csi-address=/csi/csi.sock"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: external-attacher
+          image: registry.k8s.io/sig-storage/csi-attacher:v4.4.0
+          args:
+            - "--csi-address=/csi/csi.sock"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        # CSI 驱动容器
+        - name: my-csi-driver
+          image: my-registry/csi-driver:v1.0.0
+          args:
+            - "--endpoint=unix:///csi/csi.sock"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+      volumes:
+        - name: socket-dir
+          emptyDir: {}</code></pre>
+      <p><strong>2. Node 插件（DaemonSet）：</strong></p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: csi-node
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-node
+  template:
+    spec:
+      containers:
+        - name: node-driver-registrar
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi.example.com/csi.sock"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: my-csi-driver
+          image: my-registry/csi-driver:v1.0.0
+          args:
+            - "--endpoint=unix:///csi/csi.sock"
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi.example.com
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory</code></pre>
+
+      <h3>创建 CSIDriver 对象</h3>
+      <p>部署 CSI 驱动后，需要创建 CSIDriver 对象向 Kubernetes 注册：</p>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: csi.example.com
+spec:
+  attachRequired: true          # 是否需要 Attach 操作（块存储需要，NFS 通常不需要）
+  podInfoOnMount: true          # 挂载时是否传递 Pod 信息
+  volumeLifecycleModes:
+    - Persistent                # 支持持久卷
+    - Ephemeral                 # 支持临时卷
+  fsGroupPolicy: File           # 文件系统组策略
+  requiresRepublish: false      # 是否需要在 Pod 重启时重新发布卷
+  storageCapacity: true         # 是否支持存储容量感知调度</code></pre>
+
+      <h3>创建 StorageClass 使用 CSI 驱动</h3>
+      <pre><code><span class="code-label">yaml</span>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-fast-ssd
+provisioner: csi.example.com             # 对应 CSIDriver 的 name
+parameters:
+  type: ssd
+  fsType: ext4
+  iops: "5000"
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true</code></pre>
+
+      <h3>常用 CSI 驱动列表</h3>
+      <table>
+        <thead><tr><th>存储系统</th><th>CSI 驱动名称</th><th>Provisioner 名称</th></tr></thead>
+        <tbody>
+          <tr><td>AWS EBS</td><td>aws-ebs-csi-driver</td><td><code>ebs.csi.aws.com</code></td></tr>
+          <tr><td>AWS EFS</td><td>aws-efs-csi-driver</td><td><code>efs.csi.aws.com</code></td></tr>
+          <tr><td>阿里云云盘</td><td>alibaba-cloud-csi-driver</td><td><code>diskplugin.csi.alibabacloud.com</code></td></tr>
+          <tr><td>阿里云 NAS</td><td>alibaba-cloud-csi-driver</td><td><code>nasplugin.csi.alibabacloud.com</code></td></tr>
+          <tr><td>华为云</td><td>everest-csi-driver</td><td><code>everest-csi-provisioner</code></td></tr>
+          <tr><td>Ceph RBD</td><td>ceph-csi</td><td><code>rbd.csi.ceph.com</code></td></tr>
+          <tr><td>CephFS</td><td>ceph-csi</td><td><code>cephfs.csi.ceph.com</code></td></tr>
+          <tr><td>NFS</td><td>csi-driver-nfs</td><td><code>nfs.csi.k8s.io</code></td></tr>
+          <tr><td>Longhorn</td><td>longhorn</td><td><code>driver.longhorn.io</code></td></tr>
+          <tr><td>Rook-Ceph</td><td>rook-ceph</td><td><code>rook-ceph.rbd.csi.ceph.com</code></td></tr>
+          <tr><td>Local Path</td><td>local-path-provisioner</td><td><code>rancher.io/local-path</code></td></tr>
+          <tr><td>hostPath</td><td>csi-driver-host-path</td><td><code>hostpath.csi.k8s.io</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>FlexVolume vs CSI 对比</h3>
+      <table>
+        <thead><tr><th>维度</th><th>FlexVolume</th><th>CSI</th></tr></thead>
+        <tbody>
+          <tr><td><strong>接口方式</strong></td><td>可执行文件（shell/二进制）</td><td>gRPC 标准接口</td></tr>
+          <tr><td><strong>部署方式</strong></td><td>宿主机文件系统中的脚本</td><td>容器化部署（DaemonSet + StatefulSet）</td></tr>
+          <tr><td><strong>动态供应</strong></td><td>不支持（需额外 External Provisioner）</td><td>原生支持</td></tr>
+          <tr><td><strong>快照/扩容</strong></td><td>不支持</td><td>原生支持</td></tr>
+          <tr><td><strong>状态管理</strong></td><td>无状态（每次执行独立）</td><td>有状态（gRPC 服务持续运行）</td></tr>
+          <tr><td><strong>依赖管理</strong></td><td>需要宿主机预装依赖</td><td>容器内自带依赖</td></tr>
+          <tr><td><strong>跨平台</strong></td><td>与操作系统耦合</td><td>独立于操作系统</td></tr>
+          <tr><td><strong>社区支持</strong></td><td>已废弃</td><td>活跃开发，标准方案</td></tr>
+          <tr><td><strong>Kubernetes 版本</strong></td><td>v1.8+ 支持，v1.23+ 废弃</td><td>v1.13+ GA，推荐方案</td></tr>
+        </tbody>
+      </table>
+
+      <h3>树内插件迁移到 CSI</h3>
+      <p>Kubernetes 社区正在将树内（in-tree）存储插件逐步迁移到 CSI 驱动。迁移时间线：</p>
+      <table>
+        <thead><tr><th>树内插件</th><th>状态</th><th>CSI 替代</th></tr></thead>
+        <tbody>
+          <tr><td><code>kubernetes.io/aws-ebs</code></td><td>已废弃</td><td><code>ebs.csi.aws.com</code></td></tr>
+          <tr><td><code>kubernetes.io/gce-pd</code></td><td>已废弃</td><td><code>pd.csi.storage.gke.io</code></td></tr>
+          <tr><td><code>kubernetes.io/cinder</code></td><td>已废弃</td><td><code>cinder.csi.openstack.org</code></td></tr>
+          <tr><td><code>kubernetes.io/azure-disk</code></td><td>已废弃</td><td><code>disk.csi.azure.com</code></td></tr>
+          <tr><td><code>kubernetes.io/azure-file</code></td><td>已废弃</td><td><code>file.csi.azure.com</code></td></tr>
+          <tr><td><code>kubernetes.io/vsphere-volume</code></td><td>已废弃</td><td><code>csi.vsphere.vmware.com</code></td></tr>
+        </tbody>
+      </table>
+      <p>迁移步骤：</p>
+      <ol>
+        <li>安装对应的 CSI 驱动</li>
+        <li>创建使用 CSI Provisioner 的新 StorageClass</li>
+        <li>将 PVC 的 <code>storageClassName</code> 切换到新 StorageClass</li>
+        <li>验证应用正常运行</li>
+        <li>删除旧的树内 StorageClass 和 PV</li>
+      </ol>
+
+      <h2>7. 总结</h2>
+      <p>Kubernetes 存储体系的核心设计思想是<strong>接口与实现的分离</strong>：</p>
+      <ul>
+        <li><strong>PV</strong> 代表存储的"实现"（具体的存储资源）</li>
+        <li><strong>PVC</strong> 代表存储的"接口"（用户的需求声明）</li>
+        <li><strong>StorageClass</strong> 是动态创建的"模板"（自动化 PV 创建）</li>
+        <li><strong>Provisioner</strong> 是具体的"执行者"（实际创建存储卷的组件）</li>
+      </ul>
+      <p>在存储插件选择上：</p>
+      <ul>
+        <li><strong>开发/测试环境</strong>：local-path-provisioner 是最简单实用的选择</li>
+        <li><strong>生产环境</strong>：使用 CSI 驱动，根据存储类型选择（云盘、NFS、Ceph 等）</li>
+        <li><strong>高性能场景</strong>：Local PV 提供最低延迟，但需应用层保证数据副本</li>
+        <li><strong>FlexVolume</strong>：已过时，不建议新项目使用，应迁移到 CSI</li>
+      </ul>
+
+      <div class="highlight-box">
+        <p><strong>参考来源：</strong></p>
+        <ul>
+          <li><a href="https://kubernetes.io/zh-cn/docs/concepts/storage/storage-classes/" target="_blank">Kubernetes 官方文档 - StorageClass</a></li>
+          <li><a href="https://kubernetes.io/zh-cn/docs/concepts/storage/dynamic-provisioning/" target="_blank">Kubernetes 官方文档 - 动态卷制备</a></li>
+          <li><a href="https://kubernetes.io/zh-cn/docs/concepts/storage/persistent-volumes/" target="_blank">Kubernetes 官方文档 - 持久卷</a></li>
+          <li><a href="https://kubernetes-csi.github.io/docs/" target="_blank">Kubernetes CSI 开发文档</a></li>
+          <li><a href="https://github.com/rancher/local-path-provisioner" target="_blank">Rancher Local Path Provisioner</a></li>
+          <li><a href="https://learn.lianglianglee.com/专栏/深入剖析Kubernetes" target="_blank">深入剖析 Kubernetes - 张磊</a></li>
+          <li><a href="https://jimmysong.io/zh/book/kubernetes-handbook/storage/overview/" target="_blank">Jimmy Song - Kubernetes 存储系统概览</a></li>
+          <li><a href="https://support.huaweicloud.com/basics-cce/kubernetes_0030.html" target="_blank">华为云 CCE - PV、PVC 和 StorageClass</a></li>
+          <li><a href="https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/storage-basics" target="_blank">阿里云 ACK - 存储系统核心概念</a></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- TOC -->
+    <aside class="toc-container" id="toc-container">
+      <div class="toc-title">目录</div>
+      <ul class="toc-list" id="toc-list"></ul>
+    </aside>
+
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="../index.html">首页</a>
+      <a href="../about.html">关于</a>
+      <a href="https://github.com/pro12221" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">&copy; 2026 SRE Notes. Powered by Cloudflare Pages.</div>
+  </div>
+</footer>
+
+<!-- Mobile TOC -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var panel = document.getElementById('toc-mobile-panel');
+      if (panel) panel.classList.remove('show');
+    });
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 80 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+  updateActiveToc();
+})();
+</script>
+
+<script src="../js/nav.js"></script>
+
+</body>
+</html>

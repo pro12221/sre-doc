@@ -230,5 +230,13 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-06-06",
     url: "posts/kubernetes调度.html"
+  },
+  {
+    title: "Kubernetes 持久化存储",
+    desc: "Kubernetes 持久化存储：PV/PVC/StorageClass 核心概念、Local PV 实战、FlexVolume 到 CSI 演进与迁移指南。",
+    tags: ["kubernetes", "devops", "linux"],
+    category: "kubernetes",
+    date: "2026-06-07",
+    url: "posts/kubernetes-持久化存储.html"
   }
 ];
