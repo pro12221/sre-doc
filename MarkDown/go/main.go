@@ -1,25 +1,26 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"time"
 )
 
-var ErrNotFound = errors.New("用户不存在")
-
-func findUser(id int) (string, error) {
-	if id <= 0 {
-		return "", ErrNotFound
-	}
-	return "小明", nil
-}
 func main() {
-	user, err := findUser(0)
-	if err != nil {
-		fmt.Println(err)
+	// 1.获取ticker对象
+	ticker := time.NewTicker(1 * time.Second)
+	i := 0
+	// 子协程
+	go func() {
+		for {
+			//<-ticker.C
+			i++
+			fmt.Println(<-ticker.C)
+			if i == 5 {
+				//停止
+				ticker.Stop()
+			}
+		}
+	}()
+	for {
 	}
-	fmt.Println(user)
-	go func(msg string) {
-		fmt.Println(msg)
-	}("我来自协程")
 }
