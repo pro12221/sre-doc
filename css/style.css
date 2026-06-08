@@ -1254,6 +1254,87 @@ img { max-width: 100%; height: auto; }
 .post-card:nth-child(8) { transition-delay: .21s; }
 .post-card:nth-child(9) { transition-delay: .24s; }
 
+/* ============ Full-Width Toggle ============ */
+.full-width-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: color .15s, border-color .15s, background .15s;
+  padding: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.full-width-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  background: var(--bg-glass);
+}
+
+.full-width .full-width-toggle {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.full-width .full-width-toggle:hover {
+  color: var(--accent-hover);
+}
+
+.full-width-toggle .fw-icon-collapse { display: none; }
+.full-width .full-width-toggle .fw-icon-expand { display: none; }
+.full-width .full-width-toggle .fw-icon-collapse { display: inline-flex; }
+
+.full-width-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Full-width mode transitions */
+.article-page,
+.content-wrapper {
+  transition: max-width .3s ease;
+}
+
+.article-header {
+  transition: max-width .3s ease;
+}
+
+.article-content {
+  transition: max-width .3s ease;
+}
+
+/* Full-width mode overrides */
+.article-page.full-width {
+  max-width: 100%;
+}
+
+.content-wrapper.full-width {
+  max-width: 100% !important;
+}
+
+.full-width .article-header {
+  max-width: 100%;
+}
+
+.full-width .article-content {
+  max-width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .full-width .article-with-toc,
+  .full-width .article-layout {
+    gap: 64px;
+  }
+}
+
 /* ============ Responsive ============ */
 
 /* Large Desktop (> 1400px) */
@@ -1309,6 +1390,8 @@ img { max-width: 100%; height: auto; }
 
   .article-page { padding: 24px var(--content-padding) 60px; }
   .content-wrapper { padding: 24px var(--content-padding) 60px !important; }
+  .article-page.full-width,
+  .content-wrapper.full-width { padding-left: 10px; padding-right: 10px; }
   .article-content h2 { font-size: 20px; }
   .article-content pre { font-size: 12px; padding: 14px 16px; }
   .article-header h1 { font-size: 24px; }

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -88,6 +88,10 @@
         <div class="article-meta">
           <span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span>
           <span>2026-05-31</span>
+      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
+        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
+        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
+      </button>
         </div>
       </div>
 
@@ -735,6 +739,19 @@ function toggleMobileToc() {
   });
 
   updateActiveToc();
+})();
+// Full-width toggle
+(function() {
+  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
+  var toggle = document.getElementById('full-width-toggle');
+  if (!wrapper || !toggle) return;
+  if (localStorage.getItem('article-full-width') === 'true') {
+    wrapper.classList.add('full-width');
+  }
+  toggle.addEventListener('click', function() {
+    wrapper.classList.toggle('full-width');
+    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
+  });
 })();
 </script>
 

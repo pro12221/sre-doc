@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go GMP 原理与调度 - SRE Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="article-page">
+
+  <div class="article-header">
+    <div class="breadcrumb">
+      <a href="../index.html">首页</a> / <a href="../index.html#go">Go</a>
+    </div>
+    <h1>Go GMP 原理与调度</h1>
+    <div class="article-meta">
+      <span>
+        <span class="tag tag-go">Go</span>
+      </span>
+      <span>2026-06-07</span>
+      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
+        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
+        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="article-with-toc">
+
+    <div class="article-content">
+
+      <p>Go 语言的高并发能力源于其精巧的运行时调度器。理解 GMP 模型是掌握 Go 并发的关键——它解释了为什么你可以轻松创建上万个 goroutine 而不用担心性能问题。本文从调度器的演进历史讲起，逐步拆解 G、M、P 三个核心角色及其协作机制，并通过 11 个实战场景带你直观理解调度全过程。</p>
+
+      <h2>1. 调度器演进：从单进程到 goroutine</h2>
+
+      <h3>1.1 单进程时代：不需要调度器</h3>
+      <p>早期操作系统只支持单进程——一个程序跑完，下一个才能开始。所有任务串行执行。</p>
+      <p><strong>两个致命问题</strong>：</p>
+      <ul>
+        <li>单一执行流：计算机一次只能处理一个任务</li>
+        <li>进程阻塞浪费 CPU：等待 I/O 时 CPU 完全闲置</li>
+      </ul>
+      <div class="flow-diagram">
+进程 A 运行完毕 ──→ 进程 B 才开始
+等待 I/O 期间，CPU 完全空闲 ⚠️
+      </div>
+
+      <h3>1.2 多进程 / 多线程时代</h3>
+      <p>操作系统引入多进程并发：进程 A 阻塞时，CPU 立即切换到进程 B。宏观上"同时"运行多个程序。</p>
+      <p><strong>新问题来了</strong>：</p>
+      <ul>
+        <li><strong>高内存占用</strong>：每个进程虚拟内存 4GB（32 位），每个线程约 4MB</li>
+        <li><strong>调度开销大</strong>：进程/线程的创建、切换、销毁成本高，CPU 大量时间花在调度上</li>
+        <li><strong>并发编程复杂</strong>：锁、竞争、同步等问题让多线程开发很头疼</li>
+      </ul>
+
+      <h3>1.3 协程（Coroutine）登场</h3>
+      <p>工程师发现：线程分为"内核态线程"和"用户态线程"两层。CPU 只知道内核线程，用户态线程可以更轻量。</p>
+      <p><strong>三种协程与线程的映射关系</strong>：</p>
+      <table>
+        <thead><tr><th>模型</th><th>描述</th><th>优点</th><th>缺点</th></tr></thead>
+        <tbody>
+          <tr><td>N:1</td><td>N 个协程绑 1 个线程</td><td>用户态切换极快</td><td>无法利用多核，一阻塞全阻塞</td></tr>
+          <tr><td>1:1</td><td>1 个协程绑 1 个线程</td><td>实现简单，利用多核</td><td>创建/切换成本由内核完成，昂贵</td></tr>
+          <tr><td>M:N</td><td>M 个协程绑 N 个线程</td><td>兼顾轻量与多核</td><td>实现最复杂</td></tr>
+        </tbody>
+      </table>
+      <p>Go 的 goroutine 就是 <strong>M:N 模型</strong>的实现——既轻量又能利用多核。</p>
+
+      <h3>1.4 goroutine 的特点</h3>
+      <ul>
+        <li><strong>内存极小</strong>：一个 goroutine 初始栈仅 2KB，且可动态伸缩</li>
+        <li><strong>runtime 调度</strong>：由 Go 运行时调度，而非操作系统</li>
+        <li><strong>协作式 + 抢占式</strong>：正常情况下协程主动让出 CPU，但 Go 也加入了基于信号的抢占机制（10ms 强制切换）</li>
+      </ul>
+
+      <h3>1.5 被废弃的老调度器</h3>
+      <p>Go 在 2012 年重新设计调度器前，使用的是一个简单的 <strong>G-M 模型</strong>：</p>
+      <ul>
+        <li>全局只有一个 G 队列，所有 M（线程）都从那里取 G（goroutine）</li>
+        <li>所有操作都要加互斥锁保护全局队列</li>
+      </ul>
+      <p><strong>老调度器的三大缺陷</strong>：</p>
+      <ol>
+        <li><strong>激烈锁竞争</strong>：创建/销毁/调度 G 都需抢锁</li>
+        <li><strong>局部性差</strong>：G 创建新 G 后可能被丢到其他 M 执行，相关 goroutine 被分散</li>
+        <li><strong>系统调用开销大</strong>：线程频繁阻塞/唤醒增加系统负担</li>
+      </ol>
+      <div class="flow-diagram">
+老模型（全局锁）：
+M1 ──┐
+M2 ──┼── 🔒 Global Queue（所有 G）── CPU
+M3 ──┘     ↑ 问题：所有 M 竞争同一把锁
+      </div>
+
+      <h2>2. GMP 模型核心组件</h2>
+      <p>为解决老调度器的问题，Go 引入了 <strong>P（Processor）</strong>，形成 GMP 三元素模型。</p>
+
+      <h3>2.1 G（Goroutine）</h3>
+      <p>G 是 Go 中的协程，代表一个待执行的任务。每个 G 包含：</p>
+      <ul>
+        <li><strong>栈</strong>：goroutine 的执行栈（初始 2KB，可增长到 1GB）</li>
+        <li><strong>指令指针</strong>：当前执行位置</li>
+        <li><strong>状态</strong>：_Gidle、_Grunnable、_Grunning、_Gsyscall、_Gwaiting、_Gdead 等</li>
+        <li><strong>绑定的 M</strong>（如果正在运行）</li>
+      </ul>
+      <pre><code><span class="code-label">go</span>type g struct {
+    stack       stack     // 执行栈
+    sched       gobuf     // 调度上下文（sp, pc, g 等）
+    m           *m        // 当前绑定的 M
+    // ...
+}</code></pre>
+
+      <h3>2.2 M（Machine / OS Thread）</h3>
+      <p>M 是操作系统线程，是真正执行代码的实体。每个 M <strong>必须绑定一个 P</strong> 才能执行 G。</p>
+      <p><strong>关键特性</strong>：</p>
+      <ul>
+        <li>M 数量默认上限 10000，但受限于操作系统</li>
+        <li>M 阻塞时，P 会被转移到其他空闲 M</li>
+        <li>一个 Go 程序至少有一个 M（M0）</li>
+      </ul>
+
+      <h3>2.3 P（Processor）</h3>
+      <p>P 是 GMP 模型的<strong>调度核心</strong>，代表执行 goroutine 所需的上下文资源。</p>
+      <div class="flow-diagram">
+P 的关键属性：
+┌────────────────────────────────────┐
+│ P                                  │
+│  ├── runq [256]G   ← 本地 G 队列   │
+│  ├── runnext *G     ← 下一个优先执行的 G │
+│  ├── m *M           ← 当前绑定的 M  │
+│  ├── status         ← 状态         │
+│  └── ...             ← 缓存、GC 等 │
+└────────────────────────────────────┘
+      </div>
+      <p><strong>P 的数量</strong>：由 <code>GOMAXPROCS</code> 决定（默认等于 CPU 核心数），程序运行期间不变。</p>
+
+      <h3>2.4 全局队列（Global Queue）</h3>
+      <p>除了每个 P 的本地队列，还有一个<strong>全局 G 队列</strong>。它在新调度器中作用被弱化：</p>
+      <ul>
+        <li>P 本地队列满时，溢出的 G 放入全局队列</li>
+        <li>M 从其他 P 偷不到 G 时，从全局队列获取</li>
+        <li>全局队列仍有互斥锁，但访问频率远低于老模型</li>
+      </ul>
+
+      <h3>2.5 三者的协作关系</h3>
+      <div class="flow-diagram">
+         ┌──────────────────────────────┐
+         │         全局 G 队列            │
+         │  [G7] [G8] [G9] ...          │
+         └──────┬───────────────────────┘
+                │ (本地满时放入 / 偷不到时获取)
+    ┌───────────┼───────────┬───────────┐
+    ▼           ▼           ▼           ▼
+┌───────┐  ┌───────┐  ┌───────┐  ┌───────┐
+│  P0   │  │  P1   │  │  P2   │  │  P3   │
+│ G队列  │  │ G队列  │  │ G队列  │  │ G队列  │
+│ [G1]  │  │ [G3]  │  │ [G5]  │  │       │
+│ [G2]  │  │ [G4]  │  │       │  │       │
+└──┬────┘  └──┬────┘  └──┬────┘  └──┬────┘
+   │ 1:1      │ 1:1      │          │
+   ▼          ▼          ▼          ▼
+┌───────┐  ┌───────┐  ┌───────┐  ┌───────┐
+│  M0   │  │  M1   │  │  M2   │  │  M3   │
+│  OS   │  │  OS   │  │  OS   │  │ 自旋   │
+│Thread │  │Thread │  │Thread │  │(spin) │
+└───┬───┘  └───┬───┘  └───┬───┘  └───────┘
+    │          │          │
+    ▼          ▼          ▼
+  CPU 0      CPU 1      CPU 2       CPU 3
+      </div>
+      <p><strong>核心规则</strong>：</p>
+      <ul>
+        <li>P 的数量决定了<strong>真正并行</strong>的 goroutine 数量上限</li>
+        <li>M 必须"持有"一个 P 才能运行 G</li>
+        <li>P 与 M 是 1:1 绑定关系（任意时刻）</li>
+        <li>M 阻塞时，P 可以被转移到另一个 M</li>
+      </ul>
+
+      <h2>3. 调度器四大设计策略</h2>
+
+      <h3>3.1 线程复用（Work Stealing）</h3>
+      <p>当某个 M 的 P 本地队列为空时，不会销毁线程，而是：</p>
+      <ol>
+        <li>先从全局队列取一批 G</li>
+        <li>全局队列也空，就"偷"其他 P 本地队列一半的 G</li>
+      </ol>
+      <div class="flow-diagram">
+偷取前：                  偷取后：
+P0: [G1, G2, G3]        P0: [G1]        ← 留一半
+P1: [  (空的)  ]        P1: [G2, G3]    ← 偷到一半
+      </div>
+
+      <h3>3.2 Hand Off 机制</h3>
+      <p>当 M 正在执行的 G 发生<strong>阻塞系统调用</strong>（如文件 I/O、网络 I/O）时：</p>
+      <div class="flow-diagram">
+1. M1 执行 G 时发生 syscall → M1 阻塞
+2. P 与 M1 解绑（detach）
+3. P 寻找一个空闲 M（或新建 M）并绑定
+4. P 继续执行本地队列中剩余的 G
+5. syscall 返回后，G 尝试回到某个 P 继续执行
+      </div>
+
+      <h3>3.3 抢占调度</h3>
+      <p>传统协程是协作式的（主动让出），一个协程不主动让出就会饿死其他协程。Go 在 1.14 引入基于信号的<strong>异步抢占</strong>：</p>
+      <ul>
+        <li>每个 goroutine 最多连续占用 CPU <strong>10ms</strong></li>
+        <li>sysmon 监控线程检测到运行超时的 G，发送 SIGURG 信号</li>
+        <li>信号处理中完成抢占</li>
+      </ul>
+
+      <h3>3.4 利用并行</h3>
+      <p><code>GOMAXPROCS</code> 控制 P 的数量，也就控制了同时运行 goroutine 的 OS 线程数。默认等于 CPU 核数，让程序充分利用多核。</p>
+
+      <h2>4. go func() 调度全流程</h2>
+      <p>当你写下 <code>go func() { ... }()</code> 时，调度器经历了什么？</p>
+      <div class="flow-steps">
+        <div class="flow-step">go func() 创建新 goroutine G'</div>
+        <div class="flow-step">G' 优先放入当前 P 的本地队列（局部性原则）</div>
+        <div class="flow-step">本地队列未满 → 直接放入 runq</div>
+        <div class="flow-step">本地队列已满（256个） → 将一半 G + G' 转移到全局队列</div>
+      </div>
+
+      <p><strong>M 的调度循环（简化）</strong>：</p>
+      <pre><code><span class="code-label">go</span>schedule() {
+    for {
+        // 1. 每 61 次调度检查一次全局队列
+        // 2. 从 P 本地队列取 G
+        // 3. 本地空 → 从全局队列取一批
+        // 4. 全局空 → 从其他 P 偷一半（work stealing）
+        // 5. execute(G) → 运行 G
+    }
+}</code></pre>
+
+      <p><strong>阻塞时的处理</strong>：</p>
+      <table>
+        <thead><tr><th>阻塞类型</th><th>处理方式</th></tr></thead>
+        <tbody>
+          <tr><td>阻塞 syscall（文件 I/O）</td><td>P 与 M 解绑，P 换新 M 继续运行其他 G</td></tr>
+          <tr><td>非阻塞 syscall（网络 I/O）</td><td>G 进入 netpoller，M 继续执行其他 G</td></tr>
+          <tr><td>channel 操作阻塞</td><td>G 挂到 channel 等待队列，M 执行其他 G</td></tr>
+          <tr><td>time.Sleep</td><td>G 放入定时器堆，M 继续执行其他 G</td></tr>
+        </tbody>
+      </table>
+
+      <h2>5. 调度器生命周期</h2>
+
+      <h3>5.1 特殊的 M0 和 G0</h3>
+      <table>
+        <thead><tr><th>角色</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>M0</strong></td><td>程序启动时的主线程，存在全局变量 <code>runtime.m0</code> 中。负责初始化，之后与普通 M 无异</td></tr>
+          <tr><td><strong>G0</strong></td><td>每个 M 都有一个 G0，仅用于<strong>调度逻辑</strong>，不执行用户代码。调度或系统调用时使用 G0 的栈</td></tr>
+        </tbody>
+      </table>
+
+      <h3>5.2 Hello World 调度全过程</h3>
+      <p>以最简单的 <code>fmt.Println("Hello world")</code> 为例：</p>
+      <div class="flow-steps">
+        <div class="flow-step">runtime 创建 m0 和 g0，将二者关联</div>
+        <div class="flow-step">调度器初始化：初始化 m0、栈、GC，创建 GOMAXPROCS 个 P</div>
+        <div class="flow-step">创建 main goroutine（执行 runtime.main），加入 P0 本地队列</div>
+        <div class="flow-step">启动 m0，绑定 P0，从 P0 获取 main goroutine</div>
+        <div class="flow-step">m0 根据 G 的栈和上下文设置运行环境 → 执行 main.main → 打印</div>
+        <div class="flow-step">main.main 退出 → m0 回到调度循环 → runtime.main 执行清理 → 退出</div>
+      </div>
+
+      <h2>6. 十一个调度场景实战解析</h2>
+      <div class="highlight-box">
+        <p><strong>说明：</strong>以下场景假定每个 P 本地队列容量暂按 3 个 G 计算（实际为 256），以便直观演示。</p>
+      </div>
+
+      <h3>场景 1：创建新 goroutine</h3>
+      <p>P1 上 M1 正在运行 G1。G1 中执行 <code>go func()</code> 创建 G2。G2 <strong>优先加入 P1 的本地队列</strong>。</p>
+      <div class="flow-diagram">
+P1 本地队列: [G2]  ← 新创建的
+M1 正在运行:  G1
+      </div>
+
+      <h3>场景 2：goroutine 执行完毕，线程复用</h3>
+      <p>G1 执行完毕（调用 <code>goexit</code>），M1 上切换到 G0（调度 goroutine）。G0 从 P1 本地队列取出 G2，切换到 G2 继续执行。<strong>M1 被复用，没有销毁重建</strong>。</p>
+      <div class="flow-diagram">
+调度前后（同一线程 M1）：
+G1 (完成) → G0 (调度) → G2 (执行)
+      </div>
+
+      <h3>场景 3-4：本地队列满，负载均衡</h3>
+      <p>G2 一口气创建了 6 个 goroutine（G3~G8）。前 3 个（G3、G4、G5）填满 P1 本地队列。创建 G6 时发现队列已满，将前一半（G3、G4）和新创建的 G6 一起移到全局队列（顺序被打乱）。</p>
+      <div class="flow-diagram">
+移入全局队列前：               移入全局队列后：
+P1: [G3, G4, G5, G6→]       P1: [G5, G7, G8]
+                             全局: [G3, G4, G6]（乱序）
+      </div>
+
+      <h3>场景 5：有空位继续放入</h3>
+      <p>G2 创建 G8 时，P1 有空位，G8 直接加入 P1 本地队列。</p>
+
+      <h3>场景 6：唤醒空闲 M</h3>
+      <p>G2 运行时可能唤醒一个空闲的 P2-M2 组合。M2 绑定 P2 后进入自旋状态（不断寻找 G 来执行）。</p>
+
+      <h3>场景 7：从全局队列取 G</h3>
+      <p>自旋的 M2 发现 P2 本地队列为空，从全局队列取 G。取的数量公式为 <code>n = min(len(GQ)/GOMAXPROCS + 1, len(GQ)/2)</code>，至少 1 个，且不会一次取光。</p>
+      <div class="flow-diagram">
+全局队列: [G3, G4, G6]
+n = min(3/2 + 1, 3/2) = min(2, 1) = 1
+
+P2 取到 G3，开始运行 G3
+      </div>
+
+      <h3>场景 8：Work Stealing</h3>
+      <p>P2 执行完本地所有 G，全局队列也空了。M2 执行 work stealing——从 P1 的本地队列<strong>尾部</strong>"偷"一半 G。</p>
+      <div class="flow-diagram">
+偷取前：                  偷取后：
+P1: [G5, G7, G8]        P1: [G5, G7]       ← 还剩 2 个
+P2: [  (空)  ]          P2: [G8]           ← 偷到 G8
+      </div>
+
+      <h3>场景 9：自旋线程</h3>
+      <p>M3 和 M4 没有 G 可执行，进入自旋状态。<strong>自旋线程不执行 G 但占用 CPU</strong>——为什么？</p>
+      <div class="highlight-box">
+        <p>自旋是为了"随时待命"：当新 goroutine 创建时，立刻有 M 能执行它。如果销毁再新建会增加时延。系统最多允许 <code>GOMAXPROCS</code> 个自旋线程，多余的会休眠。</p>
+      </div>
+
+      <h3>场景 10：Hand Off（阻塞系统调用）</h3>
+      <p>M2 上的 G8 发生阻塞 syscall（如读文件），且 G8 创建了 G9：</p>
+      <div class="flow-steps">
+        <div class="flow-step">G8 阻塞 → M2 被操作系统挂起</div>
+        <div class="flow-step">P2 与 M2 解绑（detach）</div>
+        <div class="flow-step">P2 判断：本地队列有 G9 → 唤醒空闲 M5 并绑定</div>
+        <div class="flow-step">M5 绑定 P2，继续执行 G9</div>
+        <div class="flow-step">syscall 返回 → G8 尝试获取空闲 P → 有则加入，无则 M2 休眠、G8 入全局队列</div>
+      </div>
+
+      <h3>场景 11：非阻塞网络 I/O</h3>
+      <p>G8 发起网络 I/O（非阻塞），G8 被放入 <strong>netpoller</strong> 中等待。G8 创建的 G9 留在 P2 本地队列继续执行。M2 不会阻塞，P2 也不需要换 M。</p>
+      <div class="highlight-box">
+        <p><strong>阻塞 vs 非阻塞的关键区别：</strong>阻塞系统调用需要 hand off（P 换 M），非阻塞网络 I/O 通过 netpoller 异步处理，M 和 P 都不受影响。</p>
+      </div>
+
+      <h2>7. 可视化 GMP</h2>
+
+      <h3>7.1 GODEBUG 环境变量</h3>
+      <p>最简单的 GMP 观察方式——运行时打印调度器状态：</p>
+      <pre><code><span class="code-label">go</span>package main
+
+import (
+    "fmt"
+    "time"
+)
+
+func main() {
+    for i := 0; i &lt; 5; i++ {
+        time.Sleep(time.Second)
+        fmt.Println("Hello World")
+    }
+}</code></pre>
+      <pre><code><span class="code-label">bash</span>$ go build -o trace2 trace2.go
+$ GODEBUG=schedtrace=1000 ./trace2</code></pre>
+      <p>输出解读：</p>
+      <table>
+        <thead><tr><th>字段</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td><code>SCHED</code></td><td>调度器输出标志</td></tr>
+          <tr><td><code>0ms</code></td><td>程序启动后的时间</td></tr>
+          <tr><td><code>gomaxprocs=2</code></td><td>P 的数量</td></tr>
+          <tr><td><code>idleprocs=2</code></td><td>空闲 P 的数量</td></tr>
+          <tr><td><code>threads=4</code></td><td>OS 线程（M）总数</td></tr>
+          <tr><td><code>spinningthreads=0</code></td><td>自旋线程数</td></tr>
+          <tr><td><code>idlethreads=2</code></td><td>空闲线程数</td></tr>
+          <tr><td><code>runqueue=0</code></td><td>全局队列中 G 的数量</td></tr>
+          <tr><td><code>[0 0]</code></td><td>各 P 本地队列中 G 的数量</td></tr>
+        </tbody>
+      </table>
+
+      <h3>7.2 go tool trace</h3>
+      <p>更强大的可视化工具，能在浏览器中查看 G、M、P 的调度关系图：</p>
+      <pre><code><span class="code-label">go</span>package main
+
+import (
+    "os"
+    "fmt"
+    "runtime/trace"
+)
+
+func main() {
+    f, _ := os.Create("trace.out")
+    defer f.Close()
+
+    trace.Start(f)
+    defer trace.Stop()
+
+    fmt.Println("Hello World")
+}</code></pre>
+      <pre><code><span class="code-label">bash</span>$ go run trace.go
+$ go tool trace trace.out
+# 浏览器打开 http://127.0.0.1:xxxxx → 点击 "view trace"</code></pre>
+      <p>trace 页面按时间轴展示每个 G、M、P 的状态变化，可以直观看到 goroutine 的创建、切换、阻塞和唤醒全过程。</p>
+
+      <h2>8. 总结</h2>
+      <p>GMP 模型的精髓可以用一句话概括：</p>
+      <div class="highlight-box">
+        <p><strong>G 是需要执行的任务，M 是执行者（OS 线程），P 是执行所需的资源上下文。P 是 G 和 M 之间的"调度中介"，通过本地队列减少锁竞争，通过 work stealing 和 hand off 实现高效的线程复用。</strong></p>
+      </div>
+
+      <p><strong>核心要点速查</strong>：</p>
+      <table>
+        <thead><tr><th>概念</th><th>关键点</th></tr></thead>
+        <tbody>
+          <tr><td>G</td><td>goroutine，轻量级协程，初始栈 2KB</td></tr>
+          <tr><td>M</td><td>OS 线程，必须绑定 P 才能执行 G</td></tr>
+          <tr><td>P</td><td>调度核心，含本地 G 队列（256 上限），数量 = GOMAXPROCS</td></tr>
+          <tr><td>全局队列</td><td>P 本地满时溢出，偷不到时兜底</td></tr>
+          <tr><td>Work Stealing</td><td>P 本地空 → 从其他 P 偷一半 G</td></tr>
+          <tr><td>Hand Off</td><td>M 阻塞 → P 换另一个 M 继续</td></tr>
+          <tr><td>抢占</td><td>goroutine 最多连续 10ms，超时强制切换</td></tr>
+          <tr><td>M0</td><td>程序启动的第一个线程</td></tr>
+          <tr><td>G0</td><td>每个 M 的调度专用 goroutine</td></tr>
+        </tbody>
+      </table>
+      <p>理解 GMP，你对 Go 并发的理解就从"会用 goroutine"上升到"理解 goroutine 怎么跑"——这是写出高性能 Go 程序的基础。</p>
+
+    </div>
+
+    <!-- TOC -->
+    <aside class="toc-container" id="toc-container">
+      <div class="toc-title">目录</div>
+      <ul class="toc-list" id="toc-list"></ul>
+    </aside>
+
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="../index.html">首页</a>
+      <a href="../about.html">关于</a>
+      <a href="https://github.com/pro12221" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">&copy; 2026 SRE Notes. Powered by Cloudflare Pages.</div>
+  </div>
+</footer>
+
+<!-- Mobile TOC -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var panel = document.getElementById('toc-mobile-panel');
+      if (panel) panel.classList.remove('show');
+    });
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 80 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+  updateActiveToc();
+})();
+// Full-width toggle
+(function() {
+  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
+  var toggle = document.getElementById('full-width-toggle');
+  if (!wrapper || !toggle) return;
+  if (localStorage.getItem('article-full-width') === 'true') {
+    wrapper.classList.add('full-width');
+  }
+  toggle.addEventListener('click', function() {
+    wrapper.classList.toggle('full-width');
+    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
+  });
+})();
+</script>
+
+<script src="../js/nav.js"></script>
+
+</body>
+</html>
