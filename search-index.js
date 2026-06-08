@@ -238,5 +238,21 @@ window.SEARCH_INDEX = [
     category: "kubernetes",
     date: "2026-06-07",
     url: "posts/kubernetes-持久化存储.html"
+  },
+  {
+    title: "Go GMP 原理与调度",
+    desc: "Go GMP 并发调度模型详解：从单进程到协程的演进、G/M/P 三角色分工与协作、work stealing 与 hand off 机制、调度全生命周期及 11 个场景实战解析。",
+    tags: ["go"],
+    category: "go",
+    date: "2026-06-07",
+    url: "posts/go-gmp-原理与调度.html"
+  },
+  {
+    title: "基于 Etcd 实现分布式锁",
+    desc: "Etcd 核心概念与架构详解：Raft 共识算法、MVCC 多版本控制、Lease 租约机制、Watch 事件驱动、分布式锁两种实现模式及 Kubernetes 集群部署实战。",
+    tags: ["go", "kubernetes"],
+    category: "go",
+    date: "2026-06-08",
+    url: "posts/基于-etcd-实现分布式锁.html"
   }
 ];
