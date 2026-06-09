@@ -254,5 +254,13 @@ window.SEARCH_INDEX = [
     category: "go",
     date: "2026-06-08",
     url: "posts/基于-etcd-实现分布式锁.html"
+  },
+  {
+    title: "GORM ORM 详解",
+    desc: "GORM ORM 完全指南：模型定义与字段权限控制、数据库连接与连接池配置、AutoMigrate 自动迁移、CRUD 全操作与复杂查询、原生 SQL 使用。",
+    tags: ["go", "devops"],
+    category: "go",
+    date: "2026-06-09",
+    url: "posts/gorm-orm-详解.html"
   }
 ];

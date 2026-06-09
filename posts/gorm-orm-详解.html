@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GORM ORM 详解 - SRE Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="article-page">
+
+  <div class="article-header">
+    <div class="breadcrumb">
+      <a href="../index.html">首页</a> / <a href="../index.html#go">Go</a>
+    </div>
+    <h1>GORM ORM 详解</h1>
+    <div class="article-meta">
+      <span>
+        <span class="tag tag-go">Go</span><span class="tag tag-devops">DevOps</span>
+      </span>
+      <span>2026-06-09</span>
+      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
+        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
+        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 4l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="article-with-toc">
+
+    <div class="article-content">
+
+      <p>GORM 通过将 Go 结构体（Go structs）映射到数据库表来简化数据库交互。了解如何在 GORM 中定义模型，是充分利用 GORM 全部功能的基础。</p>
+
+      <p>模型是使用普通结构体定义的。这些结构体可以包含具有基本 Go 类型、指针或这些类型的别名，甚至是自定义类型（只需要实现 <code>database/sql</code> 包中的 Scanner 和 Valuer 接口）。</p>
+
+      <h2>1. 模型定义</h2>
+
+<pre><code><span class="code-label">go</span>type User struct {
+  ID           uint           // Standard field for the primary key
+  Name         string         // A regular string field
+  Email        *string        // A pointer to a string, allowing for null values
+  Age          uint8          // An unsigned 8-bit integer
+  Birthday     *time.Time     // A pointer to time.Time, can be null
+  MemberNumber sql.NullString // Uses sql.NullString to handle nullable strings
+  ActivatedAt  sql.NullTime   // Uses sql.NullTime for nullable time fields
+  CreatedAt    time.Time      // Automatically managed by GORM for creation time
+  UpdatedAt    time.Time      // Automatically managed by GORM for update time
+  ignored      string         // 小写字母开头不会被映射
+}</code></pre>
+
+      <p>Go 的结构体 <code>User</code> → 数据库表 <code>users</code>，<code>GormUserName</code> → <code>gorm_user_names</code>。这是 GORM 的约定，方便你不需要手动指定表名。</p>
+
+      <p>GORM 提供了一个预定义的结构体，名为 <code>gorm.Model</code>，其中包含常用字段：</p>
+
+<pre><code><span class="code-label">go</span>// gorm.Model 的定义
+type Model struct {
+  ID        uint           `gorm:"primaryKey"`
+  CreatedAt time.Time
+  UpdatedAt time.Time
+  DeletedAt gorm.DeletedAt `gorm:"index"`
+}</code></pre>
+
+      <h2>2. 字段权限控制</h2>
+
+<pre><code><span class="code-label">go</span>type User struct {
+  Name string `gorm:"<-:create"` // 允许读和创建
+  Name string `gorm:"<-:update"` // 允许读和更新
+  Name string `gorm:"<-"`        // 允许读和写（创建和更新）
+  Name string `gorm:"<-:false"`  // 允许读，禁止写
+  Name string `gorm:"->"`        // 只读（除非有自定义配置，否则禁止写）
+  Name string `gorm:"->;<-:create"` // 允许读和写
+  Name string `gorm:"->:false;<-:create"` // 仅创建（禁止从 db 读）
+  Name string `gorm:"-"`  // 通过 struct 读写会忽略该字段
+  Name string `gorm:"-:all"`        // 通过 struct 读写、迁移会忽略该字段
+  Name string `gorm:"-:migration"`  // 通过 struct 迁移会忽略该字段
+}</code></pre>
+
+      <h2>3. 链接到数据库</h2>
+
+<pre><code><span class="code-label">go</span>package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+)
+
+var DB *gorm.DB
+
+func main() {
+	dsn := "root:@tcp(117.50.217.36:3306)/mysql?charset=utf8mb4&parseTime=True&loc=Local"
+
+	// 打印尝试连接的数据库信息
+	fmt.Printf("尝试连接: %s@%s:%d/%s\n", "root", "117.50.217.36", 3306, "mysql")
+
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		// 打印详细错误信息
+		log.Fatalf("连接数据库失败，详细错误: %v\n", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("获取底层连接池失败: %v\n", err)
+	}
+
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	fmt.Println("数据库连接成功！")
+	DB = db
+}</code></pre>
+
+      <h2>4. 自动迁移 AutoMigrate</h2>
+
+      <p>自动迁移（AutoMigrate）是 GORM 提供的一个功能，它可以自动将你定义的 Go 结构体转换为数据库中的表结构，并保持同步。简单说：你只管写 Go 代码定义模型，GORM 自动帮你创建/更新数据库表。<strong>不会删除</strong>已有列。</p>
+
+      <table>
+        <thead><tr><th>功能</th><th>说明</th><th>示例</th></tr></thead>
+        <tbody>
+          <tr><td>创建表</td><td>结构体 → 数据库表</td><td>User 结构体 → users 表</td></tr>
+          <tr><td>添加字段</td><td>结构体新增字段 → 表新增列</td><td>加 Email 字段 → 表加 email 列</td></tr>
+          <tr><td>修改字段类型</td><td>字段类型改变 → 列类型改变</td><td>int 改 string → 列类型变更</td></tr>
+          <tr><td>设置约束</td><td>标签定义的约束 → 数据库约束</td><td>not null, unique, default 等</td></tr>
+          <tr><td>创建索引</td><td>标签定义索引 → 数据库索引</td><td>gorm:"index", gorm:"uniqueIndex"</td></tr>
+          <tr><td>修改字段属性</td><td>字段属性改变 → 列属性改变</td><td>size:100 → VARCHAR(100)</td></tr>
+        </tbody>
+      </table>
+
+<pre><code><span class="code-label">go</span>package main
+
+import (
+	"fmt"
+	"time"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+)
+
+type User struct {
+	ID        uint
+	Name      string
+	Age       int
+	Email     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func main() {
+	dsn := "root:@tcp(117.50.217.36:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic("连接失败: " + err.Error())
+	}
+
+	// 自动创建表（如果表不存在就创建，存在就检查字段）
+	db.AutoMigrate(&User{})
+
+	fmt.Println("表创建/同步成功！")
+}</code></pre>
+
+      <h2>5. CRUD 操作</h2>
+
+<pre><code><span class="code-label">go</span>package main
+
+import (
+	"fmt"
+	"time"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+)
+
+type User struct {
+	ID        uint
+	Name      string
+	Age       int
+	Email     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func main() {
+	dsn := "root:@tcp(117.50.217.36:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic("连接失败: " + err.Error())
+	}
+
+	// 自动创建表
+	db.AutoMigrate(&User{})
+	fmt.Println("表创建/同步成功！")
+
+	// ========== 1. 创建记录 (Create) ==========
+	createUser(db)
+
+	// ========== 2. 批量创建 ==========
+	batchCreateUsers(db)
+
+	// ========== 3. 查询记录 (Read) ==========
+	queryUser(db)
+
+	// ========== 4. 更新记录 (Update) ==========
+	updateUser(db)
+
+	// ========== 5. 删除记录 (Delete) ==========
+	deleteUser(db)
+
+	// ========== 6. 复杂查询示例 ==========
+	complexQuery(db)
+}</code></pre>
+
+      <h3>5.1 创建单条记录</h3>
+
+<pre><code><span class="code-label">go</span>func createUser(db *gorm.DB) {
+	fmt.Println("\n--- 创建用户 ---")
+	
+	user := User{
+		Name:  "张三",
+		Age:   25,
+		Email: "zhangsan@example.com",
+	}
+	
+	result := db.Create(&user)
+	if result.Error != nil {
+		fmt.Printf("创建失败: %v\n", result.Error)
+		return
+	}
+	
+	fmt.Printf("创建成功！用户ID: %d, 姓名: %s, 年龄: %d, 邮箱: %s\n", 
+		user.ID, user.Name, user.Age, user.Email)
+}</code></pre>
+
+      <h3>5.2 批量创建</h3>
+
+<pre><code><span class="code-label">go</span>func batchCreateUsers(db *gorm.DB) {
+	fmt.Println("\n--- 批量创建用户 ---")
+	
+	users := []User{
+		{Name: "李四", Age: 30, Email: "lisi@example.com"},
+		{Name: "王五", Age: 28, Email: "wangwu@example.com"},
+		{Name: "赵六", Age: 35, Email: "zhaoliu@example.com"},
+	}
+	
+	result := db.Create(&users)
+	if result.Error != nil {
+		fmt.Printf("批量创建失败: %v\n", result.Error)
+		return
+	}
+	
+	fmt.Printf("批量创建成功！共创建 %d 条记录\n", result.RowsAffected)
+}</code></pre>
+
+      <h3>5.3 查询记录</h3>
+
+<pre><code><span class="code-label">go</span>func queryUser(db *gorm.DB) {
+	fmt.Println("\n--- 查询用户 ---")
+	
+	var user User
+	var users []User
+	
+	// 查询单条记录（根据主键）
+	db.First(&user, 1)
+	fmt.Printf("查询ID=1的用户: 姓名=%s, 年龄=%d, 邮箱=%s\n", user.Name, user.Age, user.Email)
+	
+	// 查询单条记录（根据条件）
+	db.Where("name = ?", "张三").First(&user)
+	fmt.Printf("查询姓名为张三的用户: ID=%d, 年龄=%d, 邮箱=%s\n", user.ID, user.Age, user.Email)
+	
+	// 查询所有记录
+	db.Find(&users)
+	fmt.Printf("查询所有用户: 共 %d 条记录\n", len(users))
+	for _, u := range users {
+		fmt.Printf("  - ID:%d, 姓名:%s, 年龄:%d, 邮箱:%s\n", u.ID, u.Name, u.Age, u.Email)
+	}
+	
+	// 条件查询
+	var youngUsers []User
+	db.Where("age &lt; ?", 30).Find(&youngUsers)
+	fmt.Printf("\n年龄小于30的用户: 共 %d 条\n", len(youngUsers))
+	
+	// 查询指定字段
+	var names []string
+	db.Model(&User{}).Select("name").Find(&names)
+	fmt.Printf("所有用户姓名: %v\n", names)
+}</code></pre>
+
+      <h3>5.4 更新记录</h3>
+
+<pre><code><span class="code-label">go</span>func updateUser(db *gorm.DB) {
+	fmt.Println("\n--- 更新用户 ---")
+	
+	// 先查询要更新的用户
+	var user User
+	db.First(&user, 1)
+	
+	// 更新单个字段
+	db.Model(&user).Update("age", 26)
+	fmt.Printf("更新用户ID=%d的年龄为26\n", user.ID)
+	
+	// 更新多个字段
+	db.Model(&user).Updates(User{
+		Name:  "张三-更新",
+		Email: "zhangsan_new@example.com",
+	})
+	fmt.Printf("更新用户ID=%d的姓名和邮箱\n", user.ID)
+	
+	// 使用 map 更新（不会忽略零值）
+	db.Model(&user).Updates(map[string]interface{}{
+		"name": "张三-map更新",
+		"age":  27,
+	})
+	fmt.Printf("使用map更新用户ID=%d\n", user.ID)
+	
+	// 批量更新（更新所有符合条件的记录）
+	db.Model(&User{}).Where("age > ?", 30).Update("age", 31)
+	fmt.Println("批量更新：将所有年龄大于30的用户年龄改为31")
+}</code></pre>
+
+      <h3>5.5 删除记录</h3>
+
+<pre><code><span class="code-label">go</span>func deleteUser(db *gorm.DB) {
+	fmt.Println("\n--- 删除用户 ---")
+	
+	// 删除单条记录（需要主键）
+	var user User
+	db.First(&user, "name = ?", "赵六")
+	if user.ID != 0 {
+		db.Delete(&user)
+		fmt.Printf("删除用户: %s (ID=%d)\n", user.Name, user.ID)
+	}
+	
+	// 批量删除
+	result := db.Where("age > ?", 30).Delete(&User{})
+	fmt.Printf("批量删除年龄大于30的用户: 删除了 %d 条记录\n", result.RowsAffected)
+	
+	// 注意：由于 User 结构体没有 gorm.DeletedAt 字段
+	// 这里的删除是物理删除（永久删除数据）
+}</code></pre>
+
+      <h3>5.6 复杂查询示例</h3>
+
+<pre><code><span class="code-label">go</span>func complexQuery(db *gorm.DB) {
+	fmt.Println("\n--- 复杂查询 ---")
+	
+	var users []User
+	
+	// IN 查询
+	db.Where("age IN ?", []int{25, 28, 30}).Find(&users)
+	fmt.Printf("年龄在25,28,30的用户: %d 条\n", len(users))
+	
+	// LIKE 查询
+	db.Where("name LIKE ?", "%张%").Find(&users)
+	fmt.Printf("姓名包含'张'的用户: %d 条\n", len(users))
+	
+	// AND 条件
+	db.Where("name = ? AND age > ?", "张三", 20).Find(&users)
+	fmt.Printf("姓名为张三且年龄大于20的用户: %d 条\n", len(users))
+	
+	// OR 条件
+	db.Where("name = ?", "张三").Or("name = ?", "李四").Find(&users)
+	fmt.Printf("姓名为张三或李四的用户: %d 条\n", len(users))
+	
+	// 排序
+	db.Order("age desc").Find(&users)
+	fmt.Println("按年龄降序排列:")
+	for _, u := range users {
+		fmt.Printf("  - %s: %d岁\n", u.Name, u.Age)
+	}
+	
+	// 分页查询（Limit + Offset）
+	var pagedUsers []User
+	db.Limit(2).Offset(0).Find(&pagedUsers)
+	fmt.Printf("分页查询第1页(每页2条): %d 条\n", len(pagedUsers))
+	
+	// 统计数量
+	var count int64
+	db.Model(&User{}).Where("age > ?", 25).Count(&count)
+	fmt.Printf("年龄大于25岁的用户数量: %d\n", count)
+}</code></pre>
+
+      <h2>6. 原生 SQL</h2>
+
+      <p>当 GORM 的链式调用无法满足需求时，可以直接使用原生 SQL：</p>
+
+      <table>
+        <thead><tr><th>CRUD 操作</th><th>SQL 生成器方式</th><th>原生 SQL 方式</th></tr></thead>
+        <tbody>
+          <tr><td>创建</td><td><code>db.Create(&amp;user)</code></td><td><code>db.Exec("INSERT INTO users ...")</code></td></tr>
+          <tr><td>查询单条</td><td><code>db.First(&amp;user, 1)</code></td><td><code>db.Raw("SELECT * FROM users WHERE id = ?", 1).Scan(&amp;user)</code></td></tr>
+          <tr><td>查询多条</td><td><code>db.Where("age &gt; ?", 18).Find(&amp;users)</code></td><td><code>db.Raw("SELECT * FROM users WHERE age &gt; ?", 18).Scan(&amp;users)</code></td></tr>
+          <tr><td>更新</td><td><code>db.Model(&amp;user).Update("age", 26)</code></td><td><code>db.Exec("UPDATE users SET age = ? WHERE id = ?", 26, user.ID)</code></td></tr>
+          <tr><td>删除</td><td><code>db.Delete(&amp;user)</code></td><td><code>db.Exec("DELETE FROM users WHERE id = ?", user.ID)</code></td></tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- TOC -->
+    <aside class="toc-container" id="toc-container">
+      <div class="toc-title">目录</div>
+      <ul class="toc-list" id="toc-list"></ul>
+    </aside>
+
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="../index.html">首页</a>
+      <a href="about.html">关于</a>
+      <a href="https://github.com/pro12221" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">&copy; 2026 SRE Notes. Powered by Cloudflare Pages.</div>
+  </div>
+</footer>
+
+<!-- Mobile TOC -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var panel = document.getElementById('toc-mobile-panel');
+      if (panel) panel.classList.remove('show');
+    });
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 80 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+  updateActiveToc();
+})();
+
+// Full-width toggle
+(function() {
+  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
+  var toggle = document.getElementById('full-width-toggle');
+  if (!wrapper || !toggle) return;
+  if (localStorage.getItem('article-full-width') === 'true') {
+    wrapper.classList.add('full-width');
+  }
+  toggle.addEventListener('click', function() {
+    wrapper.classList.toggle('full-width');
+    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
+  });
+})();
+</script>
+
+<script src="../js/nav.js"></script>
+
+</body>
+</html>
