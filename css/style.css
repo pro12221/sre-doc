@@ -718,6 +718,7 @@ img { max-width: 100%; height: auto; }
   line-height: 1.65;
   font-size: 16px;
   max-width: 68ch;
+  width: 100%;
 }
 
 .article-content h2 {
@@ -1392,6 +1393,7 @@ img { max-width: 100%; height: auto; }
   .content-wrapper { padding: 24px var(--content-padding) 60px !important; }
   .article-page.full-width,
   .content-wrapper.full-width { padding-left: 10px; padding-right: 10px; }
+  .article-content { max-width: 100%; }
   .article-content h2 { font-size: 20px; }
   .article-content pre { font-size: 12px; padding: 14px 16px; }
   .article-header h1 { font-size: 24px; }
