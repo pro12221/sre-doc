@@ -784,6 +784,176 @@ Session 生命周期：
         <p><strong>💡 Session 的作用</strong>：Session 是锁的"保险机制"。如果客户端崩溃或网络断开，Lease 无法续约 → 60 秒后 TTL 到期 → Key 自动删除 → 锁自动释放，不会死锁。这是 etcd 分布式锁相对 Redis 实现的关键优势。</p>
       </div>
 
+      <h3>7.3 代码逐行详细解析</h3>
+
+      <h4>导入与连接</h4>
+
+      <pre><code><span class="code-label">go</span>import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    "go.etcd.io/etcd/client/v3"
+    "go.etcd.io/etcd/client/v3/concurrency"
+)</code></pre>
+
+      <table>
+        <thead><tr><th>包</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>clientv3</code></td><td>etcd v3 API 客户端，负责所有 gRPC 通信</td></tr>
+          <tr><td><code>concurrency</code></td><td>etcd 提供的分布式原语包（Mutex、Election 等）</td></tr>
+        </tbody>
+      </table>
+
+      <pre><code><span class="code-label">go</span>endpoints := []string{"127.0.0.1:2379"}
+cli, err := clientv3.New(clientv3.Config{
+    Endpoints:   endpoints,
+    DialTimeout: 5 * time.Second,
+})
+defer cli.Close()</code></pre>
+
+      <p><code>clientv3.New()</code> 内部做了：</p>
+      <ul>
+        <li>创建 gRPC 连接（不是 HTTP，是 <strong>gRPC</strong>）</li>
+        <li>发起 TCP 握手 + etcd proto 握手</li>
+        <li>启动后台 keepalive goroutine</li>
+      </ul>
+      <p><code>defer cli.Close()</code> — 关闭所有关联的 Session 和 Watch。</p>
+
+      <h4>创建两个竞争 Session</h4>
+
+      <pre><code><span class="code-label">go</span>s1, err := concurrency.NewSession(cli)
+defer s1.Close()
+m1 := concurrency.NewMutex(s1, "/my-lock/")</code></pre>
+
+      <p><code>concurrency.NewSession(cli)</code> 内部做了什么：</p>
+      <ol>
+        <li>调用 etcd <strong>Lease Grant API</strong> 申请一个租约（默认 TTL = 60 秒）</li>
+        <li>启动后台 goroutine 定期发送 <strong>Lease KeepAlive</strong></li>
+        <li>如果 keepalive 失败（网络断开），lease 过期后对应的 Key 会被 etcd 自动删除</li>
+      </ol>
+
+      <p><code>concurrency.NewMutex(s1, "/my-lock/")</code> — 只是构造一个本地 Mutex 对象，<strong>没有网络请求</strong>。</p>
+
+      <h4>s1 获取锁</h4>
+
+      <pre><code><span class="code-label">go</span>fmt.Println("s1: 尝试获取锁...")
+if err := m1.Lock(context.TODO()); err != nil {
+    log.Fatal(err)
+}</code></pre>
+
+      <p><code>m1.Lock()</code> 内部执行的核心流程：</p>
+
+      <div class="flow-steps">
+        <div class="flow-step">1. 调用 Lease Grant → 创建一个新的 lease（或使用 session 绑定的 lease）</div>
+        <div class="flow-step">2. 创建 Key: <code>/my-lock/{lease_id}</code>，绑定 lease</div>
+        <div class="flow-step">3. 调用 Get <code>/my-lock/</code> WithPrefix → 拿到该 prefix 下所有 Key，按键值升序排列</div>
+        <div class="flow-step">4. 检查自己的 Key 是不是第一个（最小） → 是则获取锁成功，否则 Wait 前一个 Key 的删除事件</div>
+      </div>
+
+      <p>当前没有其他竞争者，所以 s1 直接获取锁成功。</p>
+
+      <h4>s2 在 goroutine 中竞争锁</h4>
+
+      <pre><code><span class="code-label">go</span>m2Locked := make(chan struct{})
+go func() {
+    defer close(m2Locked)
+    fmt.Println("s2: 尝试获取锁（会阻塞等待 s1 释放）...")
+    if err := m2.Lock(context.TODO()); err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println("s2: 成功获取锁")
+}()</code></pre>
+
+      <div class="card">
+        <p><strong>关键设计点</strong></p>
+        <ul>
+          <li><code>m2Locked</code> 是<strong>无 buffer channel</strong>，用于同步信号</li>
+          <li><code>defer close(m2Locked)</code> — s2 获取锁后关闭 channel，通知 main goroutine</li>
+          <li><code>m2.Lock()</code> 会<strong>阻塞</strong>：创建自己的 Key 后发现不是最小的，启动 Watch 监听前一个 Key 的删除事件</li>
+          <li><strong>不需要轮询</strong>，事件驱动，零 CPU 空转</li>
+        </ul>
+      </div>
+
+      <h4>模拟业务处理 + 释放锁</h4>
+
+      <pre><code><span class="code-label">go</span>time.Sleep(3 * time.Second)
+fmt.Println("s1: 业务处理完成")
+
+// s1 释放锁
+if err := m1.Unlock(context.TODO()); err != nil {
+    log.Fatal(err)
+}
+fmt.Println("s1: 已释放锁")
+
+// 等待 s2 获取锁的信号
+<-m2Locked
+fmt.Println("s2: 获取锁成功，程序退出")
+
+// s2 也释放锁
+if err := m2.Unlock(context.TODO()); err != nil {
+    log.Fatal(err)
+}</code></pre>
+
+      <p><code>m1.Unlock()</code> 内部调用 etcd <code>Delete</code> 删除自己的 Key → s2 的 Watch 收到 Delete 事件 → 阻塞解除 → s2 获得锁。</p>
+
+      <h3>7.4 完整时序图</h3>
+
+      <div class="flow-diagram">
+ main goroutine                        s2 goroutine                      etcd server
+     │                                      │                                  │
+     │── NewSession(s1) ───────────────────→│                                  │
+     │                                      │                                  │← Lease Grant (s1)
+     │←─────────────────────────────────────│←─────────────────────────────────│
+     │                                      │                                  │
+     │── NewMutex(s1, "/my-lock/")          │                                  │  (本地对象，无网络)
+     │                                      │                                  │
+     │── NewSession(s2) ───────────────────→│                                  │
+     │                                      │                                  │← Lease Grant (s2)
+     │←─────────────────────────────────────│←─────────────────────────────────│
+     │                                      │                                  │
+     │── NewMutex(s2, "/my-lock/")          │                                  │  (本地对象，无网络)
+     │                                      │                                  │
+     │── m1.Lock() ────────────────────────→│                                  │
+     │                                      │                                  │← Put /my-lock//694d9eab52553d24
+     │                                      │                                  │← Get /my-lock/ prefix → [694d9eab52553d24]
+     │                                      │                                  │  是第一个 → 锁获取成功
+     │← s1: 成功获取锁                      │                                  │
+     │                                      │                                  │
+     │ ────────────── spawn goroutine ────→ │                                  │
+     │                                      │                                  │
+     │                                      │── m2.Lock() ────────────────────→│
+     │                                      │                                  │← Put /my-lock//694d9eab52553d26
+     │                                      │                                  │← Get → [694d9eab52553d24, 694d9eab52553d26]
+     │                                      │                                  │  不是第一个 → Watch(key=...3d24)
+     │                                      │ ←── BLOCK ──────────────────────→│  (阻塞，等待 key 被删除)
+     │                                      │                                  │
+     │── time.Sleep(3s)                     │                                  │
+     │                                      │                                  │
+     │── m1.Unlock() ──────────────────────→│                                  │
+     │                                      │                                  │← Delete /my-lock//694d9eab52553d24
+     │                                      │ ←── WATCH FIRES ────────────────→│
+     │                                      │ ←── UNBLOCK ─────────────────────│  s2 现在是最小的 key
+     │                                      │── m2 获取锁成功 ────────────────→│
+     │                                      │── close(m2Locked) ──────────────→│
+     │ ←────────────── 收到信号              │                                  │
+     │── m2.Unlock() ──────────────────────→│                                  │
+     │                                      │                                  │← Delete /my-lock//694d9eab52553d26
+      </div>
+
+      <h3>7.5 核心设计要点</h3>
+
+      <table>
+        <thead><tr><th>概念</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Lease 绑定</strong></td><td>每个 Key 绑定 lease，Session 断了 Key 自动消失（避免死锁）</td></tr>
+          <tr><td><strong>公平竞争</strong></td><td>按 Key 字典序排序，先到先得，无优先级偏向</td></tr>
+          <tr><td><strong>Watch 通知</strong></td><td>不用轮询，用 etcd Watch 机制通知等待者，零 CPU 浪费</td></tr>
+          <tr><td><strong>无中心协调</strong></td><td>没有任何"锁管理器"，所有节点只跟 etcd 交互</td></tr>
+          <tr><td><strong>故障安全</strong></td><td>客户端崩溃 → Lease 无法续约 → TTL 到期 → Key 自动删除 → 锁自动释放</td></tr>
+        </tbody>
+      </table>
+
     </div>
 
     <!-- TOC -->
