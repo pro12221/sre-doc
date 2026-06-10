@@ -52,6 +52,7 @@
   --tag-network: #6c6a64;   --tag-network-bg: rgba(108, 106, 100, 0.1);
   --tag-ai: #6c6a64;        --tag-ai-bg: rgba(108, 106, 100, 0.1);
   --tag-iac: #6c6a64;       --tag-iac-bg: rgba(108, 106, 100, 0.1);
+  --tag-observability: #6c6a64;  --tag-observability-bg: rgba(108, 106, 100, 0.1);
 
   /* Layout */
   --nav-height: 56px;
@@ -590,7 +591,8 @@ img { max-width: 100%; height: auto; }
 .tag-linux     { background: var(--tag-linux-bg); color: var(--tag-linux); }
 .tag-network   { background: var(--tag-network-bg); color: var(--tag-network); }
 .tag-ai        { background: var(--tag-ai-bg); color: var(--tag-ai); }
-.tag-iac       { background: var(--tag-iac-bg); color: var(--tag-iac); }
+.tag-iac        { background: var(--tag-iac-bg); color: var(--tag-iac); }
+.tag-observability { background: var(--tag-observability-bg); color: var(--tag-observability); }
 .tag-mutate    { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
 .tag-validate  { background: rgba(16, 185, 129, 0.1); color: #34d399; }
 .tag-required  { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }

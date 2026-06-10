@@ -28,7 +28,7 @@
     <button class="cat-chip active" data-cat="">
       <span class="cat-dot" style="background:var(--text-secondary)"></span>
       全部
-      <span class="cat-count">32</span>
+      <span class="cat-count">33</span>
     </button>
     <button class="cat-chip" data-cat="kubernetes">
       <span class="cat-dot" style="background:var(--tag-k8s)"></span>
@@ -58,7 +58,7 @@
     <button class="cat-chip" data-cat="devops">
       <span class="cat-dot" style="background:var(--tag-devops)"></span>
       DevOps
-      <span class="cat-count">1</span>
+      <span class="cat-count">2</span>
     </button>
     <button class="cat-chip" data-cat="iac">
       <span class="cat-dot" style="background:var(--tag-iac)"></span>
@@ -69,6 +69,11 @@
       <span class="cat-dot" style="background:var(--tag-python)"></span>
       Python
       <span class="cat-count">0</span>
+    </button>
+    <button class="cat-chip" data-cat="observability">
+      <span class="cat-dot" style="background:var(--tag-observability)"></span>
+      Observability
+      <span class="cat-count">1</span>
     </button>
   </div>
 
@@ -143,6 +148,7 @@
       <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-devops)"></span><h3>DevOps</h3></div>
       <div class="post-cards" data-category="devops">
         <a href="posts/静态站点自动部署实战.html" class="post-card" data-title="静态站点自动部署实战" data-date="2026-05-16" data-tags="devops"><div class="post-card-title">静态站点自动部署实战</div><div class="post-card-desc">从 Markdown 写作到 Cloudflare Pages 上线：GitHub Actions Workflow 配置、Cloudflare Secrets 设置、完整发布流程与故障排查指南。</div><div class="post-card-meta"><span><span class="tag tag-devops">DevOps</span></span><span>2026-05-16</span></div></a>
+        <a href="posts/prometheus-深入浅出.html" class="post-card" data-title="Prometheus 深入浅出" data-date="2026-06-11" data-tags="observability,devops,kubernetes,network"><div class="post-card-title">Prometheus 深入浅出</div><div class="post-card-desc">Prometheus 全链路学习指南：架构原理与源码解析、Pull/Push 模型、Google 四黄金信号与 USE/RED 方法论、二进制与 K8s 安装、服务发现与 Relabeling、K8s 监控实战（节点/Pod/PV/网络）、黑盒与白盒监控、四种指标类型详解、PromQL 完整参考与 15+ 实战查询。</div><div class="post-card-meta"><span><span class="tag tag-observability">Observability</span><span class="tag tag-devops">DevOps</span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span><span>2026-06-11</span></div></a>
       </div>
     </div>
 
@@ -188,6 +194,14 @@
       </div>
     </div>
 
+    <!-- Observability -->
+    <div class="category-group" id="observability">
+      <div class="category-group-header"><span class="cat-dot" style="background:var(--tag-observability)"></span><h3>Observability</h3></div>
+      <div class="post-cards" data-category="observability">
+        <a href="posts/prometheus-深入浅出.html" class="post-card" data-title="Prometheus 深入浅出" data-date="2026-06-11" data-tags="observability,devops,kubernetes,network"><div class="post-card-title">Prometheus 深入浅出</div><div class="post-card-desc">Prometheus 全链路学习指南：架构原理与源码解析、Pull/Push 模型、Google 四黄金信号与 USE/RED 方法论、二进制与 K8s 安装、服务发现与 Relabeling、K8s 监控实战（节点/Pod/PV/网络）、黑盒与白盒监控、四种指标类型详解、PromQL 完整参考与 15+ 实战查询。</div><div class="post-card-meta"><span><span class="tag tag-observability">Observability</span><span class="tag tag-devops">DevOps</span><span class="tag tag-k8s">Kubernetes</span><span class="tag tag-network">Network</span></span><span>2026-06-11</span></div></a>
+      </div>
+    </div>
+
   </div><!-- /category-view -->
 
 </div><!-- /container -->
@@ -211,11 +225,11 @@
 (function() {
   var TAG_CLASS_MAP = {
     kubernetes: 'tag-k8s', go: 'tag-go', python: 'tag-python',
-    devops: 'tag-devops', iac: 'tag-iac', linux: 'tag-linux', network: 'tag-network', ai: 'tag-ai'
+    devops: 'tag-devops', iac: 'tag-iac', linux: 'tag-linux', network: 'tag-network', ai: 'tag-ai', observability: 'tag-observability'
   };
   var TAG_LABEL_MAP = {
     kubernetes: 'Kubernetes', go: 'Go', python: 'Python',
-    devops: 'DevOps', iac: 'IaC', linux: 'Linux', network: 'Network', ai: 'AI'
+    devops: 'DevOps', iac: 'IaC', linux: 'Linux', network: 'Network', ai: 'AI', observability: 'Observability'
   };
 
   var fuse = new Fuse(window.SEARCH_INDEX || [], {
