@@ -53,6 +53,9 @@
   --tag-ai: #6c6a64;        --tag-ai-bg: rgba(108, 106, 100, 0.1);
   --tag-iac: #6c6a64;       --tag-iac-bg: rgba(108, 106, 100, 0.1);
   --tag-observability: #6c6a64;  --tag-observability-bg: rgba(108, 106, 100, 0.1);
+  --tag-metrics: #4a7c59;        --tag-metrics-bg: rgba(74, 124, 89, 0.12);
+  --tag-logging: #b8892a;        --tag-logging-bg: rgba(184, 137, 42, 0.12);
+  --tag-tracing: #7c5cb8;        --tag-tracing-bg: rgba(124, 92, 184, 0.12);
 
   /* Layout */
   --nav-height: 56px;
@@ -593,6 +596,9 @@ img { max-width: 100%; height: auto; }
 .tag-ai        { background: var(--tag-ai-bg); color: var(--tag-ai); }
 .tag-iac        { background: var(--tag-iac-bg); color: var(--tag-iac); }
 .tag-observability { background: var(--tag-observability-bg); color: var(--tag-observability); }
+.tag-metrics      { background: var(--tag-metrics-bg); color: var(--tag-metrics); }
+.tag-logging      { background: var(--tag-logging-bg); color: var(--tag-logging); }
+.tag-tracing      { background: var(--tag-tracing-bg); color: var(--tag-tracing); }
 .tag-mutate    { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
 .tag-validate  { background: rgba(16, 185, 129, 0.1); color: #34d399; }
 .tag-required  { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }

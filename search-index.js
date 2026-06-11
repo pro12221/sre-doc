@@ -266,7 +266,7 @@ window.SEARCH_INDEX = [
   {
     title: "Prometheus 深入浅出",
     desc: "Prometheus 全链路学习指南：架构原理与源码解析、Pull/Push 模型、Google 四黄金信号与 USE/RED 方法论、二进制与 K8s 安装、服务发现与 Relabeling、K8s 监控实战（节点/Pod/PV/网络）、黑盒与白盒监控、四种指标类型详解、PromQL 完整参考与 15+ 实战查询。",
-    tags: ["observability", "devops", "kubernetes", "network"],
+    tags: ["observability", "metrics", "devops", "kubernetes", "network"],
   category: "observability",
     date: "2026-06-11",
     url: "posts/prometheus-深入浅出.html"
