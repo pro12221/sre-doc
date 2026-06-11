@@ -2,7 +2,7 @@ window.SEARCH_INDEX = [
   {
     title: "Admission Webhook 开发",
     desc: "Kubernetes Admission Webhook 机制详解：Mutating / Validating 流程、AdmissionReview 返回格式、Python Flask 实现及证书配置完整指南。",
-    tags: ["kubernetes", "python"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-12",
     url: "posts/admission-webhook.html"
@@ -90,7 +90,7 @@ window.SEARCH_INDEX = [
   {
     title: "CPU软中断高排查记录",
     desc: "KVM 宿主机 CPU 软中断高排查：perf 定位热点、/proc/softirqs 确认 NET_RX 分布不均、RPS 关闭导致软中断无法跨核分流的根因分析与优化方案。",
-    tags: ["linux", "network", "devops"],
+    tags: ["linux"],
     category: "linux",
     date: "2026-05-15",
     url: "posts/cpu软中断高排查记录.html"
@@ -106,7 +106,7 @@ window.SEARCH_INDEX = [
   {
     title: "k8s API组织结构",
     desc: "Kubernetes API 组织形式详解：Group/Version/Resource 三层结构、list-watch 机制、kubectl proxy 认证代理原理与直接访问 6443 的区别。",
-    tags: ["kubernetes", "network"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-16",
     url: "posts/k8s-api组织结构.html"
@@ -130,7 +130,7 @@ window.SEARCH_INDEX = [
   {
     title: "K8s权限管理",
     desc: "Kubernetes 权限管理全流程：RBAC 核心对象与判定逻辑、用户证书创建与 CSR 审批、kubeconfig 文件结构解析、ServiceAccount 机制及命名空间 SA 与全局权限的区别。",
-    tags: ["kubernetes", "devops"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-20",
     url: "posts/k8s权限管理.html"
@@ -138,7 +138,7 @@ window.SEARCH_INDEX = [
   {
     title: "Security Context和Linux Capabilities详解",
     desc: "Kubernetes Security Context 核心机制：Linux Capabilities 四组集合与传递规则、Pod/容器级安全配置字段详解、最小权限配置范式与 Pod Security Standards 三个安全级别。",
-    tags: ["kubernetes", "linux"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-20",
     url: "posts/security-context和linux-capabilities详解.html"
@@ -146,7 +146,7 @@ window.SEARCH_INDEX = [
   {
     title: "Kubernetes Service原理",
     desc: "Kubernetes Service 原理详解：conntrack 连接跟踪与不对称路径问题、iptables/ipvs 两种模式下数据包流转全链路、四种 Service 类型及 Headless Service 使用场景。",
-    tags: ["kubernetes", "linux", "network"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-21",
     url: "posts/kubernetes-service原理.html"
@@ -154,7 +154,7 @@ window.SEARCH_INDEX = [
   {
     title: "文件描述符与文件句柄",
     desc: "Linux 文件描述符与文件句柄总结：通过 Python os.open 示例观察 /proc/PID/fd，理解 FD、打开文件对象、inode 与路径的关系。",
-    tags: ["linux", "python"],
+    tags: ["linux"],
     category: "linux",
     date: "2026-05-26",
     url: "posts/文件描述符与文件句柄.html"
@@ -170,7 +170,7 @@ window.SEARCH_INDEX = [
   {
     title: "云计算网络架构演进",
     desc: "从经典网络到 VPC、从软件转发到软硬一体化、从数据中心到云边端一体：AWS/阿里云/UCloud 三大厂商网络架构演进与 SDN、VXLAN、eBPF、DPU 核心技术全解析。",
-    tags: ["network", "kubernetes", "devops"],
+    tags: ["network"],
     category: "network",
     date: "2026-05-30",
     url: "posts/云计算网络架构演进.html"
@@ -178,7 +178,7 @@ window.SEARCH_INDEX = [
   {
     title: "Ingress 三种部署模式与底层原理",
     desc: "Kubernetes Ingress 详解：Deployment/DaemonSet+HostNetwork/NodePort 三种部署模式对比、Nginx Ingress Controller 控制循环与 Lua Balancer 原理、TLS 终止与完整请求链路。",
-    tags: ["kubernetes", "network"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-30",
     url: "posts/Ingress三种部署模式与底层原理.html"
@@ -186,7 +186,7 @@ window.SEARCH_INDEX = [
   {
     title: "Ingress-Nginx 三种部署模式实战",
     desc: "三节点 K8s 集群实战部署 ingress-nginx 三种模式：Deployment+NodePort、DaemonSet+HostNetwork、DaemonSet+NodePort，含国内镜像适配、验证结果与清理步骤。",
-    tags: ["kubernetes", "network"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-31",
     url: "posts/Ingress-Nginx三种部署模式实战.html"
@@ -194,7 +194,7 @@ window.SEARCH_INDEX = [
   {
     title: "Ingress-Nginx 高阶用法与流量控制",
     desc: "Ingress-Nginx 金丝雀/蓝绿/灰度/滚动发布全攻略：基于权重、请求头、Cookie、正则的流量控制，TLS 站点构建与 cert-manager 自动证书，流量镜像与生产实战组合案例。",
-    tags: ["kubernetes", "network"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-05-31",
     url: "posts/Ingress-Nginx高阶用法与流量控制.html"
@@ -202,7 +202,7 @@ window.SEARCH_INDEX = [
   {
     title: "UCloud Terraform 基础设施自动化",
     desc: "使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。",
-    tags: ["iac", "devops"],
+    tags: ["iac"],
     category: "iac",
     date: "2026-06-01",
     url: "posts/ucloud-terraform-基础设施自动化.html"
@@ -218,7 +218,7 @@ window.SEARCH_INDEX = [
   {
     title: "Go 网络模板与 Web 应用完全指南",
     desc: "面向 Go 初学者的 Web 开发教程：从零搭建 HTTP 服务器、模板引擎、表单处理、完整 Task Manager 项目，进阶 TCP/UDP、gRPC、WebSocket 实战。",
-    tags: ["go", "devops", "network"],
+    tags: ["go"],
     category: "go",
     date: "2026-06-02",
     url: "posts/go-网络模板与-web-应用完全指南.html"
@@ -226,7 +226,7 @@ window.SEARCH_INDEX = [
   {
     title: "Pod调度与节点选择",
     desc: "Kubernetes 调度全解析：预选优选终选流程、NodeSelector、亲和性/反亲和性、污点容忍、topologySpreadConstraints、Descheduler、PDB、PriorityClass、QoS、节点压力驱逐。",
-    tags: ["kubernetes", "devops"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-06-06",
     url: "posts/kubernetes调度.html"
@@ -234,7 +234,7 @@ window.SEARCH_INDEX = [
   {
     title: "Kubernetes 持久化存储",
     desc: "Kubernetes 持久化存储：PV/PVC/StorageClass 核心概念、Local PV 实战、FlexVolume 到 CSI 演进与迁移指南。",
-    tags: ["kubernetes", "devops", "linux"],
+    tags: ["kubernetes"],
     category: "kubernetes",
     date: "2026-06-07",
     url: "posts/kubernetes-持久化存储.html"
@@ -250,7 +250,7 @@ window.SEARCH_INDEX = [
   {
     title: "基于 Etcd 实现分布式锁",
     desc: "Etcd 核心概念与架构详解：Raft 共识算法、MVCC 多版本控制、Lease 租约机制、Watch 事件驱动、分布式锁两种实现模式及 Kubernetes 集群部署实战。",
-    tags: ["go", "kubernetes"],
+    tags: ["go"],
     category: "go",
     date: "2026-06-08",
     url: "posts/基于-etcd-实现分布式锁.html"
@@ -258,7 +258,7 @@ window.SEARCH_INDEX = [
   {
     title: "GORM ORM 详解",
     desc: "GORM ORM 完全指南：模型定义与字段权限控制、数据库连接与连接池配置、AutoMigrate 自动迁移、CRUD 全操作与复杂查询、原生 SQL 使用。",
-    tags: ["go", "devops"],
+    tags: ["go"],
     category: "go",
     date: "2026-06-09",
     url: "posts/gorm-orm-详解.html"
@@ -266,7 +266,7 @@ window.SEARCH_INDEX = [
   {
     title: "Prometheus 深入浅出",
     desc: "Prometheus 全链路学习指南：架构原理与源码解析、Pull/Push 模型、Google 四黄金信号与 USE/RED 方法论、二进制与 K8s 安装、服务发现与 Relabeling、K8s 监控实战（节点/Pod/PV/网络）、黑盒与白盒监控、四种指标类型详解、PromQL 完整参考与 15+ 实战查询。",
-    tags: ["observability", "metrics", "devops", "kubernetes", "network"],
+    tags: ["observability"],
   category: "observability",
     date: "2026-06-11",
     url: "posts/prometheus-深入浅出.html"
