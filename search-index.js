@@ -233,10 +233,10 @@ window.SEARCH_INDEX = [
   },
   {
     title: "Kubernetes 持久化存储",
-    desc: "Kubernetes 持久化存储：PV/PVC/StorageClass 核心概念、Local PV 实战、FlexVolume 到 CSI 演进与迁移指南。",
+    desc: "Kubernetes 持久化存储：PV/PVC/StorageClass 核心概念、Local PV 实战、FlexVolume 到 CSI 演进、UCloud CSI 架构与创建流程实战解析。",
     tags: ["kubernetes"],
     category: "kubernetes",
-    date: "2026-06-07",
+    date: "2026-06-12",
     url: "posts/kubernetes-持久化存储.html"
   },
   {

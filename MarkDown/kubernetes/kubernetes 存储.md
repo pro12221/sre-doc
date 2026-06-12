@@ -1269,6 +1269,291 @@ Kubernetes 社区正在将树内（in-tree）存储插件逐步迁移到 CSI 驱
 
 ---
 
+## UCloud CSI 实战解析
+
+前面介绍了 CSI 的通用架构和原理，本节以 UCloud UK8s 集群为例，通过真实的 Pod 和配置，解析 CSI 在生产环境中是如何工作的。
+
+### 集群 CSI 组件概览
+
+UCloud UK8s 集群默认部署了**两套 CSI Driver**，分别对应两种存储产品：
+
+| 存储类型 | Controller Pod | Node Pod | 用途 |
+|---|---|---|---|
+| **CSI udisk**（UCloud 云盘/块存储） | `csi-udisk-controller-0` (4/4) | 6 个 `csi-udisk-xxxxx` (2/2) | 块存储，类似 AWS EBS |
+| **CSI ufile**（UCloud 文件存储） | `csi-ufile-controller-0` (3/3) | 6 个 `csi-ufile-xxxxx` (2/2) | 文件存储，类似 NFS/EFS |
+
+映射到 CSI 三层结构：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ① CSI 规范（K8s 自带）                                          │
+│     kubelet / Controller Manager 内置 CSI 调用逻辑                │
+│     ✅ 集群已有，不需要安装                                        │
+├──────────────────────────────────────────────────────────────────┤
+│  ② CSI Sidecar（官方提供，部署在 Pod 内部）                        │
+│                                                                  │
+│     csi-udisk-controller-0 里的 4 个容器：                        │
+│     ├── csi-provisioner  ← 监听 PVC，调用 CreateVolume           │
+│     ├── csi-attacher     ← 监听 VolumeAttachment，调用 Attach     │
+│     ├── csi-resizer      ← 监听 PVC 扩容，调用 ExpandVolume       │
+│     └── (无 livenessprobe 容器)                                   │
+│                                                                  │
+│     csi-ufile-controller-0 里的 3 个容器：                        │
+│     ├── csi-provisioner                                          │
+│     ├── csi-attacher                                             │
+│     └── (无 resizer — ufile 不支持在线扩容)                       │
+│                                                                  │
+│     每个 csi-udisk/ufile-xxxxx 里的 2 个容器：                    │
+│     ├── node-registrar  ← 将 CSI Driver 注册到 kubelet           │
+│     └── (无 livenessprobe 容器)                                   │
+├──────────────────────────────────────────────────────────────────┤
+│  ③ CSI Driver 驱动（UCloud 厂商实现）                             │
+│                                                                  │
+│     csi-udisk / csi-ufile 容器                                    │
+│     → 实现 gRPC: CreateVolume/DeleteVolume/ControllerPublish 等  │
+│     → 调用 UCloud API 创建/删除/挂载云盘或文件存储                │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Controller Pod：Sidecar 与 Driver 的 Socket 通信
+
+在 `csi-udisk-controller-0` 中，4 个容器通过共享的 `emptyDir` 卷中的 UNIX Socket 通信：
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│           csi-udisk-controller-0 Pod                          │
+│                                                              │
+│  ┌────────────────┐  ┌───────────────┐  ┌────────────────┐  │
+│  │csi-provisioner │  │ csi-attacher  │  │  csi-resizer   │  │
+│  │                │  │               │  │                │  │
+│  │  gRPC Client   │  │  gRPC Client  │  │  gRPC Client   │  │
+│  └───────┬────────┘  └───────┬───────┘  └───────┬────────┘  │
+│          │                   │                   │           │
+│          │   /csi/csi.sock (emptyDir 共享卷)       │           │
+│          └───────────────────┼───────────────────┘           │
+│                              │                               │
+│                     ┌────────▼─────────┐                     │
+│                     │    csi-udisk     │                     │
+│                     │  (gRPC Server)   │                     │
+│                     │  监听 unix://    │                     │
+│                     │  csi/csi.sock    │                     │
+│                     └──────────────────┘                     │
+│                                                              │
+│  volumes:                                                    │
+│  - name: socket-dir                                          │
+│    emptyDir: {}    ← Pod 内共享，不挂载到宿主机               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**关键启动参数：**
+
+| 容器 | 关键参数 | 作用 |
+|---|---|---|
+| `csi-provisioner` | `--feature-gates=Topology=true` | 启用拓扑感知，配合 WaitForFirstConsumer 确保卷创建在 Pod 所在可用区 |
+| `csi-provisioner` | `--leader-election=true` | 多副本选主（防未来扩容） |
+| `csi-attacher` | `--timeout=30s` | 调用 ControllerPublishVolume 的超时 |
+| `csi-udisk` | `--drivername=udisk.csi.ucloud.cn` | Driver 名称，必须与 StorageClass provisioner 一致 |
+| `csi-udisk` | `--maxvolume=20` | 单节点最大挂载卷数（UCloud 平台约束） |
+| `csi-udisk` | `--endpoint=unix://csi/csi.sock` | gRPC 监听地址 |
+
+### Node Pod：Driver 注册到 kubelet 的机制
+
+每个 Worker 节点运行一个 CSI Node Pod（DaemonSet），其中 `node-registrar` 负责将 CSI Driver 注册到 kubelet：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Kubelet 发现 CSI Driver 的两阶段机制                             │
+│                                                                 │
+│  阶段一：注册（Registration）                                     │
+│  ┌───────────────────────────────────────────────────────┐      │
+│  │  node-registrar sidecar 启动时：                        │      │
+│  │                                                       │      │
+│  │  1. 连接 CSI Driver 的 gRPC socket                     │      │
+│  │     调用 GetPluginInfo() 获取 driver 名称              │      │
+│  │                                                       │      │
+│  │  2. 在 /var/lib/kubelet/plugins_registry/ 下创建        │      │
+│  │     注册 socket 文件：                                  │      │
+│  │     ├── udisk.csi.ucloud.cn-reg.sock                   │      │
+│  │     └── ufile.csi.ucloud.cn-reg.sock                   │      │
+│  │                                                       │      │
+│  │  3. kubelet 监听 plugins_registry/ 目录，发现新 socket  │      │
+│  │     通过注册 socket 获取 Driver 信息和能力              │      │
+│  └───────────────────────────────────────────────────────┘      │
+│                          │                                      │
+│                          ▼                                      │
+│  阶段二：通信（Communication）                                   │
+│  ┌───────────────────────────────────────────────────────┐      │
+│  │  kubelet 需要执行 NodeStage/NodePublish 时：            │      │
+│  │                                                       │      │
+│  │  直接连接 CSI Driver 的 socket                         │      │
+│  │  (路径通过注册阶段获得)                                  │      │
+│  │                                                       │      │
+│  │  Node Pod 的 socket 挂载方式与 Controller Pod 不同：   │      │
+│  │  - Controller Pod: emptyDir（Pod 内共享）               │      │
+│  │  - Node Pod: hostPath（挂载到宿主机，kubelet 需要访问） │      │
+│  └───────────────────────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+在 Master 节点上，`/var/lib/kubelet/plugins/` 目录为空（因为 Node Pod 不运行在 Master 上），但 `/var/lib/kubelet/plugins_registry/` 中能看到注册 socket：
+
+```bash
+# Master 节点上查看
+ls /var/lib/kubelet/plugins_registry/
+# udisk.csi.ucloud.cn-reg.sock  ufile.csi.ucloud.cn-reg.sock
+
+# Worker 节点上，还能看到实际的 driver socket
+ls /var/lib/kubelet/plugins/
+# udisk.csi.ucloud.cn/  ufile.csi.ucloud.cn/
+```
+
+### StorageClass 配置：一个 Provisioner 对应多个 SC
+
+集群中有 3 个 StorageClass 使用同一个 provisioner `udisk.csi.ucloud.cn`，通过 `parameters.type` 区分磁盘规格：
+
+| StorageClass | parameters.type | UCloud 磁盘类型 | 特点 |
+|---|---|---|---|
+| `ssd-csi-udisk` | `ssd` | SSD 云盘 | 高性能，随机 IOPS 高 |
+| `csi-udisk-rssd` | `rssd` | RSSD 云盘（增强型 SSD） | 最高性能，基于 NVMe |
+| `sata-csi-udisk` | `sata` | SATA 云盘（普通云盘） | 低成本，大容量 |
+
+以 `ssd-csi-udisk` 为例，完整 YAML：
+
+```yaml
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ssd-csi-udisk
+parameters:
+  fsType: ext4           # 文件系统类型
+  type: ssd              # 磁盘类型 ← 这是区分的关键
+  udataArkMode: "no"     # 数据方舟（UCloud 备份功能）
+provisioner: udisk.csi.ucloud.cn
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+```
+
+**三个 StorageClass 的唯一差异就是 `type` 参数**——csi-udisk driver 收到 CreateVolume gRPC 调用时，会根据 `type` 值调用不同的 UCloud API 创建不同规格的云盘。
+
+### UCloud CSI 完整创建流程
+
+以创建一个使用 SSD 云盘的 Pod 为例，完整数据流如下：
+
+```
+用户创建 PVC (storageClassName: ssd-csi-udisk, storage: 20Gi)
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ ① Provision 阶段                                                 │
+│                                                                  │
+│   csi-provisioner 监听到 PVC (Watch API Server)                   │
+│       │                                                          │
+│       │ 读取 StorageClass:                                       │
+│       │   provisioner: udisk.csi.ucloud.cn                       │
+│       │   parameters: {type: ssd, fsType: ext4}                  │
+│       │   volumeBindingMode: WaitForFirstConsumer                │
+│       │                                                          │
+│       │ 因为 WaitForFirstConsumer，暂不创建卷                      │
+│       │ 等待 Pod 调度...                                          │
+└──────────────────────────────────────────────────────────────────┘
+    │
+    ▼
+用户创建 Pod (引用该 PVC)，Pod 被调度到 Worker 节点 A（可用区 cn-bj2-03）
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ ① Provision 阶段（续）                                            │
+│                                                                  │
+│   csi-provisioner 检测到 Pod 已调度                                │
+│       │                                                          │
+│       │ --feature-gates=Topology=true                            │
+│       │ 获取节点 A 的拓扑信息：topology.kubernetes.io/zone         │
+│       │                                                          │
+│       ▼                                                          │
+│   通过 /csi/csi.sock 调用 csi-udisk driver:                      │
+│       CreateVolume(                                               │
+│           capacity=20Gi,                                          │
+│           parameters={type:ssd, fsType:ext4},                     │
+│           accessibility_requirements={zone:cn-bj2-03}             │
+│       )                                                           │
+│       │                                                          │
+│       ▼                                                          │
+│   csi-udisk driver 调用 UCloud API:                               │
+│       CreateUDisk(Type=SSD, Size=20GB, Zone=cn-bj2-03)           │
+│       │                                                          │
+│       ▼                                                          │
+│   创建 PV 对象 + PVC 绑定                                         │
+└──────────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ ② Attach 阶段                                                    │
+│                                                                  │
+│   Controller Manager 检测到卷需要附加到节点 A                      │
+│       │                                                          │
+│       ▼                                                          │
+│   创建 VolumeAttachment 对象                                      │
+│       │                                                          │
+│       ▼                                                          │
+│   csi-attacher 监听到 VolumeAttachment 事件                        │
+│       │                                                          │
+│       ▼                                                          │
+│   通过 /csi/csi.sock 调用 csi-udisk driver:                      │
+│       ControllerPublishVolume(volume_id, node_id)                 │
+│       │                                                          │
+│       ▼                                                          │
+│   csi-udisk driver 调用 UCloud API:                               │
+│       AttachUDisk(UDiskId=xxx, InstanceId=节点A的实例ID)           │
+│       │                                                          │
+│       ▼                                                          │
+│   云盘挂载到节点 A 的虚拟机（如 /dev/vdb）                         │
+└──────────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ ③ Mount 阶段（在 Worker 节点 A 上执行）                            │
+│                                                                  │
+│   kubelet VolumeManagerReconciler 检测到需要挂载                   │
+│       │                                                          │
+│       │ 通过 /var/lib/kubelet/plugins_registry/                   │
+│       │ udisk.csi.ucloud.cn-reg.sock 找到 driver                  │
+│       │                                                          │
+│       ▼                                                          │
+│   NodeStageVolume:                                                │
+│       mkfs.ext4 /dev/vdb                    # 格式化              │
+│       mount /dev/vdb /var/lib/kubelet/.../globalmount  # 挂载到  │
+│                                             # Staging 路径       │
+│       │                                                          │
+│       ▼                                                          │
+│   NodePublishVolume:                                              │
+│       bind-mount globalmount → /var/lib/kubelet/pods/.../mount    │
+│                                             # Pod 专属挂载点      │
+│       │                                                          │
+│       ▼                                                          │
+│   Pod 容器通过 volumeMounts 访问数据 ✓                             │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 与通用 CSI 架构的对照
+
+| 通用 CSI 概念 | UCloud 集群对应 |
+|---|---|
+| CSI Controller Pod (StatefulSet) | `csi-udisk-controller-0` / `csi-ufile-controller-0` |
+| CSI Node Pod (DaemonSet) | 各 6 个，对应 6 个 Worker 节点 |
+| external-provisioner | ✅ 容器名 `csi-provisioner` |
+| external-attacher | ✅ 容器名 `csi-attacher` |
+| external-resizer | ✅ udisk 有；ufile 无 |
+| external-snapshotter | ❌ 未部署——集群不支持 VolumeSnapshot |
+| node-driver-registrar | ✅ 容器名 `node-registrar`（缩写） |
+| livenessprobe | ❌ 无独立容器（健康检查可能内嵌） |
+| 一个 Provisioner 多个 StorageClass | ✅ `udisk.csi.ucloud.cn` 对应 3 个 SC |
+| WaitForFirstConsumer | ✅ 3 个 StorageClass 全部启用 |
+| allowVolumeExpansion | ✅ 3 个 StorageClass 全部启用 |
+| CSIDriver API 对象 | ❌ 未创建（可选资源，不影响功能） |
+
+---
+
 ## 总结
 
 Kubernetes 存储体系的核心设计思想是**接口与实现的分离**：
