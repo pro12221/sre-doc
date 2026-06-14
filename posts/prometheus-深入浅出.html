@@ -1363,6 +1363,94 @@ rate(node_network_transmit_drop_total{device=~"eth.*"}[5m])</code></pre>
 
       <h2>7. K8s 监控项分类深入</h2>
 
+      <h3>UCloud K8s 控制平面组件监控</h3>
+
+      <p>在 UCloud 托管 K8s 集群中，控制平面组件（kube-controller-manager、kube-scheduler、kubelet）运行在 Master 节点上，默认端口与自建集群一致。以下是针对 UCloud K8s 集群的 Prometheus 采集配置：</p>
+
+<pre><code><span class="code-label">yaml</span>scrape_configs:
+# Controller Manager 监控配置
+- job_name: 'kube-controller-manager'
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    insecure_skip_verify: true
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  # 匹配 master 节点
+  - source_labels: [__meta_kubernetes_node_label_node_role_kubernetes_io_master]
+    action: keep
+    regex: ''
+  # 修改端口
+  - source_labels: [__address__]
+    regex: '(.*):10250'
+    replacement: '${1}:10257'
+    target_label: __address__
+  - target_label: component
+    replacement: kube-controller-manager
+
+# Scheduler 监控配置
+- job_name: 'kube-scheduler'
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    insecure_skip_verify: true
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_node_label_node_role_kubernetes_io_master]
+    action: keep
+    regex: ''
+  - source_labels: [__address__]
+    regex: '(.*):10250'
+    replacement: '${1}:10259'  # scheduler 的端口是 10259
+    target_label: __address__
+  - target_label: component
+    replacement: kube-scheduler
+
+# Kubelet 监控配置（包含 cAdvisor）
+- job_name: 'kubelet'
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    insecure_skip_verify: true
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - target_label: component
+    replacement: kubelet
+
+  # 可选：添加指标路径（默认是 /metrics）
+  metrics_path: /metrics
+  # cAdvisor 指标路径是 /metrics/cadvisor
+  # 如果需要单独监控 cAdvisor，可以再配置一个 job
+
+# 单独监控 cAdvisor
+- job_name: 'kubelet-cadvisor'
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    insecure_skip_verify: true
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kubernetes_sd_configs:
+  - role: node
+  metrics_path: /metrics/cadvisor
+  relabel_configs:
+  - target_label: component
+    replacement: kubelet-cadvisor</code></pre>
+
+      <p><strong>配置要点</strong>：</p>
+      <ul>
+        <li><strong>认证方式</strong>：使用 ServiceAccount 的 <code>ca.crt</code> 和 <code>token</code> 进行 TLS + Bearer Token 认证，<code>insecure_skip_verify: true</code> 跳过证书验证（因为组件使用自签证书）</li>
+        <li><strong>Controller Manager</strong>：默认监听 <code>10257</code> 端口（HTTPS），通过 relabel 将 K8s SD 返回的 kubelet 端口 <code>10250</code> 替换为 <code>10257</code>，同时仅保留 <code>node_role_kubernetes_io_master</code> 标签存在的节点</li>
+        <li><strong>Scheduler</strong>：默认监听 <code>10259</code> 端口（HTTPS），同样通过 relabel 替换端口，仅匹配 Master 节点</li>
+        <li><strong>Kubelet</strong>：默认监听 <code>10250</code> 端口（HTTPS），<code>/metrics</code> 提供 kubelet 自身指标，<code>/metrics/cadvisor</code> 提供容器级资源指标</li>
+        <li><strong>cAdvisor</strong>：内嵌在 kubelet 中，建议单独配置 job 采集 <code>/metrics/cadvisor</code>，便于独立管理和过滤</li>
+      </ul>
+
       <h3>Pod/容器监控</h3>
 
       <p><strong>cAdvisor 指标</strong>（内嵌在 kubelet，无需单独部署）：</p>
