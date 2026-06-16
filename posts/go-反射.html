@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go 反射 - SRE Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="article-page">
+
+  <div class="article-header">
+    <div class="breadcrumb">
+      <a href="../index.html">首页</a> / <a href="../index.html#go">Go</a>
+    </div>
+    <h1>Go 反射</h1>
+    <div class="article-meta">
+      <span>
+        <span class="tag tag-go">Go</span>
+      </span>
+      <span>2026-06-16</span>
+      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
+        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
+        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="article-with-toc">
+
+    <div class="article-content">
+
+      <p>反射是 Go 在运行时检查类型信息、读写变量值的机制。<code>reflect</code> 包提供了 TypeOf、ValueOf 两大入口，以及 Kind、Elem、Field 等操作方法。</p>
+
+      <h2>1. 反射的两个核心类型</h2>
+
+      <p><code>reflect.Type</code> 和 <code>reflect.Value</code> 是反射体系的两大支柱：</p>
+
+      <table>
+        <thead>
+          <tr><th>类型</th><th>获取方式</th><th>作用</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>reflect.Type</code></td><td><code>reflect.TypeOf(x)</code></td><td>描述类型本身的元信息（名称、种类、字段、方法）</td></tr>
+          <tr><td><code>reflect.Value</code></td><td><code>reflect.ValueOf(x)</code></td><td>持有运行时的值，可以读取和修改</td></tr>
+        </tbody>
+      </table>
+
+<pre><code><span class="code-label">go</span>var x int = 42
+
+t := reflect.TypeOf(x)   // reflect.Type → int
+v := reflect.ValueOf(x)  // reflect.Value → 持有 42</code></pre>
+
+      <p><strong>关键区别</strong>：<code>TypeOf</code> 只关心"是什么类型"，<code>ValueOf</code> 关心"里面装的什么值"。</p>
+
+      <h2>2. 获取类型信息 — TypeOf</h2>
+
+      <p><code>reflect.TypeOf(x)</code> 返回 <code>reflect.Type</code>，包含类型的全部元信息：</p>
+
+<pre><code><span class="code-label">go</span>var x int = 42
+t := reflect.TypeOf(x)
+
+fmt.Println(t.Name()) // "int"
+fmt.Println(t.Kind()) // reflect.Int
+fmt.Println(t.Size()) // 8 (字节)</code></pre>
+
+      <h3>2.1 Name vs Kind</h3>
+
+      <table>
+        <thead>
+          <tr><th>属性</th><th>含义</th><th>示例</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>.Name()</code></td><td>类型的声明名称</td><td><code>int</code>、<code>string</code>、<code>User</code></td></tr>
+          <tr><td><code>.Kind()</code></td><td>底层种类（枚举值）</td><td><code>reflect.Int</code>、<code>reflect.Struct</code>、<code>reflect.Ptr</code></td></tr>
+        </tbody>
+      </table>
+
+<pre><code><span class="code-label">go</span>type MyInt int
+var m MyInt = 10
+
+t := reflect.TypeOf(m)
+fmt.Println(t.Name()) // "MyInt" — 自定义名称
+fmt.Println(t.Kind()) // reflect.Int — 底层种类</code></pre>
+
+      <p><code>Kind()</code> 的常见枚举值：</p>
+
+      <table>
+        <thead>
+          <tr><th>Kind</th><th>含义</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>reflect.Int</code></td><td>整数</td></tr>
+          <tr><td><code>reflect.String</code></td><td>字符串</td></tr>
+          <tr><td><code>reflect.Bool</code></td><td>布尔</td></tr>
+          <tr><td><code>reflect.Struct</code></td><td>结构体</td></tr>
+          <tr><td><code>reflect.Ptr</code></td><td>指针</td></tr>
+          <tr><td><code>reflect.Slice</code></td><td>切片</td></tr>
+          <tr><td><code>reflect.Map</code></td><td>映射</td></tr>
+          <tr><td><code>reflect.Interface</code></td><td>接口</td></tr>
+          <tr><td><code>reflect.Func</code></td><td>函数</td></tr>
+        </tbody>
+      </table>
+
+      <h2>3. 获取运行时值 — ValueOf</h2>
+
+      <p><code>reflect.ValueOf(x)</code> 返回 <code>reflect.Value</code>，持有运行时的值：</p>
+
+<pre><code><span class="code-label">go</span>var x int = 42
+v := reflect.ValueOf(x)
+
+fmt.Printf("%v\n", v)   // 42 (Go 1.19+ 直接打印值)
+fmt.Printf("%T\n", v)   // reflect.Value (v 本身是结构体)
+fmt.Println(v.Kind())   // reflect.Int
+fmt.Println(v.Int())    // 42 (类型特定的取值方法)</code></pre>
+
+      <div class="highlight-box">
+        <p><strong>💡 提示：</strong><code>reflect.Value</code> 本身是一个结构体，不是接口。只有 <code>.Interface()</code> 返回的才是 <code>interface{}</code>。</p>
+      </div>
+
+      <h3>3.1 传指针才能修改</h3>
+
+      <p><code>ValueOf</code> 接收的是 <code>interface{}</code>，传值会产生副本。要修改原变量，必须传指针：</p>
+
+<pre><code><span class="code-label">go</span>var x int = 42
+
+// 传值 — 不可修改
+v := reflect.ValueOf(x)
+v.SetInt(100) // ❌ panic: call of reflect.Value.SetInt on unaddressable value
+
+// 传指针 — 通过 Elem() 解引用后可修改
+vp := reflect.ValueOf(&amp;x)
+vp.Elem().SetInt(100) // ✅ x 变成 100</code></pre>
+
+      <h2>4. 解引用指针 — Elem()</h2>
+
+      <p><code>Elem()</code> 有两种用途：</p>
+
+      <ol>
+        <li><strong>对指针</strong>：返回指针指向的值（解引用）</li>
+        <li><strong>对接口</strong>：返回接口里装的动态值</li>
+      </ol>
+
+<pre><code><span class="code-label">go</span>var x int = 42
+
+// 指针解引用
+vp := reflect.ValueOf(&amp;x)  // Kind = Ptr
+ve := vp.Elem()             // Kind = Int，指向 x
+ve.SetInt(100)              // 修改 x 成功
+
+// 接口解引用
+var i interface{} = 42
+vi := reflect.ValueOf(&amp;i).Elem() // Kind = Interface
+ve2 := vi.Elem()                  // Kind = Int，取出 42</code></pre>
+
+      <div class="highlight-box">
+        <p><strong>⚠️ 注意：</strong>对非指针、非接口类型调用 <code>Elem()</code> 会 panic：</p>
+      </div>
+
+<pre><code><span class="code-label">go</span>v := reflect.ValueOf(42)
+v.Elem() // ❌ panic: call of reflect.Value.Elem on int Value</code></pre>
+
+      <h2>5. 结构体反射</h2>
+
+      <p>结构体是反射最重要的应用场景——遍历字段、读写值、读取 Tag。</p>
+
+      <h3>5.1 NumField 与 Field</h3>
+
+<pre><code><span class="code-label">go</span>type User struct {
+    Name string
+    Age  int
+}
+
+u := User{Name: "Alice", Age: 30}
+v := reflect.ValueOf(u)
+t := reflect.TypeOf(u)
+
+for i := 0; i &lt; v.NumField(); i++ {
+    field := t.Field(i)      // reflect.StructField（类型信息）
+    valField := v.Field(i)   // reflect.Value（值信息）
+
+    fmt.Printf("字段名: %s, 类型: %s, 值: %v\n",
+        field.Name, field.Type, valField)
+}
+// 字段名: Name, 类型: string, 值: Alice
+// 字段名: Age, 类型: int, 值: 30</code></pre>
+
+      <h3>5.2 Field(i) — Type 和 Value 各有一套</h3>
+
+      <table>
+        <thead>
+          <tr><th>方法</th><th>所属</th><th>返回类型</th><th>用途</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Type.Field(i)</code></td><td>reflect.Type</td><td><code>reflect.StructField</code></td><td>字段名、类型、Tag、偏移量</td></tr>
+          <tr><td><code>Value.Field(i)</code></td><td>reflect.Value</td><td><code>reflect.Value</code></td><td>字段的值，可用于 Set 操作</td></tr>
+        </tbody>
+      </table>
+
+      <h3>5.3 FieldByName — 按名称取字段</h3>
+
+<pre><code><span class="code-label">go</span>v := reflect.ValueOf(u)
+nameVal := v.FieldByName("Name") // 返回 reflect.Value
+fmt.Println(nameVal.String())    // "Alice"
+
+t := reflect.TypeOf(u)
+nameField, ok := t.FieldByName("Name") // 返回 StructField + bool
+fmt.Println(nameField.Type)             // string</code></pre>
+
+      <h3>5.4 StructField 结构体</h3>
+
+      <p><code>reflect.StructField</code> 包含字段的所有元信息：</p>
+
+<pre><code><span class="code-label">go</span>type StructField struct {
+    Name      string       // 字段名
+    Type      Type         // 字段类型
+    Tag       StructTag    // 结构体标签
+    Offset    uintptr      // 在结构体中的偏移量
+    Index     []int        // 字段索引路径（用于嵌套）
+    Anonymous bool         // 是否是匿名字段
+}</code></pre>
+
+      <h2>6. 读取结构体 Tag</h2>
+
+      <p>Tag 是结构体字段的元数据标注，广泛用于 JSON 序列化、ORM 映射、配置解析：</p>
+
+<pre><code><span class="code-label">go</span>type Config struct {
+    Host string `ini:"host" validate:"required"`
+    Port int    `ini:"port" validate:"min=1,max=65535"`
+}
+
+t := reflect.TypeOf(Config{})
+field, _ := t.FieldByName("Host")
+
+fmt.Println(field.Tag.Get("ini"))       // "host"
+fmt.Println(field.Tag.Get("validate"))  // "required"</code></pre>
+
+      <h3>6.1 Tag 的格式规则</h3>
+
+<pre><code><span class="code-label">go</span>`key1:"value1" key2:"value2"`</code></pre>
+
+      <ul>
+        <li>整个 Tag 用反引号包裹</li>
+        <li>每个条目格式：<code>key:"value"</code></li>
+        <li>多个条目用空格分隔</li>
+        <li><code>Get("key")</code> 返回 <code>""</code> 表示该 key 不存在</li>
+      </ul>
+
+      <h2>7. 取回原始值 — Interface()</h2>
+
+      <p><code>.Interface()</code> 把 <code>reflect.Value</code> 转回 <code>interface{}</code>，再通过类型断言取出具体值：</p>
+
+<pre><code><span class="code-label">go</span>var x int = 42
+v := reflect.ValueOf(x)
+
+// reflect.Value → interface{}
+i := v.Interface()    // 类型是 interface{}，里面装着 int
+
+// interface{} → 具体类型（类型断言）
+n := i.(int)          // n = 42，类型 int
+
+// 一步到位
+n2 := v.Interface().(int) // 42</code></pre>
+
+      <div class="highlight-box">
+        <p><strong>💡 提示：</strong><code>%T</code> 打印 <code>interface{}</code> 时，输出的是里面装的实际类型，不是 <code>interface{}</code>。因为 <code>fmt</code> 包面对 <code>interface{}</code> 时，永远操作的是里面的动态值。</p>
+      </div>
+
+      <h3>7.1 为什么不直接用 .Int()</h3>
+
+      <table>
+        <thead>
+          <tr><th>方法</th><th>返回类型</th><th>适用场景</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>.Int()</code></td><td><code>int64</code></td><td>明确知道是 int 类型</td></tr>
+          <tr><td><code>.Interface().(int)</code></td><td><code>int</code></td><td>需要原始类型，或不确定具体类型</td></tr>
+          <tr><td><code>.Interface()</code></td><td><code>interface{}</code></td><td>配合 <code>fmt.Sprintf</code> 等通用处理</td></tr>
+        </tbody>
+      </table>
+
+      <p>实际项目中常见用法（如 <code>ini_config.go</code>）：</p>
+
+<pre><code><span class="code-label">go</span>valField := v.Field(i)
+value := fmt.Sprintf("%v", valField.Interface())
+// Interface() 返回 interface{}，Sprintf 的 %v 会自动拆箱打印</code></pre>
+
+      <h2>8. 修改值 — Set 系列方法</h2>
+
+      <p>修改值的前提条件：</p>
+      <ol>
+        <li>传入的是指针（<code>ValueOf(&amp;x)</code>）</li>
+        <li>调用 <code>Elem()</code> 解引用</li>
+        <li>字段是可导出的（大写字母开头）</li>
+        <li>用 <code>CanSet()</code> 检查</li>
+      </ol>
+
+      <h3>8.1 SetString / SetInt / SetUint / SetFloat</h3>
+
+<pre><code><span class="code-label">go</span>type User struct {
+    Name string
+    Age  int
+}
+
+u := User{Name: "Alice", Age: 30}
+vp := reflect.ValueOf(&amp;u).Elem() // 传指针 + Elem 解引用
+
+// 修改字符串
+nameField := vp.FieldByName("Name")
+if nameField.CanSet() {
+    nameField.SetString("Bob")
+}
+
+// 修改整数
+ageField := vp.FieldByName("Age")
+if ageField.CanSet() {
+    ageField.SetInt(25)
+}
+
+fmt.Println(u) // {Bob 25}</code></pre>
+
+      <h3>8.2 小写字段不可修改</h3>
+
+<pre><code><span class="code-label">go</span>type Config struct {
+    host string // 小写，不可导出
+}
+
+c := Config{host: "localhost"}
+vp := reflect.ValueOf(&amp;c).Elem()
+f := vp.FieldByName("host")
+
+fmt.Println(f.CanSet()) // false
+f.SetString("127.0.0.1") // ❌ panic: reflect: call of reflect.Value.SetString on unexported field</code></pre>
+
+      <h2>9. IsValid 与 CanSet</h2>
+
+      <table>
+        <thead>
+          <tr><th>方法</th><th>返回</th><th>用途</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>.IsValid()</code></td><td><code>bool</code></td><td>Value 是否持有值（零值 Value 返回 false）</td></tr>
+          <tr><td><code>.CanSet()</code></td><td><code>bool</code></td><td>Value 是否可以修改（传值/小写字段返回 false）</td></tr>
+        </tbody>
+      </table>
+
+<pre><code><span class="code-label">go</span>v := reflect.ValueOf(nil)
+fmt.Println(v.IsValid()) // false
+
+v2 := reflect.ValueOf(42)
+fmt.Println(v2.IsValid()) // true
+fmt.Println(v2.CanSet())  // false（传值，不是指针）
+
+vp := reflect.ValueOf(&amp;x)
+fmt.Println(vp.Elem().CanSet()) // true（传指针 + Elem）</code></pre>
+
+      <h2>10. 完整示例 — INI 配置解析器</h2>
+
+      <p>综合运用反射读取 Tag、遍历字段、修改值：</p>
+
+<pre><code><span class="code-label">go</span>package main
+
+import (
+    "fmt"
+    "reflect"
+    "strconv"
+)
+
+type Config struct {
+    Host  string `ini:"host"`
+    Port  int    `ini:"port"`
+    Debug bool   `ini:"debug"`
+}
+
+func ParseINI(cfg interface{}, data map[string]string) {
+    v := reflect.ValueOf(cfg).Elem()
+    t := v.Type()
+
+    for i := 0; i &lt; v.NumField(); i++ {
+        field := t.Field(i)
+        tag := field.Tag.Get("ini")
+        if tag == "" {
+            continue
+        }
+
+        val, ok := data[tag]
+        if !ok {
+            continue
+        }
+
+        f := v.Field(i)
+        if !f.CanSet() {
+            continue
+        }
+
+        switch f.Kind() {
+        case reflect.String:
+            f.SetString(val)
+        case reflect.Int:
+            n, _ := strconv.Atoi(val)
+            f.SetInt(int64(n))
+        case reflect.Bool:
+            b, _ := strconv.ParseBool(val)
+            f.SetBool(b)
+        }
+    }
+}
+
+func main() {
+    cfg := Config{}
+    data := map[string]string{
+        "host":  "localhost",
+        "port":  "8080",
+        "debug": "true",
+    }
+    ParseINI(&amp;cfg, data)
+    fmt.Printf("%+v\n", cfg) // {Host:localhost Port:8080 Debug:true}
+}</code></pre>
+
+      <h2>11. 方法速查表</h2>
+
+      <table>
+        <thead>
+          <tr><th>用途</th><th>方法</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>获取类型信息</td><td><code>reflect.TypeOf(x)</code></td><td>返回 <code>reflect.Type</code></td></tr>
+          <tr><td>获取运行时值</td><td><code>reflect.ValueOf(x)</code></td><td>返回 <code>reflect.Value</code></td></tr>
+          <tr><td>判断类型种类</td><td><code>.Kind()</code></td><td>返回 <code>reflect.Kind</code> 枚举</td></tr>
+          <tr><td>解引用指针</td><td><code>.Elem()</code></td><td>指针→值，接口→动态值</td></tr>
+          <tr><td>结构体字段数量</td><td><code>.NumField()</code></td><td>返回字段数</td></tr>
+          <tr><td>按索引取字段（Type）</td><td><code>.Field(i)</code></td><td>返回 <code>StructField</code></td></tr>
+          <tr><td>按索引取字段（Value）</td><td><code>.Field(i)</code></td><td>返回 <code>reflect.Value</code></td></tr>
+          <tr><td>按名称取字段值</td><td><code>.FieldByName(name)</code></td><td>返回 <code>reflect.Value</code></td></tr>
+          <tr><td>读取结构体 Tag</td><td><code>.Tag.Get("tagName")</code></td><td>返回 tag 值字符串</td></tr>
+          <tr><td>取回原始值</td><td><code>.Interface()</code></td><td>返回 <code>interface{}</code></td></tr>
+          <tr><td>修改字符串字段</td><td><code>.SetString(s)</code></td><td>修改 string 字段</td></tr>
+          <tr><td>修改整数字段</td><td><code>.SetInt(n)</code></td><td>修改 int 字段</td></tr>
+          <tr><td>修改无符号整数字段</td><td><code>.SetUint(n)</code></td><td>修改 uint 字段</td></tr>
+          <tr><td>修改浮点数字段</td><td><code>.SetFloat(f)</code></td><td>修改 float 字段</td></tr>
+          <tr><td>判断 Value 是否有效</td><td><code>.IsValid()</code></td><td>零值 Value 返回 false</td></tr>
+          <tr><td>判断 Value 是否可修改</td><td><code>.CanSet()</code></td><td>传值/小写字段返回 false</td></tr>
+        </tbody>
+      </table>
+
+      <h2>12. 注意事项</h2>
+
+      <ol>
+        <li><strong>反射很慢</strong>：比直接代码慢 10-100 倍，热路径不要用</li>
+        <li><strong>编译期无保护</strong>：拼写错误的字段名、类型不匹配只在运行时 panic</li>
+        <li><strong>可读性差</strong>：反射代码比直接代码难理解，能用普通代码就不用反射</li>
+        <li><strong>典型适用场景</strong>：编码解码（JSON/XML）、ORM、配置解析、依赖注入——这些场景类型在编译期不确定</li>
+      </ol>
+
+    </div>
+
+    <!-- TOC -->
+    <aside class="toc-container" id="toc-container">
+      <div class="toc-title">目录</div>
+      <ul class="toc-list" id="toc-list"></ul>
+    </aside>
+
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="../index.html">首页</a>
+      <a href="../about.html">关于</a>
+      <a href="https://github.com/pro12221" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">&copy; 2026 SRE Notes. Powered by Cloudflare Pages.</div>
+  </div>
+</footer>
+
+<!-- Mobile TOC -->
+<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
+<div class="toc-mobile-panel" id="toc-mobile-panel">
+  <div class="toc-title">目录</div>
+  <ul class="toc-list" id="toc-mobile-list"></ul>
+</div>
+
+<script>
+function toggleMobileToc() {
+  document.getElementById('toc-mobile-panel').classList.toggle('show');
+}
+
+(function() {
+  var content = document.querySelector('.article-content');
+  if (!content) return;
+  var headings = content.querySelectorAll('h2, h3');
+  var tocList = document.getElementById('toc-list');
+  var tocMobileList = document.getElementById('toc-mobile-list');
+  if (!tocList || headings.length === 0) return;
+
+  var counter = 0;
+  headings.forEach(function(h) {
+    counter++;
+    var slug = 'section-' + counter;
+    h.id = slug;
+
+    var li = document.createElement('li');
+    li.className = 'toc-item';
+    var a = document.createElement('a');
+    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
+    a.href = '#' + slug;
+    a.textContent = h.textContent;
+    a.setAttribute('data-target', slug);
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(slug);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var panel = document.getElementById('toc-mobile-panel');
+      if (panel) panel.classList.remove('show');
+    });
+    li.appendChild(a);
+    tocList.appendChild(li);
+
+    if (tocMobileList) {
+      var li2 = li.cloneNode(true);
+      li2.querySelector('a').addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.getElementById(slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('toc-mobile-panel').classList.remove('show');
+      });
+      tocMobileList.appendChild(li2);
+    }
+  });
+
+  var allTocLinks = document.querySelectorAll('.toc-link');
+  var allHeadings = content.querySelectorAll('h2, h3');
+  function updateActiveToc() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var currentId = '';
+    allHeadings.forEach(function(h) {
+      if (h.offsetTop - 80 <= scrollTop) currentId = h.id;
+    });
+    allTocLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
+    });
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
+      ticking = true;
+    }
+  });
+  updateActiveToc();
+})();
+
+// Full-width toggle
+(function() {
+  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
+  var toggle = document.getElementById('full-width-toggle');
+  if (!wrapper || !toggle) return;
+  if (localStorage.getItem('article-full-width') === 'true') {
+    wrapper.classList.add('full-width');
+  }
+  toggle.addEventListener('click', function() {
+    wrapper.classList.toggle('full-width');
+    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
+  });
+})();
+</script>
+
+<script src="../js/nav.js"></script>
+
+</body>
+</html>

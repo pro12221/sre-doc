@@ -264,6 +264,14 @@ window.SEARCH_INDEX = [
     url: "posts/gorm-orm-详解.html"
   },
   {
+    title: "Go 反射",
+    desc: "Go reflect 包详解：TypeOf/ValueOf 两大入口、Kind 种类判断、Elem 指针解引用、结构体字段遍历与 Tag 读取、Interface 取回原始值、Set 系列修改方法、IsValid/CanSet 状态检查。",
+    tags: ["go"],
+    category: "go",
+    date: "2026-06-16",
+    url: "posts/go-反射.html"
+  },
+  {
     title: "Prometheus 深入浅出",
     desc: "Prometheus 全链路学习指南：架构原理与源码解析、Pull/Push 模型、Google 四黄金信号与 USE/RED 方法论、二进制与 K8s 安装、服务发现与 Relabeling、K8s 监控实战（节点/Pod/PV/网络）、黑盒与白盒监控、四种指标类型详解、PromQL 完整参考与 15+ 实战查询。",
     tags: ["observability"],
