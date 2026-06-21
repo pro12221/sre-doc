@@ -278,5 +278,13 @@ window.SEARCH_INDEX = [
   category: "observability",
     date: "2026-06-11",
     url: "posts/prometheus-深入浅出.html"
+  },
+  {
+    title: "iptables、IPVS 与 nftables 详解",
+    desc: "Linux 内核三大包处理框架详解：iptables/IPVS/nftables 的 Netfilter hook 机制、内核数据结构、conntrack 状态机、NAT 实现与 kube-proxy 选型。",
+    tags: ["linux", "network", "kubernetes"],
+    category: "linux",
+    date: "2026-06-21",
+    url: "posts/iptables-ipvs-nftables详解.html"
   }
 ];
