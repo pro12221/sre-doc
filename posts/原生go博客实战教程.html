@@ -1,14 +1,39 @@
-<!doctype html>
-<html style="      ">
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>原生Go博客实战教程</title>
-  <meta name="description" content="使用原生Go开发博客项目的完整实战教程，涵盖项目搭建、模板加载、数据库操作、登录鉴权、文章编写、归档搜索与性能优化。">
-  
-  
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>原生Go博客实战教程 - SRE Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
 </head>
-<body style="padding: 24px; background: #ffffff; max-width: 860px; margin: 0 auto; font-family: -apple-system-font,BlinkMacSystemFont, Helvetica Neue, PingFang SC, Hiragino Sans GB , Microsoft YaHei UI , Microsoft YaHei ,Arial,sans-serif; font-size: 16px; line-height: 1.75; text-align: left;">
+<body>
+
+<div class="article-page">
+
+  <div class="article-header">
+    <div class="breadcrumb">
+      <a href="../index.html">首页</a> / <a href="../index.html#go">Go</a>
+    </div>
+    <h1>原生Go博客实战教程</h1>
+    <div class="article-meta">
+      <span>
+        <span class="tag tag-go">Go</span>
+      </span>
+      <span>2026-06-24</span>
+      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
+        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
+        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="article-with-toc">
+
+    <div class="article-content">
+
   <div id="output">
 <section class="container" style="font-family: -apple-system-font,BlinkMacSystemFont, Helvetica Neue, PingFang SC, Hiragino Sans GB , Microsoft YaHei UI , Microsoft YaHei ,Arial,sans-serif; font-size: 16px; line-height: 1.75; text-align: left;"><h1 class="h1" data-heading="true" style="display: table; padding: 0 1em; border-bottom: 2px solid #0F4C81; margin: 2em auto 1em; color: #3f3f3f; font-size: calc(16px * 1.2); font-weight: bold; text-align: center; margin-top: 0 !important;">初识Go博客</h1><p class="p" style="margin: 1.5em 8px; letter-spacing: 0.1em; color: #3f3f3f;">Go博客实战教程，是一个练手级项目教程，使用原生Go开发，未使用任何框架。</p><p class="p" style="margin: 1.5em 8px; letter-spacing: 0.1em; color: #3f3f3f;"><strong style="color: #0F4C81; font-weight: bold; font-size: inherit;">学习本项目能学到什么？</strong></p><ul class="ul" style="list-style: circle; padding-left: 1em; margin-left: 0; color: #3f3f3f;"><li class="listitem" style="display: block; margin: 0.2em 8px; color: #3f3f3f;">• 如何使用原生Go开发一个web项目</li><li class="listitem" style="display: block; margin: 0.2em 8px; color: #3f3f3f;">• 循序渐进，掌握编程思维和思路</li><li class="listitem" style="display: block; margin: 0.2em 8px; color: #3f3f3f;">• 初步具有工程思维，能适应一般的开发工作</li></ul><p class="p" style="margin: 1.5em 8px; letter-spacing: 0.1em; color: #3f3f3f;"><img src="../images/image-20220218115538600.png" data-local-path="D:\go实战\原生go博客实战教程\img\image-20220218115538600.png" alt="image-20220218115538600" style="display: block; width: 100%; margin: 1.5em auto;"></p><h2 class="h2" data-heading="true" style="display: table; padding: 0 0.2em; margin: 4em auto 2em; color: #fff; background: #0F4C81; font-size: calc(16px * 1.2); font-weight: bold; text-align: center;">1. 搭建项目</h2><pre class="hljs code__pre" style="color: #24292e; background: #fff; font-size: 90%; overflow-x: auto; border-radius: 8px; line-height: 1.5; margin: 10px 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); padding: 0 !important;"><span class="mac-sign" style="display: flex; padding: 10px 14px 0;"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" x="0px" y="0px" width="45px" height="13px" viewBox="0 0 450 130">
     <ellipse cx="50" cy="65" rx="50" ry="52" stroke="rgb(220,60,54)" stroke-width="2" fill="rgb(237,108,96)"/>
@@ -282,5 +307,27 @@
     
   </section>
   </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+(function(){{
+  var btn=document.getElementById('full-width-toggle');
+  if(!btn)return;
+  var page=document.querySelector('.article-page');
+  var saved=localStorage.getItem('fw-toggle');
+  if(saved==='1'){{page.classList.add('full-width');btn.classList.add('active');}}
+  btn.addEventListener('click',function(){{
+    page.classList.toggle('full-width');
+    btn.classList.toggle('active');
+    localStorage.setItem('fw-toggle',page.classList.contains('full-width')?'1':'0');
+  }});
+}})();
+</script>
+
 </body>
 </html>

@@ -286,5 +286,13 @@ window.SEARCH_INDEX = [
     category: "linux",
     date: "2026-06-21",
     url: "posts/iptables-ipvs-nftables详解.html"
+  },
+  {
+    title: "原生Go博客实战教程",
+    desc: "使用原生Go开发博客项目的完整实战教程，涵盖项目搭建、模板加载、数据库操作、登录鉴权、文章编写、归档搜索与性能优化。",
+    tags: ["go"],
+    category: "go",
+    date: "2026-06-24",
+    url: "posts/原生go博客实战教程.html"
   }
 ];
