@@ -1,112 +1,83 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>静态站点自动部署实战 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>静态站点自动部署实战 - SRE Notes</title>
+  <meta name="description" content="从 Markdown 写作到 Cloudflare Pages 上线：GitHub Actions Workflow 配置、Cloudflare Secrets 设置、完整发布流程与故障排查指南。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<!-- Mobile Toggle -->
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <!-- ====== Sidebar ====== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item">
-          <span class="dot" style="background:var(--tag-k8s)"></span>
-          Kubernetes
-          <span class="count">2</span>
-        </a>
-        <a href="../index.html#go" class="nav-item">
-          <span class="dot" style="background:var(--tag-go)"></span>
-          Go
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#python" class="nav-item">
-          <span class="dot" style="background:var(--tag-python)"></span>
-          Python
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#devops" class="nav-item active">
-          <span class="dot" style="background:var(--tag-devops)"></span>
-          DevOps
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#linux" class="nav-item">
-          <span class="dot" style="background:var(--tag-linux)"></span>
-          Linux
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#network" class="nav-item">
-          <span class="dot" style="background:var(--tag-network)"></span>
-          Network
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#ai" class="nav-item">
-          <span class="dot" style="background:var(--tag-ai)"></span>
-          AI
-          <span class="count">8</span>
-        </a>
-      </div>
-
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
-          <span class="dot" style="background:#24292e"></span>
-          GitHub
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      &copy; 2026 Tech Notes
-    </div>
-  </aside>
-
-  <!-- ====== Main Content ====== -->
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#devops">DevOps</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#devops">DevOps</a>
+          <span class="sep">/</span>
+          <span class="current">静态站点自动部署实战</span>
         </div>
-        <h1>静态站点自动部署实战</h1>
-        <div class="article-meta">
-          <span>
-            <span class="tag tag-devops">DevOps</span>
-          </span>
-          <span>2026-05-16</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div class="article-layout">
+      <div class="scroll-progress" data-progress></div>
 
-        <div class="article-content">
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#devops">DevOps</a><span class="sep">/</span>
+              <span class="current">静态站点自动部署实战</span>
+            </nav>
+            <h1>静态站点自动部署实战</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-devops">DevOps</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-05-16
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                5 分钟阅读
+              </span>
+            </div>
+          </header>
 
-        <h2>1. 整体架构</h2>
-
-        <p>本文记录个人技术博客 sre-doc 的自动部署方案：本地撰写 Markdown，手工转为 HTML，推送到 GitHub main 分支后，由 GitHub Actions 自动触发 Cloudflare Pages 部署，实现线上站点更新。</p>
-
-        <p>整体数据流如下：</p>
-
-        <div class="flow-diagram">
+          <div class="article-content">
+            
+<h2>1. 整体架构</h2>
+<p>本文记录个人技术博客 sre-doc 的自动部署方案：本地撰写 Markdown，手工转为 HTML，推送到 GitHub main 分支后，由 GitHub Actions 自动触发 Cloudflare Pages 部署，实现线上站点更新。</p>
+<p>整体数据流如下：</p>
+<div class="flow-diagram">
 <pre>本地撰写 Markdown
     ↓
 手工转换为 HTML
@@ -120,14 +91,11 @@ GitHub Actions 自动触发
 cloudflare/wrangler-action@v3
     ↓
 Cloudflare Pages 线上站点更新</pre>
-        </div>
-
-        <div class="highlight-box">
-          <p><strong>💡 核心思路：</strong>整个站点是纯静态 HTML，无需任何后端构建步骤。GitHub Actions 只做"推送触发 + 调用 Cloudflare API"两件事，部署耗时主要在 Cloudflare 的边缘节点分发。</p>
-        </div>
-
-        <h2>2. 仓库目录结构</h2>
-
+</div>
+<div class="highlight-box">
+<p><strong>💡 核心思路：</strong>整个站点是纯静态 HTML，无需任何后端构建步骤。GitHub Actions 只做"推送触发 + 调用 Cloudflare API"两件事，部署耗时主要在 Cloudflare 的边缘节点分发。</p>
+</div>
+<h2>2. 仓库目录结构</h2>
 <pre><code><span class="code-label">text</span>sre-doc/
 ├── .github/
 │   └── workflows/
@@ -140,44 +108,32 @@ Cloudflare Pages 线上站点更新</pre>
 ├── index.html                # 首页
 ├── search-index.js           # 搜索索引数据
 └── AGENTS.md                 # AI Agent 项目指南</code></pre>
-
-        <div class="highlight-box">
-          <p><strong>关键点：</strong>MarkDown/ 目录保存原始笔记，posts/ 目录保存转换后的 HTML。两者共存，便于溯源和重新生成。</p>
-        </div>
-
-        <h2>3. GitHub Actions Workflow 详解</h2>
-
-        <h3>3.1 触发条件与并发控制</h3>
-
+<div class="highlight-box">
+<p><strong>关键点：</strong>MarkDown/ 目录保存原始笔记，posts/ 目录保存转换后的 HTML。两者共存，便于溯源和重新生成。</p>
+</div>
+<h2>3. GitHub Actions Workflow 详解</h2>
+<h3>3.1 触发条件与并发控制</h3>
 <pre><code><span class="code-label">yaml</span>on:
   push:
     branches: ["main"]
   workflow_dispatch:</code></pre>
-
-        <ul>
-          <li><strong>push 到 main</strong>：每次向 main 分支推送代码自动触发部署</li>
-          <li><strong>workflow_dispatch</strong>：支持在 GitHub Actions 页面手动触发，用于紧急重新部署</li>
-        </ul>
-
+<ul>
+<li><strong>push 到 main</strong>：每次向 main 分支推送代码自动触发部署</li>
+<li><strong>workflow_dispatch</strong>：支持在 GitHub Actions 页面手动触发，用于紧急重新部署</li>
+</ul>
 <pre><code><span class="code-label">yaml</span>concurrency:
   group: "deploy"
   cancel-in-progress: false</code></pre>
-
-        <p>并发控制确保同一时间只有一个部署任务在执行。<code>cancel-in-progress: false</code> 表示新的推送不会取消正在进行的部署，而是排队等待，避免部署竞争。</p>
-
-        <h3>3.2 权限配置</h3>
-
+<p>并发控制确保同一时间只有一个部署任务在执行。<code>cancel-in-progress: false</code> 表示新的推送不会取消正在进行的部署，而是排队等待，避免部署竞争。</p>
+<h3>3.2 权限配置</h3>
 <pre><code><span class="code-label">yaml</span>permissions:
   contents: read
   deployments: write</code></pre>
-
-        <ul>
-          <li><code>contents: read</code>：工作流只需要读取仓库代码，不需要写入权限</li>
-          <li><code>deployments: write</code>：允许创建部署状态记录，用于在 GitHub 上显示部署结果</li>
-        </ul>
-
-        <h3>3.3 部署步骤</h3>
-
+<ul>
+<li><code>contents: read</code>：工作流只需要读取仓库代码，不需要写入权限</li>
+<li><code>deployments: write</code>：允许创建部署状态记录，用于在 GitHub 上显示部署结果</li>
+</ul>
+<h3>3.3 部署步骤</h3>
 <pre><code><span class="code-label">yaml</span>jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -192,267 +148,179 @@ Cloudflare Pages 线上站点更新</pre>
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy . --project-name sre-doc --branch main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}</code></pre>
-
-        <p>部署分为两步：</p>
-
-        <ol>
-          <li><strong>Checkout</strong>：拉取仓库最新代码到 Runner</li>
-          <li><strong>Deploy to Cloudflare Pages</strong>：使用官方 wrangler-action 调用 Cloudflare API，将当前目录（<code>.</code>）部署到 Cloudflare Pages 项目 sre-doc</li>
-        </ol>
-
-        <div class="highlight-box">
-          <p><strong>💡 为什么用 wrangler-action 而不是 Cloudflare 自带的 Git 集成？</strong>Cloudflare Pages 原生支持从 GitHub 自动拉取并构建，但需要配置构建命令和输出目录。本项目是纯静态站，不需要构建步骤，使用 wrangler-action 直接部署当前目录更灵活，也避免了 Cloudflare 那边维护一份构建配置。</p>
-        </div>
-
-        <h2>4. Cloudflare Pages 配置</h2>
-
-        <h3>4.1 创建项目</h3>
-
-        <ol>
-          <li>登录 Cloudflare Dashboard → Workers &amp; Pages → Create application → Pages</li>
-          <li>选择 "Create using direct upload" 创建空项目</li>
-          <li>项目名称设为 <code>sre-doc</code>（与 workflow 中 --project-name 一致）</li>
-          <li>首次部署可上传任意文件，后续由 GitHub Actions 自动更新</li>
-        </ol>
-
-        <h3>4.2 配置 GitHub Secrets</h3>
-
-        <p>在 GitHub 仓库 → Settings → Secrets and variables → Actions 中添加两个 Secret：</p>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Secret 名称</th>
-              <th>值</th>
-              <th>获取方式</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>CLOUDFLARE_API_TOKEN</td>
-              <td>Cloudflare API Token</td>
-              <td>Cloudflare Dashboard → My Profile → API Tokens → Create Token</td>
-            </tr>
-            <tr>
-              <td>CLOUDFLARE_ACCOUNT_ID</td>
-              <td>Cloudflare 账户 ID</td>
-              <td>Cloudflare Dashboard 任意域名页右侧栏 → API → Account ID</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h3>4.3 获取 API Token</h3>
-
-        <p>创建 API Token 时推荐使用 "Edit Cloudflare Workers" 模板，或自定义权限：</p>
-
-        <ul>
-          <li><strong>Account</strong> → Cloudflare Pages → Edit</li>
-          <li><strong>Zone</strong> → 可选，如果需要操作 DNS 等</li>
-        </ul>
-
-        <div class="highlight-box">
-          <p><strong>⚠️ 安全提醒：</strong>API Token 是敏感信息，绝不能硬编码在代码或 workflow 文件中。必须使用 GitHub Secrets 存储，workflow 中通过 <code>${{ secrets.XXX }}</code> 引用。</p>
-        </div>
-
-        <h2>5. 完整发布流程</h2>
-
-        <p>每次新增一篇技术笔记，执行以下步骤：</p>
-
-        <div class="flow-steps">
-          <div class="flow-step">
-            <div class="flow-step-num">1</div>
-            <div class="flow-step-content">
-              <strong>撰写 Markdown</strong>
-              <p>在 MarkDown/ 目录创建 .md 文件，按既定分类体系添加标签。</p>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-step-num">2</div>
-            <div class="flow-step-content">
-              <strong>转换为 HTML</strong>
-              <p>基于 posts/template.html 模板，将 Markdown 内容转为 HTML，放入 posts/ 目录。关键转换规则：<code>## 标题</code> → <code>&lt;h2&gt;序号. 标题&lt;/h2&gt;</code>（自动编号），代码块添加 <code>&lt;span class="code-label"&gt;语言&lt;/span&gt;</code> 标注，sidebar 中当前分类设为 active，保留模板中的 TOC 自动生成脚本。</p>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-step-num">3</div>
-            <div class="flow-step-content">
-              <strong>更新首页</strong>
-              <p>在 index.html 的对应分类区域添加文章卡片，更新 sidebar 分类计数。</p>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-step-num">4</div>
-            <div class="flow-step-content">
-              <strong>更新搜索索引</strong>
-              <p>在 search-index.js 的 SEARCH_INDEX 数组中追加一条记录。</p>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-step-num">5</div>
-            <div class="flow-step-content">
-              <strong>提交推送</strong>
+<p>部署分为两步：</p>
+<ol>
+<li><strong>Checkout</strong>：拉取仓库最新代码到 Runner</li>
+<li><strong>Deploy to Cloudflare Pages</strong>：使用官方 wrangler-action 调用 Cloudflare API，将当前目录（<code>.</code>）部署到 Cloudflare Pages 项目 sre-doc</li>
+</ol>
+<div class="highlight-box">
+<p><strong>💡 为什么用 wrangler-action 而不是 Cloudflare 自带的 Git 集成？</strong>Cloudflare Pages 原生支持从 GitHub 自动拉取并构建，但需要配置构建命令和输出目录。本项目是纯静态站，不需要构建步骤，使用 wrangler-action 直接部署当前目录更灵活，也避免了 Cloudflare 那边维护一份构建配置。</p>
+</div>
+<h2>4. Cloudflare Pages 配置</h2>
+<h3>4.1 创建项目</h3>
+<ol>
+<li>登录 Cloudflare Dashboard → Workers &amp; Pages → Create application → Pages</li>
+<li>选择 "Create using direct upload" 创建空项目</li>
+<li>项目名称设为 <code>sre-doc</code>（与 workflow 中 --project-name 一致）</li>
+<li>首次部署可上传任意文件，后续由 GitHub Actions 自动更新</li>
+</ol>
+<h3>4.2 配置 GitHub Secrets</h3>
+<p>在 GitHub 仓库 → Settings → Secrets and variables → Actions 中添加两个 Secret：</p>
+<table>
+<thead>
+<tr>
+<th>Secret 名称</th>
+<th>值</th>
+<th>获取方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLOUDFLARE_API_TOKEN</td>
+<td>Cloudflare API Token</td>
+<td>Cloudflare Dashboard → My Profile → API Tokens → Create Token</td>
+</tr>
+<tr>
+<td>CLOUDFLARE_ACCOUNT_ID</td>
+<td>Cloudflare 账户 ID</td>
+<td>Cloudflare Dashboard 任意域名页右侧栏 → API → Account ID</td>
+</tr>
+</tbody>
+</table>
+<h3>4.3 获取 API Token</h3>
+<p>创建 API Token 时推荐使用 "Edit Cloudflare Workers" 模板，或自定义权限：</p>
+<ul>
+<li><strong>Account</strong> → Cloudflare Pages → Edit</li>
+<li><strong>Zone</strong> → 可选，如果需要操作 DNS 等</li>
+</ul>
+<div class="highlight-box">
+<p><strong>⚠️ 安全提醒：</strong>API Token 是敏感信息，绝不能硬编码在代码或 workflow 文件中。必须使用 GitHub Secrets 存储，workflow 中通过 <code>${{ secrets.XXX }}</code> 引用。</p>
+</div>
+<h2>5. 完整发布流程</h2>
+<p>每次新增一篇技术笔记，执行以下步骤：</p>
+<div class="flow-steps">
+<div class="flow-step">
+<div class="flow-step-num">1</div>
+<div class="flow-step-content">
+<strong>撰写 Markdown</strong>
+<p>在 MarkDown/ 目录创建 .md 文件，按既定分类体系添加标签。</p>
+</div>
+</div>
+<div class="flow-step">
+<div class="flow-step-num">2</div>
+<div class="flow-step-content">
+<strong>转换为 HTML</strong>
+<p>基于 posts/template.html 模板，将 Markdown 内容转为 HTML，放入 posts/ 目录。关键转换规则：<code>## 标题</code> → <code>&lt;h2&gt;序号. 标题&lt;/h2&gt;</code>（自动编号），代码块添加 <code>&lt;span class="code-label"&gt;语言&lt;/span&gt;</code> 标注，sidebar 中当前分类设为 active，保留模板中的 TOC 自动生成脚本。</p>
+</div>
+</div>
+<div class="flow-step">
+<div class="flow-step-num">3</div>
+<div class="flow-step-content">
+<strong>更新首页</strong>
+<p>在 index.html 的对应分类区域添加文章卡片，更新 sidebar 分类计数。</p>
+</div>
+</div>
+<div class="flow-step">
+<div class="flow-step-num">4</div>
+<div class="flow-step-content">
+<strong>更新搜索索引</strong>
+<p>在 search-index.js 的 SEARCH_INDEX 数组中追加一条记录。</p>
+</div>
+</div>
+<div class="flow-step">
+<div class="flow-step-num">5</div>
+<div class="flow-step-content">
+<strong>提交推送</strong>
 <pre><code><span class="code-label">bash</span>git add .
 git commit -m "docs: add 文章标题 article"
 git push origin main</code></pre>
-            </div>
+</div>
+</div>
+<div class="flow-step">
+<div class="flow-step-num">6</div>
+<div class="flow-step-content">
+<strong>自动部署</strong>
+<p>推送后 GitHub Actions 自动运行，约 30-60 秒后 Cloudflare Pages 边缘节点更新完成。</p>
+</div>
+</div>
+</div>
+<h2>6. 故障排查</h2>
+<h3>6.1 部署失败：Authentication error</h3>
+<p>检查 GitHub Secrets 中的 CLOUDFLARE_API_TOKEN 和 CLOUDFLARE_ACCOUNT_ID 是否正确。API Token 可能过期，需要重新生成。</p>
+<h3>6.2 部署成功但页面 404</h3>
+<ul>
+<li>确认 <code>--project-name</code> 与 Cloudflare Pages 项目名称完全一致</li>
+<li>检查 Cloudflare Dashboard 中项目的自定义域名绑定是否正确</li>
+<li>首次部署后需要等待 DNS 传播，通常几分钟</li>
+</ul>
+<h3>6.3 部署成功但内容未更新</h3>
+<p>Cloudflare 有边缘缓存，新内容可能需要几分钟才能在全球节点生效。可以在 Cloudflare Dashboard → Caching → Purge Cache 手动清除缓存。</p>
+<h3>6.4 Workflow 未触发</h3>
+<ul>
+<li>确认推送的目标分支是 main（区分大小写）</li>
+<li>检查 .github/workflows/ 目录下的 YAML 文件语法是否正确</li>
+<li>在 GitHub Actions 页面查看是否有报错信息</li>
+</ul>
+
           </div>
-          <div class="flow-step">
-            <div class="flow-step-num">6</div>
-            <div class="flow-step-content">
-              <strong>自动部署</strong>
-              <p>推送后 GitHub Actions 自动运行，约 30-60 秒后 Cloudflare Pages 边缘节点更新完成。</p>
+
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev disabled" href="#">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">没有更早的文章</span>
+              </a>
+              <a class="article-nav-link next disabled" href="#">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">没有更新的文章</span>
+              </a>
+            </nav>
+
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><div class="empty-state">暂无相关文章</div></div>
             </div>
-          </div>
+          </footer>
         </div>
-
-        <h2>6. 故障排查</h2>
-
-        <h3>6.1 部署失败：Authentication error</h3>
-
-        <p>检查 GitHub Secrets 中的 CLOUDFLARE_API_TOKEN 和 CLOUDFLARE_ACCOUNT_ID 是否正确。API Token 可能过期，需要重新生成。</p>
-
-        <h3>6.2 部署成功但页面 404</h3>
-
-        <ul>
-          <li>确认 <code>--project-name</code> 与 Cloudflare Pages 项目名称完全一致</li>
-          <li>检查 Cloudflare Dashboard 中项目的自定义域名绑定是否正确</li>
-          <li>首次部署后需要等待 DNS 传播，通常几分钟</li>
-        </ul>
-
-        <h3>6.3 部署成功但内容未更新</h3>
-
-        <p>Cloudflare 有边缘缓存，新内容可能需要几分钟才能在全球节点生效。可以在 Cloudflare Dashboard → Caching → Purge Cache 手动清除缓存。</p>
-
-        <h3>6.4 Workflow 未触发</h3>
-
-        <ul>
-          <li>确认推送的目标分支是 main（区分大小写）</li>
-          <li>检查 .github/workflows/ 目录下的 YAML 文件语法是否正确</li>
-          <li>在 GitHub Actions 页面查看是否有报错信息</li>
-        </ul>
-
       </div>
+    </main>
 
-        <!-- TOC (auto-generated by JS) -->
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-      </div>
-      <!-- /article-layout -->
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-    </div>
-  </main>
-
-</div>
-
-<!-- Mobile TOC button + panel -->
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-// ===== Auto-generate TOC from h2/h3 =====
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var mobilePanel = document.getElementById('toc-mobile-panel');
-      if (mobilePanel) mobilePanel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-
-  // Scroll spy
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-
-  updateActiveToc();
-})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  </script>
 </body>
 </html>

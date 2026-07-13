@@ -1,93 +1,98 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CPU软中断高排查记录 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CPU软中断高排查记录 - SRE Notes</title>
+  <meta name="description" content="KVM 宿主机 CPU 软中断高排查：perf 定位热点、/proc/softirqs 确认 NET_RX 分布不均、RPS 关闭导致软中断无法跨核分流的根因分析与优化方案。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item"><span class="dot" style="background:var(--tag-k8s)"></span>Kubernetes<span class="count">2</span></a>
-        <a href="../index.html#go" class="nav-item"><span class="dot" style="background:var(--tag-go)"></span>Go<span class="count">0</span></a>
-        <a href="../index.html#python" class="nav-item"><span class="dot" style="background:var(--tag-python)"></span>Python<span class="count">0</span></a>
-        <a href="../index.html#devops" class="nav-item"><span class="dot" style="background:var(--tag-devops)"></span>DevOps<span class="count">0</span></a>
-        <a href="../index.html#linux" class="nav-item active"><span class="dot" style="background:var(--tag-linux)"></span>Linux<span class="count">2</span></a>
-        <a href="../index.html#network" class="nav-item"><span class="dot" style="background:var(--tag-network)"></span>Network<span class="count">1</span></a>
-        <a href="../index.html#ai" class="nav-item"><span class="dot" style="background:var(--tag-ai)"></span>AI<span class="count">8</span></a>
-      </div>
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank"><span class="dot" style="background:#24292e"></span>GitHub</a>
-      </div>
-    </nav>
-    <div class="sidebar-footer">&copy; 2026 Tech Notes</div>
-  </aside>
-
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#linux">Linux</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#linux">Linux</a>
+          <span class="sep">/</span>
+          <span class="current">CPU软中断高排查记录</span>
         </div>
-        <h1>CPU软中断高排查记录</h1>
-        <div class="article-meta">
-          <span>
-            <span class="tag tag-linux">Linux</span>
-          </span>
-          <span>2026-05-15</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div class="article-layout">
-        <div class="article-content">
+      <div class="scroll-progress" data-progress></div>
 
-        <h2>1. 基本信息</h2>
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#linux">Linux</a><span class="sep">/</span>
+              <span class="current">CPU软中断高排查记录</span>
+            </nav>
+            <h1>CPU软中断高排查记录</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-linux">Linux</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-05-15
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                8 分钟阅读
+              </span>
+            </div>
+          </header>
 
-        <table>
-          <thead><tr><th>项目</th><th>内容</th></tr></thead>
-          <tbody>
-            <tr><td>告警</td><td>[P2-告警]越南胡志明01|SEA05|[uvmp|vmzone-10.65.197.5-CPU软中断]当前值6.00%(&gt;=6%)</td></tr>
-            <tr><td>主机</td><td>sea05-uvmp-197-5</td></tr>
-            <tr><td>IP</td><td>10.65.197.5</td></tr>
-            <tr><td>架构</td><td>KVM 宿主机，48 vCPU，Mellanox ConnectX 双口网卡</td></tr>
-            <tr><td>角色</td><td>虚拟化宿主机，运行约 20+ VM，OVS 软件转发</td></tr>
-          </tbody>
-        </table>
-
-        <h2>2. 根因结论</h2>
-
-        <p>Mellanox 网卡 RSS 48 队列已开启（硬中断分散），但 <strong>RPS 全部关闭</strong>（<code>rps_cpus=0</code>），导致软中断只能在硬中断触发的那颗 CPU 上处理，无法跨核分流。前 22 颗核承担了绝大部分 NET_RX 软中断，后 26 颗核几乎空转，热点核软中断远超 6% 触发告警。</p>
-
-        <h2>3. 排查步骤</h2>
-
-        <h3>3.1 第 1 步：perf 定位 CPU 热点方向</h3>
-
-        <p><strong>目的</strong>：确认 CPU 时间花在哪里，是网络、磁盘还是其他。</p>
-
+          <div class="article-content">
+            
+<h2>1. 基本信息</h2>
+<table>
+<thead><tr><th>项目</th><th>内容</th></tr></thead>
+<tbody>
+<tr><td>告警</td><td>[P2-告警]越南胡志明01|SEA05|[uvmp|vmzone-10.65.197.5-CPU软中断]当前值6.00%(&gt;=6%)</td></tr>
+<tr><td>主机</td><td>sea05-uvmp-197-5</td></tr>
+<tr><td>IP</td><td>10.65.197.5</td></tr>
+<tr><td>架构</td><td>KVM 宿主机，48 vCPU，Mellanox ConnectX 双口网卡</td></tr>
+<tr><td>角色</td><td>虚拟化宿主机，运行约 20+ VM，OVS 软件转发</td></tr>
+</tbody>
+</table>
+<h2>2. 根因结论</h2>
+<p>Mellanox 网卡 RSS 48 队列已开启（硬中断分散），但 <strong>RPS 全部关闭</strong>（<code>rps_cpus=0</code>），导致软中断只能在硬中断触发的那颗 CPU 上处理，无法跨核分流。前 22 颗核承担了绝大部分 NET_RX 软中断，后 26 颗核几乎空转，热点核软中断远超 6% 触发告警。</p>
+<h2>3. 排查步骤</h2>
+<h3>3.1 第 1 步：perf 定位 CPU 热点方向</h3>
+<p><strong>目的</strong>：确认 CPU 时间花在哪里，是网络、磁盘还是其他。</p>
 <pre><code><span class="code-label">bash</span>perf record -g -a -- sleep 30
 perf report</code></pre>
-
-        <p><strong>数据证据</strong>：</p>
-
+<p><strong>数据证据</strong>：</p>
 <pre><code><span class="code-label">text</span>Samples: 4M of event 'cycles:ppp', Event count (approx.): 1769990165042
   Children      Self  Command          Symbol
 +   55.30%     0.35%  swapper          [k] do_idle
@@ -116,32 +121,24 @@ perf report</code></pre>
 +    1.78%     1.78%  vhost-2393       [k] copy_user_enhanced_fast_string
 +    1.52%     0.05%  swapper          [k] ovs_execute_actions
 +    1.49%     0.05%  vhost-2393       [k] ovs_execute_actions</code></pre>
-
-        <p><strong>结论</strong>：</p>
-        <ul>
-          <li>CPU 空闲占 55.3%（整体不繁忙）</li>
-          <li>软中断入口 <code>__softirqentry_text_start</code> 占 5.62%（全核平均）</li>
-          <li>热点集中在网络收包路径：<code>net_rx_action</code> → <code>mlx5e_napi_poll</code> → <code>ovs_vport_receive</code> → <code>vhost_worker</code></li>
-          <li>两台 VM 的 vhost 线程占大头：vhost-2393（7.67%）+ vhost-10069（5.79%）</li>
-          <li><code>copy_user_enhanced_fast_string</code> Self 占 1.78%，vhost 数据拷贝开销显著</li>
-        </ul>
-
-        <p><strong>数据流路径还原</strong>：</p>
-
-        <div class="flow-diagram">Mellanox NIC → 硬中断 → 软中断(NET_RX) → NAPI poll → OVS datapath → vhost → VM(tun)
+<p><strong>结论</strong>：</p>
+<ul>
+<li>CPU 空闲占 55.3%（整体不繁忙）</li>
+<li>软中断入口 <code>__softirqentry_text_start</code> 占 5.62%（全核平均）</li>
+<li>热点集中在网络收包路径：<code>net_rx_action</code> → <code>mlx5e_napi_poll</code> → <code>ovs_vport_receive</code> → <code>vhost_worker</code></li>
+<li>两台 VM 的 vhost 线程占大头：vhost-2393（7.67%）+ vhost-10069（5.79%）</li>
+<li><code>copy_user_enhanced_fast_string</code> Self 占 1.78%，vhost 数据拷贝开销显著</li>
+</ul>
+<p><strong>数据流路径还原</strong>：</p>
+<div class="flow-diagram">Mellanox NIC → 硬中断 → 软中断(NET_RX) → NAPI poll → OVS datapath → vhost → VM(tun)
     ↓              ↓           ↓              ↓            ↓           ↓         ↓
 mlx5e_handle_rx_cq  do_IRQ  net_rx_action  mlx5e_napi_poll  ovs_dp_process_packet  vhost_worker  tun_get_user
                     ↓           ↓                            ↓           ↓
                 irq_exit   __softirqentry              ovs_execute_actions  handle_tx/handle_rx</div>
-
-        <h3>3.2 第 2 步：/proc/softirqs 确认软中断类型和分布</h3>
-
-        <p><strong>目的</strong>：确认是哪类软中断（NET_RX/BLOCK/TIMER 等），以及在各 CPU 间的分布是否均匀。</p>
-
+<h3>3.2 第 2 步：/proc/softirqs 确认软中断类型和分布</h3>
+<p><strong>目的</strong>：确认是哪类软中断（NET_RX/BLOCK/TIMER 等），以及在各 CPU 间的分布是否均匀。</p>
 <pre><code><span class="code-label">bash</span>cat /proc/softirqs</code></pre>
-
-        <p><strong>数据证据</strong>（NET_RX 部分，48 核）：</p>
-
+<p><strong>数据证据</strong>（NET_RX 部分，48 核）：</p>
 <pre><code><span class="code-label">text</span>          CPU0       CPU1       CPU2       CPU3       CPU4       CPU5       CPU6       CPU7
 NET_RX: 877262657 1062407111 3786709548 3836282633 1221278738  245803196 3065264940 1180983488
 
@@ -159,28 +156,21 @@ NET_RX:   85864227   79135108   77026435   75211561   81173695   66945964   5757
 
           CPU40      CPU41      CPU42      CPU43      CPU44      CPU45      CPU46      CPU47
 NET_RX:   45400087   40244369   36944925   34185820   33162320   30395995   26706477   24722345</code></pre>
-
-        <p><strong>结论</strong>：</p>
-        <ul>
-          <li>软中断类型确认为 <strong>NET_RX（网络收包）</strong></li>
-          <li><strong>分布极度不均</strong>：CPU3 有 38.36 亿次，CPU47 仅 2472 万次，<strong>差距 155 倍</strong></li>
-          <li>CPU0~21 承担了绝大部分 NET_RX，CPU22~47 几乎空闲</li>
-          <li>这直接解释了为什么全核平均 softirq 只有 5.62%，但热点核远超 6%</li>
-        </ul>
-
-        <div class="highlight-box">
-          <p><strong>💡 量化验证</strong>：全核平均 softirq = 5.62%（来自 perf），softirq 总消耗 = 48 × 5.62% ≈ 270% 单核时间。CPU3 的 NET_RX 占全系统 ~11% → softirq ≈ 30% 单核时间。CPU47 的 NET_RX 占全系统 ~0.07% → softirq ≈ 0.2%。</p>
-        </div>
-
-        <h3>3.3 第 3 步：/proc/interrupts 查看网卡中断分布</h3>
-
-        <p><strong>目的</strong>：确认 Mellanox 网卡数据通道中断是否存在及其绑核分布。</p>
-
+<p><strong>结论</strong>：</p>
+<ul>
+<li>软中断类型确认为 <strong>NET_RX（网络收包）</strong></li>
+<li><strong>分布极度不均</strong>：CPU3 有 38.36 亿次，CPU47 仅 2472 万次，<strong>差距 155 倍</strong></li>
+<li>CPU0~21 承担了绝大部分 NET_RX，CPU22~47 几乎空闲</li>
+<li>这直接解释了为什么全核平均 softirq 只有 5.62%，但热点核远超 6%</li>
+</ul>
+<div class="highlight-box">
+<p><strong>💡 量化验证</strong>：全核平均 softirq = 5.62%（来自 perf），softirq 总消耗 = 48 × 5.62% ≈ 270% 单核时间。CPU3 的 NET_RX 占全系统 ~11% → softirq ≈ 30% 单核时间。CPU47 的 NET_RX 占全系统 ~0.07% → softirq ≈ 0.2%。</p>
+</div>
+<h3>3.3 第 3 步：/proc/interrupts 查看网卡中断分布</h3>
+<p><strong>目的</strong>：确认 Mellanox 网卡数据通道中断是否存在及其绑核分布。</p>
 <pre><code><span class="code-label">bash</span>cat /proc/interrupts | grep -E 'mlx|enp|enx' | head -20
 cat /proc/interrupts | grep -E 'mlx5_comp|mlx5_rx' | head -20</code></pre>
-
-        <p><strong>数据证据</strong>：</p>
-
+<p><strong>数据证据</strong>：</p>
 <pre><code><span class="code-label">text</span># 只有管理面中断，无数据通道中断
  358:  ... CPU12 ...  IR-PCI-MSI 91750400-edge  mlx5_pages_eq@pci:0000:af:00.0
  359:  ... CPU12 ...  IR-PCI-MSI 91750401-edge  mlx5_cmd_eq@pci:0000:af:00.0
@@ -188,20 +178,14 @@ cat /proc/interrupts | grep -E 'mlx5_comp|mlx5_rx' | head -20</code></pre>
  361:  ... CPU12 ...  IR-PCI-MSI 91750403-edge  mlx5_page_fault_eq@pci:0000:af:00.0
 
 # mlx5_comp 搜索结果为空</code></pre>
-
-        <p><strong>结论</strong>：只看到管理面中断（pages_eq/cmd_eq/async_eq），全部绑在 CPU12。没有看到 <code>mlx5_comp*</code> 数据通道中断，Mellanox 驱动在 NAPI 模式下以 poll 方式工作而非传统中断方式。</p>
-
-        <h3>3.4 第 4 步：确认网络拓扑</h3>
-
-        <p><strong>目的</strong>：br0 是 Linux bridge 还是 OVS bridge？物理网卡叫什么？</p>
-
+<p><strong>结论</strong>：只看到管理面中断（pages_eq/cmd_eq/async_eq），全部绑在 CPU12。没有看到 <code>mlx5_comp*</code> 数据通道中断，Mellanox 驱动在 NAPI 模式下以 poll 方式工作而非传统中断方式。</p>
+<h3>3.4 第 4 步：确认网络拓扑</h3>
+<p><strong>目的</strong>：br0 是 Linux bridge 还是 OVS bridge？物理网卡叫什么？</p>
 <pre><code><span class="code-label">bash</span>ls -la /sys/class/net/
 ovs-vsctl show
 ls /sys/class/net/ | while read n; do d=/sys/class/net/$n/device; [ -d "$d" ] &amp;&amp; echo "$n -&gt; $(readlink $d)"; done</code></pre>
-
-        <p><strong>网络拓扑还原</strong>：</p>
-
-        <div class="flow-diagram">net0/1 (1a:00, 管理网卡) ── manbr ── net2 (af:00.0, Mellanox P0)
+<p><strong>网络拓扑还原</strong>：</p>
+<div class="flow-diagram">net0/1 (1a:00, 管理网卡) ── manbr ── net2 (af:00.0, Mellanox P0)
                                       │ 21个VM
                                       
 net3 (af:00.1, Mellanox P1) ── wanbr ── 17个VM
@@ -209,132 +193,107 @@ net3 (af:00.1, Mellanox P1) ── wanbr ── 17个VM
 GRE 隧道 (wildcard_gre) ── br0 ── 21个VM（无物理网卡，流量经 net2/net3 出去）
 
 三个 OVS 桥共享 Mellanox 网卡带宽，纯软件转发，无硬件卸载。</div>
-
-        <h3>3.5 第 5 步：确认 Mellanox RSS/RPS/GRO 配置</h3>
-
-        <p><strong>目的</strong>：确认网卡多队列、RPS、offload 的当前状态。</p>
-
+<h3>3.5 第 5 步：确认 Mellanox RSS/RPS/GRO 配置</h3>
+<p><strong>目的</strong>：确认网卡多队列、RPS、offload 的当前状态。</p>
 <pre><code><span class="code-label">bash</span>ethtool -l net2 &amp;&amp; ethtool -l net3
 ethtool -k net2 | grep -E 'generic-receive-offload|generic-segmentation-offload|tcp-segmentation-offload|hw-tc-offload|rx-hashing'
 for q in /sys/class/net/net2/queues/rx-*/rps_cpus; do echo "$q: $(cat $q)"; done
 for q in /sys/class/net/net3/queues/rx-*/rps_cpus; do echo "$q: $(cat $q)"; done</code></pre>
-
-        <p><strong>关键发现</strong>：</p>
-
-        <table>
-          <thead><tr><th>配置项</th><th>状态</th><th>说明</th></tr></thead>
-          <tbody>
-            <tr><td>RSS 多队列</td><td>✅ 已配 48 队列</td><td>硬中断分散到多核</td></tr>
-            <tr><td>GRO/GSO/TSO</td><td>✅ 已开启</td><td>减少包数，降低 CPU 开销</td></tr>
-            <tr><td>hw-tc-offload</td><td>✅ 已开启</td><td>硬件条件具备</td></tr>
-            <tr><td><strong>RPS</strong></td><td><strong>❌ 全部关闭</strong></td><td><strong>rps_cpus 全部 = 0，核心问题</strong></td></tr>
-          </tbody>
-        </table>
-
-        <p>RSS 48 队列已配（硬中断分散到多核），<strong>RPS 全部关闭是核心问题</strong>——硬中断虽然在多核触发，但软中断只能原地处理，不能迁移到其他核。</p>
-
-        <h3>3.6 第 6 步：确认高流量 VM</h3>
-
+<p><strong>关键发现</strong>：</p>
+<table>
+<thead><tr><th>配置项</th><th>状态</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>RSS 多队列</td><td>✅ 已配 48 队列</td><td>硬中断分散到多核</td></tr>
+<tr><td>GRO/GSO/TSO</td><td>✅ 已开启</td><td>减少包数，降低 CPU 开销</td></tr>
+<tr><td>hw-tc-offload</td><td>✅ 已开启</td><td>硬件条件具备</td></tr>
+<tr><td><strong>RPS</strong></td><td><strong>❌ 全部关闭</strong></td><td><strong>rps_cpus 全部 = 0，核心问题</strong></td></tr>
+</tbody>
+</table>
+<p>RSS 48 队列已配（硬中断分散到多核），<strong>RPS 全部关闭是核心问题</strong>——硬中断虽然在多核触发，但软中断只能原地处理，不能迁移到其他核。</p>
+<h3>3.6 第 6 步：确认高流量 VM</h3>
 <pre><code><span class="code-label">bash</span>ps -eo pid,comm,%cpu,psr | grep vhost</code></pre>
-
-        <p>vhost-2393：12 线程，每线程 6.9%~8.4% CPU，总计 ~95% CPU。vhost-10069：12 线程，每线程 4.2%~7.6% CPU，总计 ~70% CPU。与 perf 数据吻合。</p>
-
-        <h3>3.7 第 7 步：确认网络流量规模</h3>
-
+<p>vhost-2393：12 线程，每线程 6.9%~8.4% CPU，总计 ~95% CPU。vhost-10069：12 线程，每线程 4.2%~7.6% CPU，总计 ~70% CPU。与 perf 数据吻合。</p>
+<h3>3.7 第 7 步：确认网络流量规模</h3>
 <pre><code><span class="code-label">bash</span>sar -n DEV 1 3 | grep -E 'net2|net3'</code></pre>
-
-        <table>
-          <thead><tr><th>网卡</th><th>RX pps</th><th>TX pps</th><th>RX 带宽</th><th>TX 带宽</th></tr></thead>
-          <tbody>
-            <tr><td>net2</td><td>486K pps</td><td>529K pps</td><td>581 MB/s</td><td>681 MB/s</td></tr>
-            <tr><td>net3</td><td>103K pps</td><td>37K pps</td><td>127 MB/s</td><td>2.7 MB/s</td></tr>
-          </tbody>
-        </table>
-
-        <p>net2 承载主要流量（~487K pps），在这个量级下 RPS 全关闭影响巨大。</p>
-
-        <h2>4. 根因分析</h2>
-
-        <h3>4.1 因果链条</h3>
-
-        <div class="flow-steps">
-          <div class="flow-step"><strong>RPS 关闭（rps_cpus=0）</strong>软中断无法跨核迁移</div>
-          <div class="flow-step"><strong>硬中断绑定 = 软中断绑定</strong>硬中断在哪颗 CPU 触发，软中断就只能在那颗 CPU 处理</div>
-          <div class="flow-step"><strong>RSS 只解决硬中断分布</strong>48 个 RSS 队列分散硬中断，但软中断无法跨核迁移</div>
-          <div class="flow-step"><strong>前 22 核包揽、后 26 核空闲</strong>热点核软中断远超 6%，冷核接近 0%</div>
-          <div class="flow-step"><strong>全核平均被冷核拉低</strong>perf 显示 5.62%，但热点核实际 20-30%</div>
-        </div>
-
-        <h2>5. 优化方案</h2>
-
-        <h3>5.1 P0：开启 RPS（最关键，即时生效，风险极低）</h3>
-
+<table>
+<thead><tr><th>网卡</th><th>RX pps</th><th>TX pps</th><th>RX 带宽</th><th>TX 带宽</th></tr></thead>
+<tbody>
+<tr><td>net2</td><td>486K pps</td><td>529K pps</td><td>581 MB/s</td><td>681 MB/s</td></tr>
+<tr><td>net3</td><td>103K pps</td><td>37K pps</td><td>127 MB/s</td><td>2.7 MB/s</td></tr>
+</tbody>
+</table>
+<p>net2 承载主要流量（~487K pps），在这个量级下 RPS 全关闭影响巨大。</p>
+<h2>4. 根因分析</h2>
+<h3>4.1 因果链条</h3>
+<div class="flow-steps">
+<div class="flow-step"><strong>RPS 关闭（rps_cpus=0）</strong>软中断无法跨核迁移</div>
+<div class="flow-step"><strong>硬中断绑定 = 软中断绑定</strong>硬中断在哪颗 CPU 触发，软中断就只能在那颗 CPU 处理</div>
+<div class="flow-step"><strong>RSS 只解决硬中断分布</strong>48 个 RSS 队列分散硬中断，但软中断无法跨核迁移</div>
+<div class="flow-step"><strong>前 22 核包揽、后 26 核空闲</strong>热点核软中断远超 6%，冷核接近 0%</div>
+<div class="flow-step"><strong>全核平均被冷核拉低</strong>perf 显示 5.62%，但热点核实际 20-30%</div>
+</div>
+<h2>5. 优化方案</h2>
+<h3>5.1 P0：开启 RPS（最关键，即时生效，风险极低）</h3>
 <pre><code><span class="code-label">bash</span># net2（主流量网卡）
 for q in /sys/class/net/net2/queues/rx-*/rps_cpus; do
-  echo "ffff,ffffffffffff" > $q
+  echo "ffff,ffffffffffff" &gt; $q
 done
 for q in /sys/class/net/net2/queues/rx-*/rps_flow_cnt; do
-  echo 4096 > $q
+  echo 4096 &gt; $q
 done
 
 # net3
 for q in /sys/class/net/net3/queues/rx-*/rps_cpus; do
-  echo "ffff,ffffffffffff" > $q
+  echo "ffff,ffffffffffff" &gt; $q
 done
 for q in /sys/class/net/net3/queues/rx-*/rps_flow_cnt; do
-  echo 4096 > $q
+  echo 4096 &gt; $q
 done
 
 # OVS 桥
-echo "ffff,ffffffffffff" > /sys/class/net/br0/queues/rx-0/rps_cpus
-echo 4096 > /sys/class/net/br0/queues/rx-0/rps_flow_cnt
-echo "ffff,ffffffffffff" > /sys/class/net/wanbr/queues/rx-0/rps_cpus
-echo 4096 > /sys/class/net/wanbr/queues/rx-0/rps_flow_cnt
+echo "ffff,ffffffffffff" &gt; /sys/class/net/br0/queues/rx-0/rps_cpus
+echo 4096 &gt; /sys/class/net/br0/queues/rx-0/rps_flow_cnt
+echo "ffff,ffffffffffff" &gt; /sys/class/net/wanbr/queues/rx-0/rps_cpus
+echo 4096 &gt; /sys/class/net/wanbr/queues/rx-0/rps_flow_cnt
 
 # 全局 RPS 流表
-echo 196608 > /proc/sys/net/core/rps_sock_flow_entries</code></pre>
-
-        <p><strong>预期效果</strong>：</p>
-
-        <table>
-          <thead><tr><th>指标</th><th>优化前</th><th>优化后（预期）</th></tr></thead>
-          <tbody>
-            <tr><td>参与 NET_RX 的 CPU</td><td>~22 核（前半）</td><td>48 核全部参与</td></tr>
-            <tr><td>热点核 CPU 软中断占比</td><td>20-30%</td><td>&lt; 2%</td></tr>
-            <tr><td>CPU 软中断告警</td><td>6% ≥ 6% 触发</td><td>&lt; 3%，告警消除</td></tr>
-          </tbody>
-        </table>
-
-        <h3>5.2 P1：持久化 RPS 配置</h3>
-
+echo 196608 &gt; /proc/sys/net/core/rps_sock_flow_entries</code></pre>
+<p><strong>预期效果</strong>：</p>
+<table>
+<thead><tr><th>指标</th><th>优化前</th><th>优化后（预期）</th></tr></thead>
+<tbody>
+<tr><td>参与 NET_RX 的 CPU</td><td>~22 核（前半）</td><td>48 核全部参与</td></tr>
+<tr><td>热点核 CPU 软中断占比</td><td>20-30%</td><td>&lt; 2%</td></tr>
+<tr><td>CPU 软中断告警</td><td>6% ≥ 6% 触发</td><td>&lt; 3%，告警消除</td></tr>
+</tbody>
+</table>
+<h3>5.2 P1：持久化 RPS 配置</h3>
 <pre><code><span class="code-label">bash</span># sysctl 持久化
-cat >> /etc/sysctl.conf << 'EOF'
+cat &gt;&gt; /etc/sysctl.conf &lt;&lt; 'EOF'
 net.core.rps_sock_flow_entries = 196608
 EOF
 sysctl -p
 
 # RPS 持久化脚本
-cat > /etc/rc.d/init.d/set-rps.sh << 'SCRIPT'
+cat &gt; /etc/rc.d/init.d/set-rps.sh &lt;&lt; 'SCRIPT'
 #!/bin/bash
 for nic in net2 net3; do
   for q in /sys/class/net/$nic/queues/rx-*/rps_cpus; do
-    echo "ffff,ffffffffffff" > $q 2>/dev/null
+    echo "ffff,ffffffffffff" &gt; $q 2&gt;/dev/null
   done
   for q in /sys/class/net/$nic/queues/rx-*/rps_flow_cnt; do
-    echo 4096 > $q 2>/dev/null
+    echo 4096 &gt; $q 2&gt;/dev/null
   done
 done
 for br in br0 wanbr; do
-  echo "ffff,ffffffffffff" > /sys/class/net/$br/queues/rx-0/rps_cpus 2>/dev/null
-  echo 4096 > /sys/class/net/$br/queues/rx-0/rps_flow_cnt 2>/dev/null
+  echo "ffff,ffffffffffff" &gt; /sys/class/net/$br/queues/rx-0/rps_cpus 2&gt;/dev/null
+  echo 4096 &gt; /sys/class/net/$br/queues/rx-0/rps_flow_cnt 2&gt;/dev/null
 done
 SCRIPT
 chmod +x /etc/rc.d/init.d/set-rps.sh
 
-grep -q set-rps /etc/rc.local || echo '/etc/rc.d/init.d/set-rps.sh' >> /etc/rc.local</code></pre>
-
-        <h3>5.3 P2：验证效果</h3>
-
+grep -q set-rps /etc/rc.local || echo '/etc/rc.d/init.d/set-rps.sh' &gt;&gt; /etc/rc.local</code></pre>
+<h3>5.3 P2：验证效果</h3>
 <pre><code><span class="code-label">bash</span># 观察 NET_RX 软中断分布是否均匀
 watch -n2 'cat /proc/softirqs | head -1; cat /proc/softirqs | grep NET_RX'
 
@@ -344,111 +303,116 @@ mpstat -P ALL 2 3
 # 确认 RPS 已开启
 cat /sys/class/net/net2/queues/rx-0/rps_cpus
 cat /sys/class/net/net3/queues/rx-0/rps_cpus</code></pre>
-
-        <h3>5.4 P3（后续优化）：OVS 硬件卸载</h3>
-
-        <p>当前 OVS 版本 2.10.5 较老，hw-tc-offload 支持有限。若后续升级 OVS 或内核，可考虑：</p>
-
+<h3>5.4 P3（后续优化）：OVS 硬件卸载</h3>
+<p>当前 OVS 版本 2.10.5 较老，hw-tc-offload 支持有限。若后续升级 OVS 或内核，可考虑：</p>
 <pre><code><span class="code-label">bash</span># 确认 hw-tc-offload 硬件条件已具备（当前已开启）
 ethtool -k net2 | grep hw-tc-offload   # on
 
 # 配置 OVS 硬件卸载（需 OVS 2.12+ 且内核支持）
 ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
 systemctl restart openvswitch</code></pre>
-
-        <p>预期将 OVS 转发卸载到网卡硬件，CPU 几乎不参与转发，软中断降低 60-80%。</p>
-
-        <h2>6. 附录：RPS 原理</h2>
-
-        <p><strong>RPS（Receive Packet Steering）</strong> 是 Linux 内核的软件级网络收包分流机制。</p>
-
-        <h3>6.1 没有 RPS</h3>
-
-        <div class="flow-diagram">网卡收到包 → 硬中断(IRQ)绑到 CPU2 → CPU2 触发软中断 → CPU2 完成所有处理 → CPU2 跑满
+<p>预期将 OVS 转发卸载到网卡硬件，CPU 几乎不参与转发，软中断降低 60-80%。</p>
+<h2>6. 附录：RPS 原理</h2>
+<p><strong>RPS（Receive Packet Steering）</strong> 是 Linux 内核的软件级网络收包分流机制。</p>
+<h3>6.1 没有 RPS</h3>
+<div class="flow-diagram">网卡收到包 → 硬中断(IRQ)绑到 CPU2 → CPU2 触发软中断 → CPU2 完成所有处理 → CPU2 跑满
 
 硬中断在哪颗 CPU 触发，后续所有软中断处理就死死绑在这颗核上，不能迁移。</div>
-
-        <h3>6.2 有 RPS</h3>
-
-        <div class="flow-diagram">网卡收到包 → 硬中断(IRQ)绑到 CPU2 → RPS 根据 hash(五元组) 分发 → CPU0~47 都参与软中断处理
+<h3>6.2 有 RPS</h3>
+<div class="flow-diagram">网卡收到包 → 硬中断(IRQ)绑到 CPU2 → RPS 根据 hash(五元组) 分发 → CPU0~47 都参与软中断处理
 
 RPS 在硬中断处理后，根据数据包的五元组（srcIP/dstIP/srcPort/dstPort/protocol）计算 hash，
 将包分发到不同 CPU 的 backlog 队列，让多核并行处理软中断。</div>
+<h3>6.3 RSS vs RPS</h3>
+<table>
+<thead><tr><th>机制</th><th>层级</th><th>作用</th><th>本机状态</th></tr></thead>
+<tbody>
+<tr><td>RSS</td><td>硬件</td><td>多队列，硬中断分散到多核</td><td>✅ 已开（48 队列）</td></tr>
+<tr><td>RPS</td><td>软件</td><td>软中断跨核分流</td><td>❌ 全关（根因）</td></tr>
+</tbody>
+</table>
+<p>RSS 解决硬中断分布，RPS 解决软中断分布。两者互补，缺一不可。</p>
+<h2>7. 附录：perf 热点符号解读</h2>
+<table>
+<thead><tr><th>符号</th><th>占比</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><code>intel_idle</code></td><td>49.40%</td><td>CPU 执行 mwait/hlt 指令等待中断唤醒（空闲）</td></tr>
+<tr><td><code>vhost_worker</code></td><td>7.67%+4.74%</td><td>vhost 工作线程主循环，处理 VM 网络数据</td></tr>
+<tr><td><code>__softirqentry_text_start</code></td><td>5.62%</td><td>软中断入口，告警"CPU软中断"的计数点</td></tr>
+<tr><td><code>net_rx_action</code></td><td>4.46%</td><td>NET_RX 软中断主函数，调用 NAPI poll 收包</td></tr>
+<tr><td><code>mlx5e_napi_poll</code></td><td>3.40%</td><td>Mellanox 驱动 NAPI 轮询入口</td></tr>
+<tr><td><code>handle_tx</code></td><td>3.73%+2.20%</td><td>vhost 发包方向（宿主机→VM）</td></tr>
+<tr><td><code>tun_get_user</code></td><td>3.25%</td><td>从 tun 设备读取数据（vhost 拷贝数据）</td></tr>
+<tr><td><code>handle_rx</code></td><td>2.93%</td><td>vhost 收包方向（VM→宿主机）</td></tr>
+<tr><td><code>__netif_receive_skb_core</code></td><td>2.24%</td><td>内核收包核心，将 skb 分发给协议栈或 OVS</td></tr>
+<tr><td><code>mlx5e_poll_rx_cq</code></td><td>1.97%</td><td>Mellanox RX 完成队列轮询</td></tr>
+<tr><td><code>netdev_frame_hook</code></td><td>2.04%</td><td>OVS 注册的钩子，拦截进入 OVS 桥的包</td></tr>
+<tr><td><code>ovs_vport_receive</code></td><td>2.02%</td><td>OVS 虚拟端口收包</td></tr>
+<tr><td><code>ovs_dp_process_packet</code></td><td>1.94%</td><td>OVS 数据路径：查流表决定转发动作</td></tr>
+<tr><td><code>copy_user_enhanced_fast_string</code></td><td>1.78%</td><td>vhost 将数据从内核拷贝到 VM 的 vring（Self 最高）</td></tr>
+<tr><td><code>ovs_execute_actions</code></td><td>1.52%</td><td>执行 OVS 流表动作</td></tr>
+</tbody>
+</table>
 
-        <h3>6.3 RSS vs RPS</h3>
+          </div>
 
-        <table>
-          <thead><tr><th>机制</th><th>层级</th><th>作用</th><th>本机状态</th></tr></thead>
-          <tbody>
-            <tr><td>RSS</td><td>硬件</td><td>多队列，硬中断分散到多核</td><td>✅ 已开（48 队列）</td></tr>
-            <tr><td>RPS</td><td>软件</td><td>软中断跨核分流</td><td>❌ 全关（根因）</td></tr>
-          </tbody>
-        </table>
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev disabled" href="#">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">没有更早的文章</span>
+              </a>
+              <a class="article-nav-link next" href="../posts/文件描述符与文件句柄.html">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">文件描述符与文件句柄</span>
+              </a>
+            </nav>
 
-        <p>RSS 解决硬中断分布，RPS 解决软中断分布。两者互补，缺一不可。</p>
-
-        <h2>7. 附录：perf 热点符号解读</h2>
-
-        <table>
-          <thead><tr><th>符号</th><th>占比</th><th>含义</th></tr></thead>
-          <tbody>
-            <tr><td><code>intel_idle</code></td><td>49.40%</td><td>CPU 执行 mwait/hlt 指令等待中断唤醒（空闲）</td></tr>
-            <tr><td><code>vhost_worker</code></td><td>7.67%+4.74%</td><td>vhost 工作线程主循环，处理 VM 网络数据</td></tr>
-            <tr><td><code>__softirqentry_text_start</code></td><td>5.62%</td><td>软中断入口，告警"CPU软中断"的计数点</td></tr>
-            <tr><td><code>net_rx_action</code></td><td>4.46%</td><td>NET_RX 软中断主函数，调用 NAPI poll 收包</td></tr>
-            <tr><td><code>mlx5e_napi_poll</code></td><td>3.40%</td><td>Mellanox 驱动 NAPI 轮询入口</td></tr>
-            <tr><td><code>handle_tx</code></td><td>3.73%+2.20%</td><td>vhost 发包方向（宿主机→VM）</td></tr>
-            <tr><td><code>tun_get_user</code></td><td>3.25%</td><td>从 tun 设备读取数据（vhost 拷贝数据）</td></tr>
-            <tr><td><code>handle_rx</code></td><td>2.93%</td><td>vhost 收包方向（VM→宿主机）</td></tr>
-            <tr><td><code>__netif_receive_skb_core</code></td><td>2.24%</td><td>内核收包核心，将 skb 分发给协议栈或 OVS</td></tr>
-            <tr><td><code>mlx5e_poll_rx_cq</code></td><td>1.97%</td><td>Mellanox RX 完成队列轮询</td></tr>
-            <tr><td><code>netdev_frame_hook</code></td><td>2.04%</td><td>OVS 注册的钩子，拦截进入 OVS 桥的包</td></tr>
-            <tr><td><code>ovs_vport_receive</code></td><td>2.02%</td><td>OVS 虚拟端口收包</td></tr>
-            <tr><td><code>ovs_dp_process_packet</code></td><td>1.94%</td><td>OVS 数据路径：查流表决定转发动作</td></tr>
-            <tr><td><code>copy_user_enhanced_fast_string</code></td><td>1.78%</td><td>vhost 将数据从内核拷贝到 VM 的 vring（Self 最高）</td></tr>
-            <tr><td><code>ovs_execute_actions</code></td><td>1.52%</td><td>执行 OVS 流表动作</td></tr>
-          </tbody>
-        </table>
-
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><a class="post-card" href="../posts/iptables-ipvs-nftables详解.html"><div class="post-card-title">iptables、IPVS 与 nftables 详解</div><div class="post-card-desc">Linux 内核三大包处理框架详解：iptables/IPVS/nftables 的 Netfilter hook 机制、内核数据结构、conntrack 状态…</div><div class="post-card-meta"><span class="tag tag-linux">Linux</span><span>2026-06-21</span></div></a><a class="post-card" href="../posts/文件描述符与文件句柄.html"><div class="post-card-title">文件描述符与文件句柄</div><div class="post-card-desc">Linux 文件描述符与文件句柄总结：通过 Python os.open 示例观察 /proc/PID/fd，理解 FD、打开文件对象、inode 与路径的关系…</div><div class="post-card-meta"><span class="tag tag-linux">Linux</span><span>2026-05-26</span></div></a></div>
+            </div>
+          </footer>
+        </div>
       </div>
+    </main>
 
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
-      </div>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-    </div>
-  </main>
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-</div>
-
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')}
-function toggleMobileToc(){document.getElementById('toc-mobile-panel').classList.toggle('show')}
-(function(){var c=document.querySelector('.article-content');if(!c)return;var h=c.querySelectorAll('h2,h3'),t=document.getElementById('toc-list'),m=document.getElementById('toc-mobile-list');if(!t||h.length===0)return;var n=0;h.forEach(function(e){n++;var s='section-'+n;e.id=s;var li=document.createElement('li');li.className='toc-item';var a=document.createElement('a');a.className='toc-link'+(e.tagName==='H3'?' level-h3':'');a.href='#'+s;a.textContent=e.textContent;a.setAttribute('data-target',s);a.addEventListener('click',function(ev){ev.preventDefault();var tgt=document.getElementById(s);if(tgt)tgt.scrollIntoView({behavior:'smooth',block:'start'});var mp=document.getElementById('toc-mobile-panel');if(mp)mp.classList.remove('show')});li.appendChild(a);t.appendChild(li);if(m){var l2=li.cloneNode(true);l2.querySelector('a').addEventListener('click',function(ev){ev.preventDefault();var tgt=document.getElementById(s);if(tgt)tgt.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('toc-mobile-panel').classList.remove('show')});m.appendChild(l2)}});var tl=document.querySelectorAll('.toc-link'),ah=c.querySelectorAll('h2,h3');function ua(){var st=window.scrollY||document.documentElement.scrollTop,ci='';ah.forEach(function(e){if(e.offsetTop-60<=st)ci=e.id});tl.forEach(function(l){l.classList.toggle('active',l.getAttribute('data-target')===ci)})}var tk=false;window.addEventListener('scroll',function(){if(!tk){window.requestAnimationFrame(function(){ua();tk=false});tk=true}});ua()})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
+    });
+  </script>
 </body>
 </html>

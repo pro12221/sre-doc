@@ -1,170 +1,138 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>文章标题 - SRE Notes</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}} - SRE Notes</title>
+  <meta name="description" content="{{EXCERPT}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<div class="article-page">
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#{{CATEGORY}}">{{CATEGORY_LABEL}}</a>
+          <span class="sep">/</span>
+          <span class="current">{{TITLE_SHORT}}</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
+        </div>
+      </header>
 
-  <div class="article-header">
-    <div class="breadcrumb">
-      <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">分类名</a>
-    </div>
-    <h1>文章标题</h1>
-    <div class="article-meta">
-      <span>
-        <span class="tag tag-k8s">Kubernetes</span>
-      </span>
-      <span>2026-05-12</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
-    </div>
-  </div>
+      <div class="scroll-progress" data-progress></div>
 
-  <div class="article-with-toc">
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#{{CATEGORY}}">{{CATEGORY_LABEL}}</a><span class="sep">/</span>
+              <span class="current">{{TITLE}}</span>
+            </nav>
+            <h1>{{TITLE}}</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-{{CATEGORY}}">{{CATEGORY_LABEL}}</span>
+              {{EXTRA_TAGS}}
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                {{DATE}}
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                {{READING_TIME}} 分钟阅读
+              </span>
+            </div>
+          </header>
 
-    <div class="article-content">
+          <div class="article-content">
+            {{BODY}}
+          </div>
 
-      <h2>1. 第一个章节</h2>
-      <p>在这里写内容...</p>
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev{{PREV_DISABLED}}" {{PREV_HREF}}>
+                <span class="label">← 上一篇文章</span>
+                <span class="title">{{PREV_TITLE}}</span>
+              </a>
+              <a class="article-nav-link next{{NEXT_DISABLED}}" {{NEXT_HREF}}>
+                <span class="label">下一篇文章 →</span>
+                <span class="title">{{NEXT_TITLE}}</span>
+              </a>
+            </nav>
 
-      <div class="highlight-box">
-        <p><strong>💡 提示：</strong>重要提示放在这里。</p>
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid">{{RELATED_CARDS}}</div>
+            </div>
+          </footer>
+        </div>
       </div>
+    </main>
 
-      <pre><code><span class="code-label">语言</span>// 代码示例
-console.log("Hello, SRE Notes!");</code></pre>
-
-      <h2>2. 第二个章节</h2>
-      <h3>2.1 子章节</h3>
-      <p>继续写内容...</p>
-
-    </div>
-
-    <!-- TOC -->
-    <aside class="toc-container" id="toc-container">
-      <div class="toc-title">目录</div>
-      <ul class="toc-list" id="toc-list"></ul>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
     </aside>
-
   </div>
 
-</div>
-
-<!-- Footer -->
-<footer class="site-footer">
-  <div class="footer-inner">
-    <div class="footer-links">
-      <a href="../index.html">首页</a>
-      <a href="../about.html">关于</a>
-      <a href="https://github.com/pro12221" target="_blank">GitHub</a>
-    </div>
-    <div class="footer-copy">&copy; 2026 SRE Notes. Powered by Cloudflare Pages.</div>
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
   </div>
-</footer>
 
-<!-- Mobile TOC -->
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var panel = document.getElementById('toc-mobile-panel');
-      if (panel) panel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 80 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-  updateActiveToc();
-})();
-
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/nav.js"></script>
-
+  </script>
 </body>
 </html>

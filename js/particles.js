@@ -16,9 +16,9 @@
   var particleCount = 30;
   var animationId;
 
-  // Colors — warm amber accent, muted
-  var particleColor = 'rgba(232, 168, 56, 0.25)';
-  var connectionBase = '232, 168, 56';
+  // Colors — Linear/Notion blue accent, dark-mode friendly
+  var particleColor = 'rgba(94, 106, 210, 0.45)';
+  var connectionBase = '94, 106, 210';
 
   function resize() {
     canvas.width = window.innerWidth;

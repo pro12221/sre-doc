@@ -1,141 +1,101 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>云计算网络架构演进 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云计算网络架构演进 - SRE Notes</title>
+  <meta name="description" content="从经典网络到 VPC、从软件转发到软硬一体化、从数据中心到云边端一体：AWS/阿里云/UCloud 三大厂商网络架构演进。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<!-- Mobile Toggle -->
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <!-- ====== Sidebar ====== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item">
-          <span class="dot" style="background:var(--tag-k8s)"></span>
-          Kubernetes
-          <span class="count">6</span>
-        </a>
-        <a href="../index.html#go" class="nav-item">
-          <span class="dot" style="background:var(--tag-go)"></span>
-          Go
-          <span class="count">2</span>
-        </a>
-        <a href="../index.html#python" class="nav-item">
-          <span class="dot" style="background:var(--tag-python)"></span>
-          Python
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#devops" class="nav-item">
-          <span class="dot" style="background:var(--tag-devops)"></span>
-          DevOps
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#linux" class="nav-item">
-          <span class="dot" style="background:var(--tag-linux)"></span>
-          Linux
-          <span class="count">2</span>
-        </a>
-        <a href="../index.html#network" class="nav-item active">
-          <span class="dot" style="background:var(--tag-network)"></span>
-          Network
-          <span class="count">3</span>
-        </a>
-        <a href="../index.html#ai" class="nav-item">
-          <span class="dot" style="background:var(--tag-ai)"></span>
-          AI
-          <span class="count">8</span>
-        </a>
-      </div>
-
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
-          <span class="dot" style="background:#24292e"></span>
-          GitHub
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      &copy; 2026 Tech Notes
-    </div>
-  </aside>
-
-  <!-- ====== Main Content ====== -->
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#network">Network</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#network">Network</a>
+          <span class="sep">/</span>
+          <span class="current">云计算网络架构演进</span>
         </div>
-        <h1>云计算网络架构演进</h1>
-        <div class="article-meta">
-          <span>
-            <span class="tag tag-network">Network</span>
-          </span>
-          <span>2026-05-30</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div class="article-layout">
+      <div class="scroll-progress" data-progress></div>
 
-        <div class="article-content">
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#network">Network</a><span class="sep">/</span>
+              <span class="current">云计算网络架构演进</span>
+            </nav>
+            <h1>云计算网络架构演进</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-network">Network</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-05-30
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                28 分钟阅读
+              </span>
+            </div>
+          </header>
 
-        <p>云计算的本质是将计算、存储、网络资源通过虚拟化技术池化后以服务形式交付给用户。其中，网络虚拟化是最复杂、最具挑战性的环节——它需要在一张共享的物理网络上为成千上万的租户构建安全隔离、弹性可扩展、高性能的虚拟网络环境。</p>
-
-        <p>本文将从<strong>技术演进脉络</strong>和<strong>云厂商实践</strong>两个维度，系统梳理云计算网络架构从经典网络到 VPC、从软件转发到软硬一体化、从数据中心网络到云边端一体的完整演进历程。</p>
-
-        <h2>1. 前云时代：传统数据中心的网络困境</h2>
-
-        <h3>1.1 传统三层网络架构</h3>
-
-        <p>在云计算出现之前，数据中心网络采用经典的<strong>核心-汇聚-接入（Core-Aggregation-Access）三层架构</strong>。这种架构源自企业园区网络设计，核心层负责高速转发，汇聚层承上启下并部署安全/负载均衡等服务节点，接入层连接服务器。</p>
-
-        <p>这种架构在面对传统企业应用时运行良好，但在虚拟化时代暴露了三个根本性矛盾：</p>
-
-        <h3>矛盾一：虚拟机迁移与二层网络</h3>
-
-        <p>虚拟化技术带来的核心需求之一是<strong>虚拟机热迁移</strong>——在不中断业务的前提下将运行中的虚拟机从一台物理机迁移到另一台。热迁移要求虚拟机的 IP 地址和 MAC 地址在迁移前后保持不变，原因有三：</p>
-
-        <ul>
-          <li><strong>TCP 连接保活</strong>：虚拟机上运行的应用可能持有大量 TCP 长连接（如数据库连接池、HTTP Keep-Alive），IP 地址变化意味着所有连接瞬间断开，应用层无法优雅处理。</li>
-          <li><strong>DNS 缓存一致性</strong>：客户端和中间件（如 Nginx、Consul）缓存了虚拟机 IP 对应的 DNS 记录，IP 变更后缓存未过期期间流量会持续发送到旧地址。</li>
-          <li><strong>配置管理成本</strong>：IP 变更后需要同步更新防火墙规则、负载均衡后端列表、监控告警目标等大量关联配置，运维负担极重。</li>
-        </ul>
-
-        <p>然而，IP 子网是二层概念——同一子网内的主机直接通过 ARP 解析 MAC 地址通信，不需要经过三层网关转发。这意味着<strong>迁移源和迁移目标必须位于同一个二层广播域</strong>。</p>
-
-        <p>在传统三层架构中，这就产生了根本性矛盾：</p>
-
-        <ul>
-          <li><strong>跨汇聚层迁移不可能</strong>：分属不同汇聚层的两个接入层交换机之间必须经过核心层三层转发，IP 子网无法跨越三层边界延伸。</li>
-          <li><strong>同汇聚层迁移受 STP 限制</strong>：即使在同一个汇聚层下，STP（生成树协议）也会阻塞冗余链路以防环路，导致所有流量只能走单条活跃链路。</li>
-        </ul>
-
-        <p><strong>STP 的问题</strong>：STP 通过选举根桥、阻塞冗余端口来消除二层环路。即便物理上部署了多条上行链路（如接入交换机双上联汇聚），也永远只有一条链路处于转发状态，其余全部被阻塞。假设一台 48 口接入交换机有 2 条 10G 上行链路，STP 阻塞其中一条后，上行带宽从 20G 骤降至 10G，带宽利用率仅 50%。</p>
-
-        <p><strong>厂商私有方案</strong>：为规避 STP 的限制，厂商推出了 IRF（H3C）、vPC（Cisco）、M-LAG（华为）等设备虚拟化技术，将两台物理交换机虚拟成一台逻辑设备，从而消除环路避免 STP 阻塞。但这些方案存在共同局限：要求特定的拓扑形状（如必须两台汇聚做虚拟化）、扩展性受限（虚拟化成员数量有上限）、跨厂商不兼容。</p>
-
-        <div class="flow-diagram">
+          <div class="article-content">
+            
+<p>云计算的本质是将计算、存储、网络资源通过虚拟化技术池化后以服务形式交付给用户。其中，网络虚拟化是最复杂、最具挑战性的环节——它需要在一张共享的物理网络上为成千上万的租户构建安全隔离、弹性可扩展、高性能的虚拟网络环境。</p>
+<p>本文将从<strong>技术演进脉络</strong>和<strong>云厂商实践</strong>两个维度，系统梳理云计算网络架构从经典网络到 VPC、从软件转发到软硬一体化、从数据中心网络到云边端一体的完整演进历程。</p>
+<h2>1. 前云时代：传统数据中心的网络困境</h2>
+<h3>1.1 传统三层网络架构</h3>
+<p>在云计算出现之前，数据中心网络采用经典的<strong>核心-汇聚-接入（Core-Aggregation-Access）三层架构</strong>。这种架构源自企业园区网络设计，核心层负责高速转发，汇聚层承上启下并部署安全/负载均衡等服务节点，接入层连接服务器。</p>
+<p>这种架构在面对传统企业应用时运行良好，但在虚拟化时代暴露了三个根本性矛盾：</p>
+<h3>矛盾一：虚拟机迁移与二层网络</h3>
+<p>虚拟化技术带来的核心需求之一是<strong>虚拟机热迁移</strong>——在不中断业务的前提下将运行中的虚拟机从一台物理机迁移到另一台。热迁移要求虚拟机的 IP 地址和 MAC 地址在迁移前后保持不变，原因有三：</p>
+<ul>
+<li><strong>TCP 连接保活</strong>：虚拟机上运行的应用可能持有大量 TCP 长连接（如数据库连接池、HTTP Keep-Alive），IP 地址变化意味着所有连接瞬间断开，应用层无法优雅处理。</li>
+<li><strong>DNS 缓存一致性</strong>：客户端和中间件（如 Nginx、Consul）缓存了虚拟机 IP 对应的 DNS 记录，IP 变更后缓存未过期期间流量会持续发送到旧地址。</li>
+<li><strong>配置管理成本</strong>：IP 变更后需要同步更新防火墙规则、负载均衡后端列表、监控告警目标等大量关联配置，运维负担极重。</li>
+</ul>
+<p>然而，IP 子网是二层概念——同一子网内的主机直接通过 ARP 解析 MAC 地址通信，不需要经过三层网关转发。这意味着<strong>迁移源和迁移目标必须位于同一个二层广播域</strong>。</p>
+<p>在传统三层架构中，这就产生了根本性矛盾：</p>
+<ul>
+<li><strong>跨汇聚层迁移不可能</strong>：分属不同汇聚层的两个接入层交换机之间必须经过核心层三层转发，IP 子网无法跨越三层边界延伸。</li>
+<li><strong>同汇聚层迁移受 STP 限制</strong>：即使在同一个汇聚层下，STP（生成树协议）也会阻塞冗余链路以防环路，导致所有流量只能走单条活跃链路。</li>
+</ul>
+<p><strong>STP 的问题</strong>：STP 通过选举根桥、阻塞冗余端口来消除二层环路。即便物理上部署了多条上行链路（如接入交换机双上联汇聚），也永远只有一条链路处于转发状态，其余全部被阻塞。假设一台 48 口接入交换机有 2 条 10G 上行链路，STP 阻塞其中一条后，上行带宽从 20G 骤降至 10G，带宽利用率仅 50%。</p>
+<p><strong>厂商私有方案</strong>：为规避 STP 的限制，厂商推出了 IRF（H3C）、vPC（Cisco）、M-LAG（华为）等设备虚拟化技术，将两台物理交换机虚拟成一台逻辑设备，从而消除环路避免 STP 阻塞。但这些方案存在共同局限：要求特定的拓扑形状（如必须两台汇聚做虚拟化）、扩展性受限（虚拟化成员数量有上限）、跨厂商不兼容。</p>
+<div class="flow-diagram">
    传统三层架构下虚拟机迁移的困境:
 
    ┌──────────────────────────────────────────────────┐
@@ -170,22 +130,16 @@
    │  VM可迁移✓  │─────│  VM可迁移✓ │  只能走单链路
    └─────────────┘     └────────────┘  带宽减半!
         </div>
-
-        <h3>矛盾二：VLAN 数量瓶颈</h3>
-
-        <p>VLAN（Virtual Local Area Network）通过 IEEE 802.1Q 标准在以太网帧中插入一个 4 字节的标签实现网络隔离。其中 <strong>VLAN ID 字段仅占 12 比特</strong>，取值范围 0~4095，可用 VLAN 最多 4094 个（VLAN 0 和 4095 为保留值）。</p>
-
-        <p>在传统企业网络中，4094 个 VLAN 绰绰有余——一个企业通常只有几十到几百个部门或业务区域需要隔离。但在公有云场景下，这个数字远远不够：</p>
-
-        <ul>
-          <li><strong>多租户隔离需求</strong>：每个租户至少需要一个独立的 VLAN 来隔离自己的虚拟网络。一个中等规模公有云可能有 10 万+租户，大型公有云可达百万级。</li>
-          <li><strong>租户多网络需求</strong>：一个租户可能需要多个 VLAN（如生产环境、开发环境、数据库网段），实际需求量是租户数 × 平均网络数。</li>
-          <li><strong>跨可用区延伸</strong>：VLAN 需要在不同可用区的交换机上配置相同的 VLAN ID，多个租户的 VLAN 在核心设备上交叉穿透，管理和排障极其复杂。</li>
-        </ul>
-
-        <p>简单计算：假设一个公有云有 10 万租户，每个租户平均需要 3 个隔离网络，则需要 30 万个隔离域，远超 VLAN 的 4094 上限。</p>
-
-        <div class="flow-diagram">
+<h3>矛盾二：VLAN 数量瓶颈</h3>
+<p>VLAN（Virtual Local Area Network）通过 IEEE 802.1Q 标准在以太网帧中插入一个 4 字节的标签实现网络隔离。其中 <strong>VLAN ID 字段仅占 12 比特</strong>，取值范围 0~4095，可用 VLAN 最多 4094 个（VLAN 0 和 4095 为保留值）。</p>
+<p>在传统企业网络中，4094 个 VLAN 绰绰有余——一个企业通常只有几十到几百个部门或业务区域需要隔离。但在公有云场景下，这个数字远远不够：</p>
+<ul>
+<li><strong>多租户隔离需求</strong>：每个租户至少需要一个独立的 VLAN 来隔离自己的虚拟网络。一个中等规模公有云可能有 10 万+租户，大型公有云可达百万级。</li>
+<li><strong>租户多网络需求</strong>：一个租户可能需要多个 VLAN（如生产环境、开发环境、数据库网段），实际需求量是租户数 × 平均网络数。</li>
+<li><strong>跨可用区延伸</strong>：VLAN 需要在不同可用区的交换机上配置相同的 VLAN ID，多个租户的 VLAN 在核心设备上交叉穿透，管理和排障极其复杂。</li>
+</ul>
+<p>简单计算：假设一个公有云有 10 万租户，每个租户平均需要 3 个隔离网络，则需要 30 万个隔离域，远超 VLAN 的 4094 上限。</p>
+<div class="flow-diagram">
    IEEE 802.1Q 帧格式:
 
    ┌─────────┬──────────┬──────────────┬────────────────┐
@@ -215,19 +169,15 @@
    │ VXLAN上限: 16,777,216 (1600万)            │
    └─────────────────────────────────────────┘
         </div>
-
-        <h3>矛盾三：广播泛洪</h3>
-
-        <p>VLAN 的广播隔离机制是<strong>按 VLAN ID 切分广播域</strong>——同一个 VLAN 内的广播报文（ARP 请求、DHCP Discover 等）只在该 VLAN 内泛洪，不会泄漏到其他 VLAN。但这个机制在云数据中心中产生了严重的扩展性问题：</p>
-
-        <ul>
-          <li><strong>核心设备必须放通所有 VLAN</strong>：在核心-汇聚-接入架构中，核心交换机和汇聚交换机作为中转节点，需要承载所有租户的流量，因此必须 Trunk 放通所有 VLAN。一台核心交换机上可能配置了上千个 VLAN。</li>
-          <li><strong>未知单播泛洪</strong>：当交换机收到一个目的 MAC 地址不在 MAC 地址表中的帧时，会将其在所属 VLAN 的所有端口上泛洪。在虚拟机频繁创建/迁移/销毁的云环境中，MAC 地址表不断变化，未知单播泛洪频繁发生。</li>
-          <li><strong>ARP 广播风暴</strong>：每台虚拟机首次访问同子网目标时都会发出 ARP 广播请求。在拥有数千台虚拟机的大二层网络中，ARP 广播量可观。更严重的是，某些异常场景（如 ARP 欺骗、网络环路）会触发广播风暴，瞬间消耗整网带宽。</li>
-          <li><strong>故障爆炸半径大</strong>：任何一个 VLAN 内的广播风暴都会影响该 VLAN 经过的所有设备。由于核心设备放通了所有 VLAN，一个 VLAN 的广播风暴可能拖垮整网性能。</li>
-        </ul>
-
-        <div class="flow-diagram">
+<h3>矛盾三：广播泛洪</h3>
+<p>VLAN 的广播隔离机制是<strong>按 VLAN ID 切分广播域</strong>——同一个 VLAN 内的广播报文（ARP 请求、DHCP Discover 等）只在该 VLAN 内泛洪，不会泄漏到其他 VLAN。但这个机制在云数据中心中产生了严重的扩展性问题：</p>
+<ul>
+<li><strong>核心设备必须放通所有 VLAN</strong>：在核心-汇聚-接入架构中，核心交换机和汇聚交换机作为中转节点，需要承载所有租户的流量，因此必须 Trunk 放通所有 VLAN。一台核心交换机上可能配置了上千个 VLAN。</li>
+<li><strong>未知单播泛洪</strong>：当交换机收到一个目的 MAC 地址不在 MAC 地址表中的帧时，会将其在所属 VLAN 的所有端口上泛洪。在虚拟机频繁创建/迁移/销毁的云环境中，MAC 地址表不断变化，未知单播泛洪频繁发生。</li>
+<li><strong>ARP 广播风暴</strong>：每台虚拟机首次访问同子网目标时都会发出 ARP 广播请求。在拥有数千台虚拟机的大二层网络中，ARP 广播量可观。更严重的是，某些异常场景（如 ARP 欺骗、网络环路）会触发广播风暴，瞬间消耗整网带宽。</li>
+<li><strong>故障爆炸半径大</strong>：任何一个 VLAN 内的广播风暴都会影响该 VLAN 经过的所有设备。由于核心设备放通了所有 VLAN，一个 VLAN 的广播风暴可能拖垮整网性能。</li>
+</ul>
+<div class="flow-diagram">
    广播泛洪在云数据中心的扩散路径:
 
    ┌───────────────────────────────────────────────────┐
@@ -257,8 +207,7 @@
    - 核心设备放通全部VLAN → 任何VLAN的广播都冲击核心
    - 1个租户的异常 → 所有租户受影响 (爆炸半径=全网)
         </div>
-
-        <div class="flow-diagram">
+<div class="flow-diagram">
          ┌──────────┐
          │  Core     │
          │  Switch   │
@@ -275,44 +224,32 @@
    └─────────┘   └─────────┘
    问题: STP阻塞链路 / VLAN仅4K / 广播泛洪
         </div>
-
-        <h3>1.2 大二层网络：治标不治本</h3>
-
-        <p>为解决虚拟机迁移问题，业界尝试了<strong>大二层网络</strong>方案，通过 TRILL、SPB 等协议在三层网络上构建二层连通性。但这些方案本质上仍然受限于 VLAN 的 4K 瓶颈，且协议复杂度大幅增加。真正的突破，要等到 Overlay 技术的出现。</p>
-
-        <h2>2. Overlay 革命：网络虚拟化的技术基石</h2>
-
-        <h3>2.1 Overlay 技术原理</h3>
-
-        <p>Overlay（叠加网络）的核心思想是：<strong>不改变底层物理网络（Underlay），在服务器端通过隧道封装技术构建虚拟的二层或三层网络</strong>。</p>
-
-        <p>具体来说，Overlay 将原始报文（租户的二层以太帧）封装在外层 UDP/IP 报文中，通过物理三层网络传输。解封装后，租户看到的是完整的二层连通性，对底层网络拓扑完全无感知。</p>
-
-        <h3>2.2 VXLAN：事实上的标准</h3>
-
-        <p>在多种 Overlay 封装格式（VXLAN、NVGRE、STT、Geneve）中，<strong>VXLAN（Virtual eXtensible LAN）</strong> 成为云网络的事实标准：</p>
-
-        <table>
-          <thead>
-            <tr><th>特性</th><th>VXLAN</th><th>NVGRE</th><th>STT</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>封装格式</td><td>MAC-in-UDP</td><td>MAC-in-GRE</td><td>MAC-in-TCP</td></tr>
-            <tr><td>租户标识</td><td>VNI（24bit，约 1600 万）</td><td>VSID（24bit）</td><td>Context ID（64bit）</td></tr>
-            <tr><td>硬件友好度</td><td>高（标准 UDP，可 ECMP）</td><td>低（GRE，需特殊处理）</td><td>低（伪 TCP 头）</td></tr>
-            <tr><td>业界采用</td><td>广泛（AWS/阿里云/UCloud）</td><td>微软 Azure</td><td>少量</td></tr>
-          </tbody>
-        </table>
-
-        <p>VXLAN 的关键优势：</p>
-
-        <ul>
-          <li><strong>24bit VNI</strong>：支持约 1600 万个虚拟网络段，彻底突破 VLAN 的 4K 限制</li>
-          <li><strong>标准 UDP 封装</strong>：物理交换机无需任何修改，现有 ECMP 负载均衡机制天然生效</li>
-          <li><strong>位置无关性</strong>：虚拟机可以在任意物理位置接入和迁移，网络不受物理拓扑约束</li>
-        </ul>
-
-        <div class="flow-diagram">
+<h3>1.2 大二层网络：治标不治本</h3>
+<p>为解决虚拟机迁移问题，业界尝试了<strong>大二层网络</strong>方案，通过 TRILL、SPB 等协议在三层网络上构建二层连通性。但这些方案本质上仍然受限于 VLAN 的 4K 瓶颈，且协议复杂度大幅增加。真正的突破，要等到 Overlay 技术的出现。</p>
+<h2>2. Overlay 革命：网络虚拟化的技术基石</h2>
+<h3>2.1 Overlay 技术原理</h3>
+<p>Overlay（叠加网络）的核心思想是：<strong>不改变底层物理网络（Underlay），在服务器端通过隧道封装技术构建虚拟的二层或三层网络</strong>。</p>
+<p>具体来说，Overlay 将原始报文（租户的二层以太帧）封装在外层 UDP/IP 报文中，通过物理三层网络传输。解封装后，租户看到的是完整的二层连通性，对底层网络拓扑完全无感知。</p>
+<h3>2.2 VXLAN：事实上的标准</h3>
+<p>在多种 Overlay 封装格式（VXLAN、NVGRE、STT、Geneve）中，<strong>VXLAN（Virtual eXtensible LAN）</strong> 成为云网络的事实标准：</p>
+<table>
+<thead>
+<tr><th>特性</th><th>VXLAN</th><th>NVGRE</th><th>STT</th></tr>
+</thead>
+<tbody>
+<tr><td>封装格式</td><td>MAC-in-UDP</td><td>MAC-in-GRE</td><td>MAC-in-TCP</td></tr>
+<tr><td>租户标识</td><td>VNI（24bit，约 1600 万）</td><td>VSID（24bit）</td><td>Context ID（64bit）</td></tr>
+<tr><td>硬件友好度</td><td>高（标准 UDP，可 ECMP）</td><td>低（GRE，需特殊处理）</td><td>低（伪 TCP 头）</td></tr>
+<tr><td>业界采用</td><td>广泛（AWS/阿里云/UCloud）</td><td>微软 Azure</td><td>少量</td></tr>
+</tbody>
+</table>
+<p>VXLAN 的关键优势：</p>
+<ul>
+<li><strong>24bit VNI</strong>：支持约 1600 万个虚拟网络段，彻底突破 VLAN 的 4K 限制</li>
+<li><strong>标准 UDP 封装</strong>：物理交换机无需任何修改，现有 ECMP 负载均衡机制天然生效</li>
+<li><strong>位置无关性</strong>：虚拟机可以在任意物理位置接入和迁移，网络不受物理拓扑约束</li>
+</ul>
+<div class="flow-diagram">
    ┌────────────────────────────────────────────────────┐
    │              VXLAN 封装结构                         │
    ├────────────────────────────────────────────────────┤
@@ -333,8 +270,7 @@
    Underlay(物理网络)只看到 Outer IP/UDP
    Overlay(虚拟网络)只看到 Original Frame
         </div>
-
-        <div class="flow-diagram">
+<div class="flow-diagram">
    VXLAN 东西向流量走向 (同租户VM跨主机通信):
    
    Host-1                           Host-2
@@ -355,44 +291,31 @@
          → 对端OVS解封装 → 交付VM-B
    租户视角: VM-A和VM-B在同一二层网络
         </div>
-
-        <h3>2.3 VTEP：Overlay 的边界智能实体</h3>
-
-        <p>VXLAN 通过在物理网络边缘设置 <strong>VTEP（VXLAN Tunnel End Point）</strong> 实现虚拟网络与物理网络的隔离。VTEP 负责封装/解封装，虚拟机完全不感知 VNI 和隧道的存在。VTEP 的位置选择，直接决定了云网络架构的演进方向：</p>
-
-        <ul>
-          <li><strong>软件 VTEP（vSwitch 方案）</strong>：VTEP 运行在服务器的 vSwitch（如 OVS）中，物理网络仅做简单的三层转发</li>
-          <li><strong>硬件 VTEP（硬件/EVPN 方案）</strong>：VTEP 功能卸载到物理交换机，通过 MP-BGP EVPN 控制平面实现隧道自动发现和广播抑制</li>
-        </ul>
-
-        <h2>3. 物理网络架构演进：从三层到 Spine-Leaf</h2>
-
-        <h3>3.1 三层方案</h3>
-
-        <p>早期云数据中心直接沿用园区网的三层架构。vSwitch 运行在服务器内部处理所有 Overlay 逻辑，底层网络仅作为简单的转发通道。这种方案的问题在于：<strong>汇聚层成为性能瓶颈和单点故障</strong>，且跨汇聚层的流量需要经过核心层绕行。</p>
-
-        <h3>3.2 框式 Spine-Leaf</h3>
-
-        <p>为解决性能和扩展性问题，<strong>CLOS（Spine-Leaf）二层架构</strong>被引入数据中心。两台大容量框式 Spine 交换机作为核心层，48 口 10G Leaf（ToR）交换机以 40G/100G 上行连接 Spine，Spine 与 Leaf 之间 full-mesh 全连接。</p>
-
-        <p>优势：减少转发跳数，南北向和东西向流量都只需经过 Spine 一跳；全 mesh 多路径天然支持 ECMP 负载均衡。</p>
-
-        <h3>3.3 盒式 Spine-Leaf</h3>
-
-        <p>当云数据中心规模继续扩大，多个大容量盒式 Spine 取代两台框式 Spine，利用 CLOS 架构天然的横向扩展（Scale-out）能力，在交换性能、可扩展性、性价比三方面达到综合最优。</p>
-
-        <table>
-          <thead>
-            <tr><th>架构阶段</th><th>Spine 类型</th><th>扩展方式</th><th>典型规模</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>三层架构</td><td>核心-汇聚-接入</td><td>纵向扩展</td><td>数百台服务器</td></tr>
-            <tr><td>框式 Spine-Leaf</td><td>2 台框式 Spine</td><td>纵向扩展</td><td>数千台服务器</td></tr>
-            <tr><td>盒式 Spine-Leaf</td><td>多台盒式 Spine</td><td>横向扩展</td><td>数万台服务器</td></tr>
-          </tbody>
-        </table>
-
-        <div class="flow-diagram">
+<h3>2.3 VTEP：Overlay 的边界智能实体</h3>
+<p>VXLAN 通过在物理网络边缘设置 <strong>VTEP（VXLAN Tunnel End Point）</strong> 实现虚拟网络与物理网络的隔离。VTEP 负责封装/解封装，虚拟机完全不感知 VNI 和隧道的存在。VTEP 的位置选择，直接决定了云网络架构的演进方向：</p>
+<ul>
+<li><strong>软件 VTEP（vSwitch 方案）</strong>：VTEP 运行在服务器的 vSwitch（如 OVS）中，物理网络仅做简单的三层转发</li>
+<li><strong>硬件 VTEP（硬件/EVPN 方案）</strong>：VTEP 功能卸载到物理交换机，通过 MP-BGP EVPN 控制平面实现隧道自动发现和广播抑制</li>
+</ul>
+<h2>3. 物理网络架构演进：从三层到 Spine-Leaf</h2>
+<h3>3.1 三层方案</h3>
+<p>早期云数据中心直接沿用园区网的三层架构。vSwitch 运行在服务器内部处理所有 Overlay 逻辑，底层网络仅作为简单的转发通道。这种方案的问题在于：<strong>汇聚层成为性能瓶颈和单点故障</strong>，且跨汇聚层的流量需要经过核心层绕行。</p>
+<h3>3.2 框式 Spine-Leaf</h3>
+<p>为解决性能和扩展性问题，<strong>CLOS（Spine-Leaf）二层架构</strong>被引入数据中心。两台大容量框式 Spine 交换机作为核心层，48 口 10G Leaf（ToR）交换机以 40G/100G 上行连接 Spine，Spine 与 Leaf 之间 full-mesh 全连接。</p>
+<p>优势：减少转发跳数，南北向和东西向流量都只需经过 Spine 一跳；全 mesh 多路径天然支持 ECMP 负载均衡。</p>
+<h3>3.3 盒式 Spine-Leaf</h3>
+<p>当云数据中心规模继续扩大，多个大容量盒式 Spine 取代两台框式 Spine，利用 CLOS 架构天然的横向扩展（Scale-out）能力，在交换性能、可扩展性、性价比三方面达到综合最优。</p>
+<table>
+<thead>
+<tr><th>架构阶段</th><th>Spine 类型</th><th>扩展方式</th><th>典型规模</th></tr>
+</thead>
+<tbody>
+<tr><td>三层架构</td><td>核心-汇聚-接入</td><td>纵向扩展</td><td>数百台服务器</td></tr>
+<tr><td>框式 Spine-Leaf</td><td>2 台框式 Spine</td><td>纵向扩展</td><td>数千台服务器</td></tr>
+<tr><td>盒式 Spine-Leaf</td><td>多台盒式 Spine</td><td>横向扩展</td><td>数万台服务器</td></tr>
+</tbody>
+</table>
+<div class="flow-diagram">
          ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
          │Spine-1 │ │Spine-2 │ │Spine-3 │ │Spine-4 │    ← Spine层
          └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘
@@ -410,40 +333,27 @@
    优势: 东西向/南北向都只经1跳Spine
           ECMP多路径无阻塞, 横向扩展加Spine/Leaf即可
         </div>
-
-        <h2>4. SDN 控制平面演进：从人工配置到智能自治</h2>
-
-        <h3>4.1 SDN 的理论基础</h3>
-
-        <p>2004 年，Jennifer Rexford 在 SIGCOMM 发表 "Network-Wide Decision Making: Toward A Wafer-Thin Control Plane"，首次明确提出<strong>转发与控制分离</strong>的理念，为 SDN（Software Defined Networking）的诞生奠定了理论基础。</p>
-
-        <p>SDN 的核心思想：</p>
-
-        <ul>
-          <li><strong>控制面集中化</strong>：由一个（或分布式集群）控制器统一下发转发规则</li>
-          <li><strong>数据面可编程</strong>：转发设备只关心如何处理报文，不参与路由决策</li>
-          <li><strong>北向 API</strong>：向上提供网络抽象，支持自动化编排</li>
-        </ul>
-
-        <h3>4.2 第一代 SDN 控制器：OpenFlow 时代</h3>
-
-        <p>早期 SDN 严格遵循 OpenFlow 协议，控制器通过 Packet-In/Flow-Mod 机制管理流表。这种模式的问题：</p>
-
-        <ul>
-          <li><strong>首包时延</strong>：每个新连接的首包必须经过控制器，增加 RTT</li>
-          <li><strong>控制面瓶颈</strong>：DDoS 攻击流量和内网扫描流量会穿透到控制面</li>
-          <li><strong>规模限制</strong>：控制器处理能力制约整网性能</li>
-        </ul>
-
-        <h3>4.3 第二代 SDN 控制器：主动推送 + 分布式架构</h3>
-
-        <p>为解决首包时延和控制面瓶颈，第二代 SDN 控制器采用<strong>主动推送</strong>模式：路由表、ACL 等静态规则由控制器全量推送到转发设备；点到点转发规则通过预计算和批量下发，减少 Packet-In 依赖；控制器本身采用分布式集群架构，支持水平扩展。</p>
-
-        <h3>4.4 第三代 SDN 控制器：智能化 + 数据驱动</h3>
-
-        <p>进入云网络 3.0 时代，SDN 控制器演进为<strong>数据驱动的智能控制系统</strong>：基于遥测数据（Telemetry）实时感知网络状态；机器学习辅助的异常检测和根因分析；意图驱动网络（Intent-Based Networking）：用户声明"想要什么"，控制器自动计算"怎么做"。</p>
-
-        <div class="flow-diagram">
+<h2>4. SDN 控制平面演进：从人工配置到智能自治</h2>
+<h3>4.1 SDN 的理论基础</h3>
+<p>2004 年，Jennifer Rexford 在 SIGCOMM 发表 "Network-Wide Decision Making: Toward A Wafer-Thin Control Plane"，首次明确提出<strong>转发与控制分离</strong>的理念，为 SDN（Software Defined Networking）的诞生奠定了理论基础。</p>
+<p>SDN 的核心思想：</p>
+<ul>
+<li><strong>控制面集中化</strong>：由一个（或分布式集群）控制器统一下发转发规则</li>
+<li><strong>数据面可编程</strong>：转发设备只关心如何处理报文，不参与路由决策</li>
+<li><strong>北向 API</strong>：向上提供网络抽象，支持自动化编排</li>
+</ul>
+<h3>4.2 第一代 SDN 控制器：OpenFlow 时代</h3>
+<p>早期 SDN 严格遵循 OpenFlow 协议，控制器通过 Packet-In/Flow-Mod 机制管理流表。这种模式的问题：</p>
+<ul>
+<li><strong>首包时延</strong>：每个新连接的首包必须经过控制器，增加 RTT</li>
+<li><strong>控制面瓶颈</strong>：DDoS 攻击流量和内网扫描流量会穿透到控制面</li>
+<li><strong>规模限制</strong>：控制器处理能力制约整网性能</li>
+</ul>
+<h3>4.3 第二代 SDN 控制器：主动推送 + 分布式架构</h3>
+<p>为解决首包时延和控制面瓶颈，第二代 SDN 控制器采用<strong>主动推送</strong>模式：路由表、ACL 等静态规则由控制器全量推送到转发设备；点到点转发规则通过预计算和批量下发，减少 Packet-In 依赖；控制器本身采用分布式集群架构，支持水平扩展。</p>
+<h3>4.4 第三代 SDN 控制器：智能化 + 数据驱动</h3>
+<p>进入云网络 3.0 时代，SDN 控制器演进为<strong>数据驱动的智能控制系统</strong>：基于遥测数据（Telemetry）实时感知网络状态；机器学习辅助的异常检测和根因分析；意图驱动网络（Intent-Based Networking）：用户声明"想要什么"，控制器自动计算"怎么做"。</p>
+<div class="flow-diagram">
    第一代: OpenFlow Packet-In              第二代: 主动推送 + 分布式
    ┌──────────┐                            ┌──────────────┐
    │  SDN     │◄── Packet-In ──┐           │ 分布式SDN    │
@@ -477,65 +387,50 @@
           │  数据面网元   │
           └──────────────┘
         </div>
-
-        <h2>5. AWS 网络架构演进</h2>
-
-        <h3>5.1 EC2-Classic 时代（2006-2013）</h3>
-
-        <p>AWS 于 2006 年推出 EC2 公测版，采用<strong>EC2-Classic 共享扁平网络</strong>模型。所有实例运行在同一个大二层网络中，通过安全组实现实例级别的访问控制。这种模型简单易用，但存在根本性缺陷：无网络隔离、无路由控制、无法连接本地数据中心。</p>
-
-        <h3>5.2 VPC 时代（2009-至今）</h3>
-
-        <p>2009 年 8 月，AWS 发布 Amazon VPC（Virtual Private Cloud），允许用户在 AWS 中创建逻辑隔离的虚拟网络。这是云计算网络发展史上的里程碑事件，VPC 几乎成了云数据中心网络的标准模板。</p>
-
-        <p>VPC 的核心组件：</p>
-
-        <table>
-          <thead>
-            <tr><th>组件</th><th>功能</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>VPC CIDR</td><td>用户自定义私网 IP 地址段（/16 到 /28）</td></tr>
-            <tr><td>Subnet</td><td>AZ 级别的子网，关联路由表和 NACL</td></tr>
-            <tr><td>Route Table</td><td>控制子网的出向路由</td></tr>
-            <tr><td>Internet Gateway</td><td>VPC 访问互联网的网关</td></tr>
-            <tr><td>NAT Gateway</td><td>私网子网访问互联网的 SNAT 网关</td></tr>
-            <tr><td>Security Group</td><td>实例级有状态防火墙（白名单模式）</td></tr>
-            <tr><td>NACL</td><td>子网级无状态防火墙（黑名单模式）</td></tr>
-            <tr><td>Elastic IP</td><td>可映射到实例的静态公网 IP</td></tr>
-          </tbody>
-        </table>
-
-        <p>关键演进时间线：</p>
-
-        <table>
-          <thead>
-            <tr><th>时间</th><th>事件</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>2009-08</td><td>VPC 发布（预览版）</td></tr>
-            <tr><td>2011-08</td><td>VPC 正式 GA</td></tr>
-            <tr><td>2013-11</td><td>Enhanced Networking（SR-IOV）上线</td></tr>
-            <tr><td>2013-12</td><td>新账户默认使用 VPC，EC2-Classic 开始退场</td></tr>
-            <tr><td>2016-11</td><td>Elastic Network Adapter（ENA）发布，最高 25Gbps</td></tr>
-            <tr><td>2017-11</td><td>Transit Gateway 发布，Hub-and-Spoke 架构</td></tr>
-            <tr><td>2018-11</td><td>Elastic Fabric Adapter（EFA）发布，支持 OS-bypass</td></tr>
-            <tr><td>2022-08</td><td>EC2-Classic 正式退役</td></tr>
-            <tr><td>2022</td><td>VPC Lattice 发布，面向应用的网络连接</td></tr>
-          </tbody>
-        </table>
-
-        <h3>5.3 多 VPC 互联架构演进</h3>
-
-        <p>随着客户采用多账户策略，VPC 之间的互联成为核心需求，架构经历了三次演进：</p>
-
-        <p><strong>VPC Peering</strong>：点对点连接，简单但不支持传递性路由。大规模部署需要 full-mesh 对等连接，N² 复杂度不可接受。</p>
-
-        <p><strong>Transit VPC</strong>：一个概念架构而非 AWS 托管服务。通过在中心 VPC 中运行第三方路由设备，建立 Hub-and-Spoke 模型。运维负担重。</p>
-
-        <p><strong>Transit Gateway</strong>：AWS 托管的 Hub-and-Spoke 网络枢纽。支持传递性路由，可将数千个 VPC 和本地网络连接到同一个 Transit Gateway。</p>
-
-        <div class="flow-diagram">
+<h2>5. AWS 网络架构演进</h2>
+<h3>5.1 EC2-Classic 时代（2006-2013）</h3>
+<p>AWS 于 2006 年推出 EC2 公测版，采用<strong>EC2-Classic 共享扁平网络</strong>模型。所有实例运行在同一个大二层网络中，通过安全组实现实例级别的访问控制。这种模型简单易用，但存在根本性缺陷：无网络隔离、无路由控制、无法连接本地数据中心。</p>
+<h3>5.2 VPC 时代（2009-至今）</h3>
+<p>2009 年 8 月，AWS 发布 Amazon VPC（Virtual Private Cloud），允许用户在 AWS 中创建逻辑隔离的虚拟网络。这是云计算网络发展史上的里程碑事件，VPC 几乎成了云数据中心网络的标准模板。</p>
+<p>VPC 的核心组件：</p>
+<table>
+<thead>
+<tr><th>组件</th><th>功能</th></tr>
+</thead>
+<tbody>
+<tr><td>VPC CIDR</td><td>用户自定义私网 IP 地址段（/16 到 /28）</td></tr>
+<tr><td>Subnet</td><td>AZ 级别的子网，关联路由表和 NACL</td></tr>
+<tr><td>Route Table</td><td>控制子网的出向路由</td></tr>
+<tr><td>Internet Gateway</td><td>VPC 访问互联网的网关</td></tr>
+<tr><td>NAT Gateway</td><td>私网子网访问互联网的 SNAT 网关</td></tr>
+<tr><td>Security Group</td><td>实例级有状态防火墙（白名单模式）</td></tr>
+<tr><td>NACL</td><td>子网级无状态防火墙（黑名单模式）</td></tr>
+<tr><td>Elastic IP</td><td>可映射到实例的静态公网 IP</td></tr>
+</tbody>
+</table>
+<p>关键演进时间线：</p>
+<table>
+<thead>
+<tr><th>时间</th><th>事件</th></tr>
+</thead>
+<tbody>
+<tr><td>2009-08</td><td>VPC 发布（预览版）</td></tr>
+<tr><td>2011-08</td><td>VPC 正式 GA</td></tr>
+<tr><td>2013-11</td><td>Enhanced Networking（SR-IOV）上线</td></tr>
+<tr><td>2013-12</td><td>新账户默认使用 VPC，EC2-Classic 开始退场</td></tr>
+<tr><td>2016-11</td><td>Elastic Network Adapter（ENA）发布，最高 25Gbps</td></tr>
+<tr><td>2017-11</td><td>Transit Gateway 发布，Hub-and-Spoke 架构</td></tr>
+<tr><td>2018-11</td><td>Elastic Fabric Adapter（EFA）发布，支持 OS-bypass</td></tr>
+<tr><td>2022-08</td><td>EC2-Classic 正式退役</td></tr>
+<tr><td>2022</td><td>VPC Lattice 发布，面向应用的网络连接</td></tr>
+</tbody>
+</table>
+<h3>5.3 多 VPC 互联架构演进</h3>
+<p>随着客户采用多账户策略，VPC 之间的互联成为核心需求，架构经历了三次演进：</p>
+<p><strong>VPC Peering</strong>：点对点连接，简单但不支持传递性路由。大规模部署需要 full-mesh 对等连接，N² 复杂度不可接受。</p>
+<p><strong>Transit VPC</strong>：一个概念架构而非 AWS 托管服务。通过在中心 VPC 中运行第三方路由设备，建立 Hub-and-Spoke 模型。运维负担重。</p>
+<p><strong>Transit Gateway</strong>：AWS 托管的 Hub-and-Spoke 网络枢纽。支持传递性路由，可将数千个 VPC 和本地网络连接到同一个 Transit Gateway。</p>
+<div class="flow-diagram">
                     ┌────────────────────────────┐
                     │      Transit Gateway        │
                     │    (Hub-and-Spoke 枢纽)     │
@@ -558,34 +453,27 @@
    │            │────│  或 VPN       │    │            │
    └────────────┘    └──────────────┘    └────────────┘
         </div>
-
-        <h3>5.4 混合云网络</h3>
-
-        <p>AWS 提供两种混合云接入方式：<strong>Site-to-Site VPN</strong>（基于 IPsec 的 VPN 隧道，快速建立）和 <strong>Direct Connect</strong>（专用物理线路，1Gbps/10Gbps/100Gbps，低延迟高带宽）。</p>
-
-        <h3>5.5 Nitro 系统：硬件卸载的革命</h3>
-
-        <p>2017 年随 C5 实例发布的 <strong>AWS Nitro System</strong> 是云计算虚拟化架构的一次范式革命。Nitro 将传统 Xen 虚拟化中运行在 Dom0 的所有 I/O 功能卸载到专用硬件：</p>
-
-        <table>
-          <thead>
-            <tr><th>Nitro 组件</th><th>功能</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Nitro Card for VPC</td><td>VPC 数据面（封装/解封装、安全组、限速、路由、透明加密）</td></tr>
-            <tr><td>Nitro Card for EBS</td><td>EBS 数据面（NVMe 协议、加密）</td></tr>
-            <tr><td>Nitro Card for Instance Storage</td><td>本地存储数据面（透明加密、限速）</td></tr>
-            <tr><td>Nitro Controller</td><td>系统管理（被动 API 端点、协调所有 Nitro Card）</td></tr>
-            <tr><td>Nitro Security Chip</td><td>硬件可信根（拦截所有非易失性存储 I/O）</td></tr>
-            <tr><td>Nitro Hypervisor</td><td>极简 KVM 虚拟机监控器（仅分配 CPU/内存，通过 SR-IOV 直通 I/O）</td></tr>
-          </tbody>
-        </table>
-
-        <div class="highlight-box">
-          <p><strong>💡 Nitro 核心设计理念：</strong>最小化 Hypervisor（无网络栈、无文件系统、无 Shell）；SR-IOV 直通让客户数据不经过 Hypervisor；物理隔离 Nitro Card 与主机 CPU；零运维访问；VPC 流量在支持加密的 Nitro Card 之间自动端到端加密。</p>
-        </div>
-
-        <div class="flow-diagram">
+<h3>5.4 混合云网络</h3>
+<p>AWS 提供两种混合云接入方式：<strong>Site-to-Site VPN</strong>（基于 IPsec 的 VPN 隧道，快速建立）和 <strong>Direct Connect</strong>（专用物理线路，1Gbps/10Gbps/100Gbps，低延迟高带宽）。</p>
+<h3>5.5 Nitro 系统：硬件卸载的革命</h3>
+<p>2017 年随 C5 实例发布的 <strong>AWS Nitro System</strong> 是云计算虚拟化架构的一次范式革命。Nitro 将传统 Xen 虚拟化中运行在 Dom0 的所有 I/O 功能卸载到专用硬件：</p>
+<table>
+<thead>
+<tr><th>Nitro 组件</th><th>功能</th></tr>
+</thead>
+<tbody>
+<tr><td>Nitro Card for VPC</td><td>VPC 数据面（封装/解封装、安全组、限速、路由、透明加密）</td></tr>
+<tr><td>Nitro Card for EBS</td><td>EBS 数据面（NVMe 协议、加密）</td></tr>
+<tr><td>Nitro Card for Instance Storage</td><td>本地存储数据面（透明加密、限速）</td></tr>
+<tr><td>Nitro Controller</td><td>系统管理（被动 API 端点、协调所有 Nitro Card）</td></tr>
+<tr><td>Nitro Security Chip</td><td>硬件可信根（拦截所有非易失性存储 I/O）</td></tr>
+<tr><td>Nitro Hypervisor</td><td>极简 KVM 虚拟机监控器（仅分配 CPU/内存，通过 SR-IOV 直通 I/O）</td></tr>
+</tbody>
+</table>
+<div class="highlight-box">
+<p><strong>💡 Nitro 核心设计理念：</strong>最小化 Hypervisor（无网络栈、无文件系统、无 Shell）；SR-IOV 直通让客户数据不经过 Hypervisor；物理隔离 Nitro Card 与主机 CPU；零运维访问；VPC 流量在支持加密的 Nitro Card 之间自动端到端加密。</p>
+</div>
+<div class="flow-diagram">
    ┌─────────────────────────────────────────────────────┐
    │                  AWS Nitro System                    │
    │                                                     │
@@ -618,52 +506,35 @@
    关键: 客户数据经SR-IOV直通, 不经过Hypervisor
          Hypervisor无网络栈/无文件系统/无Shell
         </div>
-
-        <h2>6. 阿里云网络架构演进——洛神三部曲</h2>
-
-        <h3>6.1 洛神 1.0：云数据中心网络（2010-2016）</h3>
-
-        <p>2009 年阿里云开始云计算研发时面临"三个空白"：国内 SDN 学术研究稀缺、VXLAN 尚处于草案阶段、开源 OpenStack/OpenFlow 尚未成熟。为让业务跑起来，阿里云从零自研了洛神 1.0。</p>
-
-        <p><strong>数据面</strong>：基于 x86 服务器构建虚拟网络转发层——vSwitch 部署在计算节点（百万级 PPS、万兆带宽），虚拟网关部署在数据中心出入口（千万级 PPS、百 GB 带宽）。</p>
-
-        <p><strong>控制面</strong>：第一代 SDN 控制器，严格遵循转发与控制分离模式，北向层管理租户实例，南向层管理虚拟网络设备。</p>
-
-        <p>2014 年 <strong>VPC 产品正式发布</strong>，用户获得了自定义 IP/CIDR、子网、路由表的私有网络能力。</p>
-
-        <h3>6.2 洛神 2.0：云广域网络（2016-2020）</h3>
-
-        <p>洛神 2.0 实现了三大技术突破：</p>
-
-        <p><strong>突破一：Sailfish——可编程高性能转发层</strong>。通过软硬件结合自研可编程转发层：P4 可编程交换芯片负责大流量转发（Tbps 级）、自研网卡芯片负责大表项转发、CPU 模块负责业务编排和智能调度。</p>
-
-        <p><strong>突破二：Cyberstar——弹性网元平台</strong>。基于虚拟机构建 NFV 转发平台，实现了云网络网元技术的 NFV 化。</p>
-
-        <p><strong>突破三：第二代 SDN 控制器</strong>。跨地域网络控制系统实现全球一张网的统一管理；高性能南向配置层实现十万级设备的秒级配置下发，单 VPC 支持百万级虚拟机。</p>
-
-        <p><strong>云企业网（CEN）</strong> 是云网络 2.0 的标志性产品，2017 年在业内率先发布。它通过跨域 Overlay 技术在阿里云核心网上构建全球互联的虚拟网络。</p>
-
-        <h3>6.3 洛神 3.0：应用-云-边-端一体智能网络（2020-至今）</h3>
-
-        <p>洛神 3.0 的定义是一张<strong>应用-云-边-端一体的万物互联的智能云网络</strong>，三大核心技术特征：网络智能化（数据赋能网络）、面向应用和生态、云边一体与万物互联。</p>
-
-        <p>洛神演进总结：</p>
-
-        <table>
-          <thead>
-            <tr><th>维度</th><th>洛神 1.0</th><th>洛神 2.0</th><th>洛神 3.0</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>时间</td><td>2010-2016</td><td>2016-2020</td><td>2020-</td></tr>
-            <tr><td>定位</td><td>云数据中心网络</td><td>云广域网络</td><td>应用-云-边-端一体</td></tr>
-            <tr><td>数据面</td><td>x86 转发层</td><td>Sailfish（软硬一体）</td><td>持续演进</td></tr>
-            <tr><td>网元平台</td><td>物理机网关</td><td>Cyberstar（NFV）</td><td>容器化弹性网元</td></tr>
-            <tr><td>控制面</td><td>第一代 SDN</td><td>第二代 SDN（跨地域）</td><td>智能化 SDN</td></tr>
-            <tr><td>规模指标</td><td>万级 VM</td><td>单 VPC 百万 VM</td><td>千万级虚拟网络资源</td></tr>
-          </tbody>
-        </table>
-
-        <div class="flow-diagram">
+<h2>6. 阿里云网络架构演进——洛神三部曲</h2>
+<h3>6.1 洛神 1.0：云数据中心网络（2010-2016）</h3>
+<p>2009 年阿里云开始云计算研发时面临"三个空白"：国内 SDN 学术研究稀缺、VXLAN 尚处于草案阶段、开源 OpenStack/OpenFlow 尚未成熟。为让业务跑起来，阿里云从零自研了洛神 1.0。</p>
+<p><strong>数据面</strong>：基于 x86 服务器构建虚拟网络转发层——vSwitch 部署在计算节点（百万级 PPS、万兆带宽），虚拟网关部署在数据中心出入口（千万级 PPS、百 GB 带宽）。</p>
+<p><strong>控制面</strong>：第一代 SDN 控制器，严格遵循转发与控制分离模式，北向层管理租户实例，南向层管理虚拟网络设备。</p>
+<p>2014 年 <strong>VPC 产品正式发布</strong>，用户获得了自定义 IP/CIDR、子网、路由表的私有网络能力。</p>
+<h3>6.2 洛神 2.0：云广域网络（2016-2020）</h3>
+<p>洛神 2.0 实现了三大技术突破：</p>
+<p><strong>突破一：Sailfish——可编程高性能转发层</strong>。通过软硬件结合自研可编程转发层：P4 可编程交换芯片负责大流量转发（Tbps 级）、自研网卡芯片负责大表项转发、CPU 模块负责业务编排和智能调度。</p>
+<p><strong>突破二：Cyberstar——弹性网元平台</strong>。基于虚拟机构建 NFV 转发平台，实现了云网络网元技术的 NFV 化。</p>
+<p><strong>突破三：第二代 SDN 控制器</strong>。跨地域网络控制系统实现全球一张网的统一管理；高性能南向配置层实现十万级设备的秒级配置下发，单 VPC 支持百万级虚拟机。</p>
+<p><strong>云企业网（CEN）</strong> 是云网络 2.0 的标志性产品，2017 年在业内率先发布。它通过跨域 Overlay 技术在阿里云核心网上构建全球互联的虚拟网络。</p>
+<h3>6.3 洛神 3.0：应用-云-边-端一体智能网络（2020-至今）</h3>
+<p>洛神 3.0 的定义是一张<strong>应用-云-边-端一体的万物互联的智能云网络</strong>，三大核心技术特征：网络智能化（数据赋能网络）、面向应用和生态、云边一体与万物互联。</p>
+<p>洛神演进总结：</p>
+<table>
+<thead>
+<tr><th>维度</th><th>洛神 1.0</th><th>洛神 2.0</th><th>洛神 3.0</th></tr>
+</thead>
+<tbody>
+<tr><td>时间</td><td>2010-2016</td><td>2016-2020</td><td>2020-</td></tr>
+<tr><td>定位</td><td>云数据中心网络</td><td>云广域网络</td><td>应用-云-边-端一体</td></tr>
+<tr><td>数据面</td><td>x86 转发层</td><td>Sailfish（软硬一体）</td><td>持续演进</td></tr>
+<tr><td>网元平台</td><td>物理机网关</td><td>Cyberstar（NFV）</td><td>容器化弹性网元</td></tr>
+<tr><td>控制面</td><td>第一代 SDN</td><td>第二代 SDN（跨地域）</td><td>智能化 SDN</td></tr>
+<tr><td>规模指标</td><td>万级 VM</td><td>单 VPC 百万 VM</td><td>千万级虚拟网络资源</td></tr>
+</tbody>
+</table>
+<div class="flow-diagram">
    洛神1.0 (2010-2016)         洛神2.0 (2016-2020)         洛神3.0 (2020-)
    ┌──────────────┐            ┌──────────────┐            ┌──────────────┐
    │  第一代SDN    │            │  第二代SDN    │            │  智能化SDN    │
@@ -685,44 +556,31 @@
                                └──────────────┘            └──────────────┘
    定位: 云数据中心网络          定位: 云广域网络             定位: 应用-云-边-端
         </div>
-
-        <h2>7. UCloud 网络架构演进——VPC 三代技术架构</h2>
-
-        <h3>7.1 VPC 1.0：经典网络（2012-2016）</h3>
-
-        <p>UCloud 在 2012 年上线初期采用经典网络模型：云主机和宿主机位于同一个大二层网络，网络转发依赖 Linux Bridge，租户隔离依赖 iptables/ebtables 规则。经典网络的问题：无租户隔离、IP 地址冲突、安全规则爆炸、无法自定义网络拓扑。</p>
-
-        <h3>7.2 VPC 2.0：基于 SDN 的 VPC 网络（2016-2019）</h3>
-
-        <p>2016 年底，UCloud 上线基于 SDN 的 VPC 2.0 架构。转发平面引入 OpenVSwitch + OpenFlow 完成 Overlay 流量的转发与隔离；基于 DPDK 开发东西向和南北向网关。控制面自研 SDN 控制器，通过 Packet-In 和 Push 相结合的方式下发流表。</p>
-
-        <p>VPC 2.0 的四大痛点：OVS 转发性能不足、异构网络耦合、转发面和控制面流量耦合、首包时延。</p>
-
-        <h3>7.3 VPC 3.0：软硬件一体化的新一代 VPC 网络（2019-至今）</h3>
-
-        <p>VPC 3.0 控制平面四层架构：</p>
-
-        <table>
-          <thead>
-            <tr><th>层次</th><th>职责</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Model Layer（模型层）</td><td>生成统一业务对象（如 Subnet）</td></tr>
-            <tr><td>Middle Layer（中台层）</td><td>对象路由、一致性缓存、对象分片、对象灰度</td></tr>
-            <tr><td>Mapping Layer（映射层）</td><td>将业务对象映射为不同网元对象（OpenFlow/P4/TC）</td></tr>
-            <tr><td>DataPath Layer（推送层）</td><td>关心具体转发网元，实现高效推送</td></tr>
-          </tbody>
-        </table>
-
-        <div class="highlight-box">
-          <p><strong>💡 DCP 协议：</strong>VPC 3.0 引入主动推送 + 动态学习相结合的 Flow 下发方式。基于 P4 可编程芯片开发 VPC 网关 BGW，BGW 与计算节点的 Datapath Controller 运行 DCP 协议。相比 VPC 2.0 的 Packet-In 机制，DCP 实现了流表按需学习、无首包时延、转发面学习性能远高于控制面下发。</p>
-        </div>
-
-        <p>转发面硬件演进：从 Kernel Bridge → Kernel OVS → 硬件卸载 OVS + 智能网卡（25G 带宽、1000 万 PPS、10G 外网），网关从 DPDK 演进到 P4 可编程芯片（Tbps 级）。</p>
-
-        <p>VPC 3.0 还引入了 <strong>UXR 中心化网关</strong>完成异构网络解耦，以及基于 INT 的全链路 Telemetry 探测系统。</p>
-
-        <div class="flow-diagram">
+<h2>7. UCloud 网络架构演进——VPC 三代技术架构</h2>
+<h3>7.1 VPC 1.0：经典网络（2012-2016）</h3>
+<p>UCloud 在 2012 年上线初期采用经典网络模型：云主机和宿主机位于同一个大二层网络，网络转发依赖 Linux Bridge，租户隔离依赖 iptables/ebtables 规则。经典网络的问题：无租户隔离、IP 地址冲突、安全规则爆炸、无法自定义网络拓扑。</p>
+<h3>7.2 VPC 2.0：基于 SDN 的 VPC 网络（2016-2019）</h3>
+<p>2016 年底，UCloud 上线基于 SDN 的 VPC 2.0 架构。转发平面引入 OpenVSwitch + OpenFlow 完成 Overlay 流量的转发与隔离；基于 DPDK 开发东西向和南北向网关。控制面自研 SDN 控制器，通过 Packet-In 和 Push 相结合的方式下发流表。</p>
+<p>VPC 2.0 的四大痛点：OVS 转发性能不足、异构网络耦合、转发面和控制面流量耦合、首包时延。</p>
+<h3>7.3 VPC 3.0：软硬件一体化的新一代 VPC 网络（2019-至今）</h3>
+<p>VPC 3.0 控制平面四层架构：</p>
+<table>
+<thead>
+<tr><th>层次</th><th>职责</th></tr>
+</thead>
+<tbody>
+<tr><td>Model Layer（模型层）</td><td>生成统一业务对象（如 Subnet）</td></tr>
+<tr><td>Middle Layer（中台层）</td><td>对象路由、一致性缓存、对象分片、对象灰度</td></tr>
+<tr><td>Mapping Layer（映射层）</td><td>将业务对象映射为不同网元对象（OpenFlow/P4/TC）</td></tr>
+<tr><td>DataPath Layer（推送层）</td><td>关心具体转发网元，实现高效推送</td></tr>
+</tbody>
+</table>
+<div class="highlight-box">
+<p><strong>💡 DCP 协议：</strong>VPC 3.0 引入主动推送 + 动态学习相结合的 Flow 下发方式。基于 P4 可编程芯片开发 VPC 网关 BGW，BGW 与计算节点的 Datapath Controller 运行 DCP 协议。相比 VPC 2.0 的 Packet-In 机制，DCP 实现了流表按需学习、无首包时延、转发面学习性能远高于控制面下发。</p>
+</div>
+<p>转发面硬件演进：从 Kernel Bridge → Kernel OVS → 硬件卸载 OVS + 智能网卡（25G 带宽、1000 万 PPS、10G 外网），网关从 DPDK 演进到 P4 可编程芯片（Tbps 级）。</p>
+<p>VPC 3.0 还引入了 <strong>UXR 中心化网关</strong>完成异构网络解耦，以及基于 INT 的全链路 Telemetry 探测系统。</p>
+<div class="flow-diagram">
    UCloud VPC 3.0 软硬件一体化架构
    ┌─────────────────────────────────────────────────────┐
    │                     控制平面                         │
@@ -752,56 +610,45 @@
    DCP协议: OVS未命中 → 转发到BGW → BGW正常转发+DCP报文回传
             → 源端Controller学习流表 → 后续流量OVS本地转发
         </div>
-
-        <h2>8. 数据面技术演进：从软件到硬件</h2>
-
-        <h3>8.1 软件转发：OVS + DPDK</h3>
-
-        <p><strong>Open vSwitch（OVS）</strong> 是云网络数据面的基石，运行在每个计算节点上，负责 Overlay 封装/解封装、安全组规则匹配、ACL 过滤、流量镜像和 QoS。</p>
-
-        <table>
-          <thead>
-            <tr><th>模式</th><th>内核路径</th><th>性能</th><th>延迟</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Kernel OVS</td><td>内核态</td><td>百万级 PPS</td><td>较高</td></tr>
-            <tr><td>DPDK OVS</td><td>用户态（轮询模式）</td><td>千万级 PPS</td><td>较低</td></tr>
-          </tbody>
-        </table>
-
-        <h3>8.2 SR-IOV：硬件直通的起点</h3>
-
-        <p><strong>SR-IOV</strong> 允许一块物理网卡呈现为多个虚拟功能（VF），每个 VF 可以直接分配给虚拟机，绕过 Hypervisor 的软件交换。AWS 在 2013 年率先在 C3 实例上引入 SR-IOV Enhanced Networking。</p>
-
-        <h3>8.3 智能网卡（SmartNIC）与 DPU</h3>
-
-        <table>
-          <thead>
-            <tr><th>特性</th><th>SmartNIC</th><th>DPU</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>核心能力</td><td>Fast Path 卸载（OVS/VRouter）</td><td>全栈卸载（网络+存储+安全+虚拟化）</td></tr>
-            <tr><td>CPU</td><td>无或弱 CPU</td><td>多核 ARM/MIPS 处理器</td></tr>
-            <tr><td>控制面</td><td>仍在 Host CPU</td><td>可完全卸载到 DPU 内部</td></tr>
-            <tr><td>可编程性</td><td>有限（eSwitch 规则）</td><td>高（P4/C 语言/eBPF 混合编程）</td></tr>
-            <tr><td>典型产品</td><td>NVIDIA CX5</td><td>NVIDIA BlueField、AMD Pensando</td></tr>
-          </tbody>
-        </table>
-
-        <p>各云厂商的硬件加速方案对比：</p>
-
-        <table>
-          <thead>
-            <tr><th>云厂商</th><th>硬件方案</th><th>核心特点</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>AWS</td><td>Nitro System（自研芯片）</td><td>VPC/EBS/存储三卡分离，SR-IOV 直通，透明加密</td></tr>
-            <tr><td>阿里云</td><td>X-Dragon（神龙）</td><td>Sailfish 可编程转发层，软硬一体</td></tr>
-            <tr><td>UCloud</td><td>硬件卸载 OVS + P4 网关</td><td>BGW/CGW 可编程网关，DCP 协议</td></tr>
-          </tbody>
-        </table>
-
-        <div class="flow-diagram">
+<h2>8. 数据面技术演进：从软件到硬件</h2>
+<h3>8.1 软件转发：OVS + DPDK</h3>
+<p><strong>Open vSwitch（OVS）</strong> 是云网络数据面的基石，运行在每个计算节点上，负责 Overlay 封装/解封装、安全组规则匹配、ACL 过滤、流量镜像和 QoS。</p>
+<table>
+<thead>
+<tr><th>模式</th><th>内核路径</th><th>性能</th><th>延迟</th></tr>
+</thead>
+<tbody>
+<tr><td>Kernel OVS</td><td>内核态</td><td>百万级 PPS</td><td>较高</td></tr>
+<tr><td>DPDK OVS</td><td>用户态（轮询模式）</td><td>千万级 PPS</td><td>较低</td></tr>
+</tbody>
+</table>
+<h3>8.2 SR-IOV：硬件直通的起点</h3>
+<p><strong>SR-IOV</strong> 允许一块物理网卡呈现为多个虚拟功能（VF），每个 VF 可以直接分配给虚拟机，绕过 Hypervisor 的软件交换。AWS 在 2013 年率先在 C3 实例上引入 SR-IOV Enhanced Networking。</p>
+<h3>8.3 智能网卡（SmartNIC）与 DPU</h3>
+<table>
+<thead>
+<tr><th>特性</th><th>SmartNIC</th><th>DPU</th></tr>
+</thead>
+<tbody>
+<tr><td>核心能力</td><td>Fast Path 卸载（OVS/VRouter）</td><td>全栈卸载（网络+存储+安全+虚拟化）</td></tr>
+<tr><td>CPU</td><td>无或弱 CPU</td><td>多核 ARM/MIPS 处理器</td></tr>
+<tr><td>控制面</td><td>仍在 Host CPU</td><td>可完全卸载到 DPU 内部</td></tr>
+<tr><td>可编程性</td><td>有限（eSwitch 规则）</td><td>高（P4/C 语言/eBPF 混合编程）</td></tr>
+<tr><td>典型产品</td><td>NVIDIA CX5</td><td>NVIDIA BlueField、AMD Pensando</td></tr>
+</tbody>
+</table>
+<p>各云厂商的硬件加速方案对比：</p>
+<table>
+<thead>
+<tr><th>云厂商</th><th>硬件方案</th><th>核心特点</th></tr>
+</thead>
+<tbody>
+<tr><td>AWS</td><td>Nitro System（自研芯片）</td><td>VPC/EBS/存储三卡分离，SR-IOV 直通，透明加密</td></tr>
+<tr><td>阿里云</td><td>X-Dragon（神龙）</td><td>Sailfish 可编程转发层，软硬一体</td></tr>
+<tr><td>UCloud</td><td>硬件卸载 OVS + P4 网关</td><td>BGW/CGW 可编程网关，DCP 协议</td></tr>
+</tbody>
+</table>
+<div class="flow-diagram">
    从普通网卡到DPU的演进:
    
    ┌────────────────┐  ┌────────────────┐  ┌────────────────┐
@@ -824,50 +671,38 @@
    └────────────────┘  └────────────────┘  └────────────────┘
         (基础)             (部分卸载)           (全栈卸载)
         </div>
-
-        <h3>8.4 P4 可编程数据面</h3>
-
-        <p><strong>P4</strong> 是一种领域特定语言，用于描述数据面的报文处理逻辑。P4 的核心思想：协议无关（不绑定任何特定协议）、目标无关（同一份 P4 程序可编译到 ASIC、FPGA、软件交换机等不同目标）、可重构（运行时修改数据面处理逻辑）。</p>
-
-        <h2>9. 容器网络演进：从 Bridge 到 eBPF</h2>
-
-        <h3>9.1 容器网络的发展脉络</h3>
-
-        <p>容器网络经历了四个主要阶段：Docker Bridge + NAT → Overlay CNI（Flannel/Calico）→ Service Mesh（Istio/Envoy）→ eBPF 原生网络（Cilium）。</p>
-
-        <p>主流 CNI 方案对比：</p>
-
-        <table>
-          <thead>
-            <tr><th>方案</th><th>模式</th><th>封装</th><th>性能</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Flannel VXLAN</td><td>Overlay</td><td>VXLAN</td><td>中</td></tr>
-            <tr><td>Calico BGP</td><td>路由</td><td>无</td><td>高</td></tr>
-            <tr><td>Cilium eBPF</td><td>路由/Overlay</td><td>VXLAN/Geneve</td><td>极高</td></tr>
-          </tbody>
-        </table>
-
-        <h3>9.2 eBPF：重塑内核网络栈</h3>
-
-        <p><strong>eBPF</strong> 是 Linux 内核的可编程框架，允许在不修改内核源码的情况下安全地扩展内核行为。eBPF 相比 iptables 的核心优势：</p>
-
-        <table>
-          <thead>
-            <tr><th>维度</th><th>iptables</th><th>eBPF</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>规则匹配</td><td>O(n) 线性遍历</td><td>O(1) 哈希查找</td></tr>
-            <tr><td>规则更新</td><td>全量替换</td><td>增量更新单个 Map 条目</td></tr>
-            <tr><td>数据路径</td><td>经历 5+ Netfilter hook</td><td>可绕过整个 Netfilter 栈</td></tr>
-            <tr><td>延迟</td><td>高（数百 μs）</td><td>低（数十 μs）</td></tr>
-            <tr><td>可编程性</td><td>仅规则匹配</td><td>完全可编程（L2-L7）</td></tr>
-          </tbody>
-        </table>
-
-        <p>Cilium 利用 eBPF 实现 <strong>host-routing</strong> 模式，完全绕过宿主机的 Netfilter 框架：传统方案相比物理机有约 36% 性能损耗，而 Cilium eBPF host-routing 仅约 9% 损耗。</p>
-
-        <div class="flow-diagram">
+<h3>8.4 P4 可编程数据面</h3>
+<p><strong>P4</strong> 是一种领域特定语言，用于描述数据面的报文处理逻辑。P4 的核心思想：协议无关（不绑定任何特定协议）、目标无关（同一份 P4 程序可编译到 ASIC、FPGA、软件交换机等不同目标）、可重构（运行时修改数据面处理逻辑）。</p>
+<h2>9. 容器网络演进：从 Bridge 到 eBPF</h2>
+<h3>9.1 容器网络的发展脉络</h3>
+<p>容器网络经历了四个主要阶段：Docker Bridge + NAT → Overlay CNI（Flannel/Calico）→ Service Mesh（Istio/Envoy）→ eBPF 原生网络（Cilium）。</p>
+<p>主流 CNI 方案对比：</p>
+<table>
+<thead>
+<tr><th>方案</th><th>模式</th><th>封装</th><th>性能</th></tr>
+</thead>
+<tbody>
+<tr><td>Flannel VXLAN</td><td>Overlay</td><td>VXLAN</td><td>中</td></tr>
+<tr><td>Calico BGP</td><td>路由</td><td>无</td><td>高</td></tr>
+<tr><td>Cilium eBPF</td><td>路由/Overlay</td><td>VXLAN/Geneve</td><td>极高</td></tr>
+</tbody>
+</table>
+<h3>9.2 eBPF：重塑内核网络栈</h3>
+<p><strong>eBPF</strong> 是 Linux 内核的可编程框架，允许在不修改内核源码的情况下安全地扩展内核行为。eBPF 相比 iptables 的核心优势：</p>
+<table>
+<thead>
+<tr><th>维度</th><th>iptables</th><th>eBPF</th></tr>
+</thead>
+<tbody>
+<tr><td>规则匹配</td><td>O(n) 线性遍历</td><td>O(1) 哈希查找</td></tr>
+<tr><td>规则更新</td><td>全量替换</td><td>增量更新单个 Map 条目</td></tr>
+<tr><td>数据路径</td><td>经历 5+ Netfilter hook</td><td>可绕过整个 Netfilter 栈</td></tr>
+<tr><td>延迟</td><td>高（数百 μs）</td><td>低（数十 μs）</td></tr>
+<tr><td>可编程性</td><td>仅规则匹配</td><td>完全可编程（L2-L7）</td></tr>
+</tbody>
+</table>
+<p>Cilium 利用 eBPF 实现 <strong>host-routing</strong> 模式，完全绕过宿主机的 Netfilter 框架：传统方案相比物理机有约 36% 性能损耗，而 Cilium eBPF host-routing 仅约 9% 损耗。</p>
+<div class="flow-diagram">
    Cilium eBPF Host-Routing 数据路径 (绕过Netfilter):
    
    ┌──────────────────────────────────────────────────┐
@@ -898,206 +733,115 @@
    传统路径: Pod → veth → Netfilter(PREROUTING→FORWARD→POSTROUTING) → eth0
    eBPF路径:  Pod → veth → TC BPF → bpf_redirect → eth0  (快3-5倍)
         </div>
+<h3>9.3 eBPF 的未来方向</h3>
+<ul>
+<li><strong>XDP 卸载到 SmartNIC</strong>：eBPF 程序直接在网卡硬件上执行，CPU 零开销</li>
+<li><strong>P4 与 eBPF 融合</strong>：P4-to-eBPF 编译器使同一份网络逻辑可在不同目标上运行</li>
+<li><strong>Cilium DPU Offload</strong>：将 Cilium 数据面完全卸载到 DPU</li>
+<li><strong>kube-proxy 终结</strong>：eBPF Service 实现可能纳入 Kubernetes 核心</li>
+</ul>
+<h2>10. 云网络安全演进</h2>
+<h3>10.1 安全组：实例级微分段</h3>
+<p>安全组是有状态的白名单防火墙，绑定到实例的弹性网卡（ENI）上：默认拒绝所有流量，仅放行明确允许的规则；自动放行响应流量；可引用其他安全组作为规则源。</p>
+<h3>10.2 微分段与零信任</h3>
+<p>随着微服务架构的普及，基于 IP 地址的安全策略面临挑战——Pod 生命周期可能仅数秒，IP 地址频繁变化。新一代安全模型向<strong>身份驱动</strong>演进：Cilium Identity 基于 Kubernetes Label 的安全身份，与 IP 解耦；NetworkPolicy 从 L3/L4 扩展到 L7 策略；零信任网络默认拒绝所有东西向流量。</p>
+<h2>11. 三大云厂商网络架构横向对比</h2>
+<table>
+<thead>
+<tr><th>维度</th><th>AWS</th><th>阿里云</th><th>UCloud</th></tr>
+</thead>
+<tbody>
+<tr><td>经典网络</td><td>EC2-Classic（2006-2022）</td><td>基础网络（2009-2017）</td><td>经典网络（2012-2016）</td></tr>
+<tr><td>VPC 发布</td><td>2009（2011 GA）</td><td>2014</td><td>2016</td></tr>
+<tr><td>硬件加速</td><td>Nitro System（2017）</td><td>X-Dragon 神龙</td><td>硬件卸载 OVS + P4 网关</td></tr>
+<tr><td>跨域互联</td><td>Transit Gateway（2017）</td><td>云企业网 CEN（2017）</td><td>云互联</td></tr>
+<tr><td>Overlay 协议</td><td>类 VXLAN</td><td>类 VXLAN</td><td>VXLAN/NVGRE</td></tr>
+<tr><td>vSwitch</td><td>Nitro VPC Card</td><td>AVS</td><td>OVS（内核版/硬件卸载版）</td></tr>
+<tr><td>网关技术</td><td>Nitro 硬件</td><td>Sailfish + Cyberstar</td><td>P4 可编程网关（BGW/CGW）</td></tr>
+<tr><td>最新方向</td><td>VPC Lattice/Cloud WAN</td><td>洛神 3.0（云边端一体）</td><td>VPC 3.0（软硬一体）</td></tr>
+</tbody>
+</table>
+<h2>12. 未来趋势</h2>
+<h3>12.1 DPU/IPU 成为算力基础设施</h3>
+<p>DPU 正在从"加速网卡"演进为"算力基础设施的第三颗芯片"（与 CPU、GPU 并列）。全栈卸载（网络、存储、安全、虚拟化全部卸载到 DPU）、eBPF 原生支持、IPU 强调基础设施与业务算力的物理隔离。</p>
+<h3>12.2 可编程数据面统一</h3>
+<p>P4、eBPF、OVS 三种数据面技术正在融合：P4-to-eBPF 编译器、OVS eBPF Offload、统一的可编程抽象。</p>
+<h3>12.3 AI 驱动的智能网络</h3>
+<p>网络大模型基于 LLM 的网络意图理解；AIOps 异常检测、根因分析、容量预测的自动化；意图驱动网络（IBN）用户声明意图，系统自动生成和部署策略。</p>
+<h3>12.4 云原生网络统一平面</h3>
+<p>Cilium ClusterMesh 多集群 Identity 同步；Gateway API 统一南北向流量模型；MCS API 统一东西向多集群服务发现；Kubernetes 成为跨云网络控制面。</p>
+<h3>12.5 高性能网络：RDMA 与 GPU 直连</h3>
+<p>AI/ML 训练集群对网络提出了全新要求：RDMA/RoCE v2 远程直接内存访问绕过内核协议栈；GPUDirect RDMA GPU 之间直接通过 RDMA 通信；AWS EFA 支持 OS-bypass 和 SRD 协议；拓扑感知调度将通信密集的 Pod 调度到同一机架。</p>
+<h2>13. 总结：云计算网络架构演进的核心脉络</h2>
+<p>回顾云计算网络近二十年的发展，可以提炼出五条清晰的演进主线：</p>
+<p><strong>1. 隔离模式：VLAN → Overlay → VPC</strong><br/>从 VLAN 的 4K 隔离域，到 VXLAN 的 1600 万虚拟网络，再到 VPC 的完整私有网络能力。每一层抽象都在解决上一层的规模瓶颈。</p>
+<p><strong>2. 网络架构：三层 → Spine-Leaf → 超融合</strong><br/>物理网络从传统三层架构简化为 Spine-Leaf 二层架构，再到软件定义的超融合架构。控制逻辑从分散在各层设备集中到 SDN 控制器。</p>
+<p><strong>3. 转发性能：软件 → 半硬件 → 全硬件</strong><br/>从 Linux Bridge 到 OVS+DPDK，到 SR-IOV 直通，再到 SmartNIC/DPU 全栈卸载。每一代都在向"接近裸金属性能"逼近。</p>
+<p><strong>4. 网络范围：数据中心 → 广域网 → 云边端一体</strong><br/>从单 Region 的 VPC，到跨地域的云企业网/Transit Gateway，再到覆盖 5G/IoT/边缘的万物互联网络。</p>
+<p><strong>5. 智能化：人工配置 → 自动化 → 智能自治</strong><br/>从 CLI 手动配置，到 SDN 控制器自动化，再到数据驱动的智能网络运维。网络的自主性越来越高，人的干预越来越少。</p>
+<div class="highlight-box">
+<p><strong>💡 总结：</strong>这五条主线交织在一起，推动着云计算网络从一个简单的二层共享网络，演变为今天覆盖全球、软硬一体、智能自治的超级网络基础设施。而每一次架构跃迁的背后，都是规模、性能、安全和效率的不懈追求。</p>
+</div>
 
-        <h3>9.3 eBPF 的未来方向</h3>
+          </div>
 
-        <ul>
-          <li><strong>XDP 卸载到 SmartNIC</strong>：eBPF 程序直接在网卡硬件上执行，CPU 零开销</li>
-          <li><strong>P4 与 eBPF 融合</strong>：P4-to-eBPF 编译器使同一份网络逻辑可在不同目标上运行</li>
-          <li><strong>Cilium DPU Offload</strong>：将 Cilium 数据面完全卸载到 DPU</li>
-          <li><strong>kube-proxy 终结</strong>：eBPF Service 实现可能纳入 Kubernetes 核心</li>
-        </ul>
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev" href="../posts/vxlan-与-gre的区别.html">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">VXLAN 与 GRE 的区别</span>
+              </a>
+              <a class="article-nav-link next disabled" href="#">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">没有更新的文章</span>
+              </a>
+            </nav>
 
-        <h2>10. 云网络安全演进</h2>
-
-        <h3>10.1 安全组：实例级微分段</h3>
-
-        <p>安全组是有状态的白名单防火墙，绑定到实例的弹性网卡（ENI）上：默认拒绝所有流量，仅放行明确允许的规则；自动放行响应流量；可引用其他安全组作为规则源。</p>
-
-        <h3>10.2 微分段与零信任</h3>
-
-        <p>随着微服务架构的普及，基于 IP 地址的安全策略面临挑战——Pod 生命周期可能仅数秒，IP 地址频繁变化。新一代安全模型向<strong>身份驱动</strong>演进：Cilium Identity 基于 Kubernetes Label 的安全身份，与 IP 解耦；NetworkPolicy 从 L3/L4 扩展到 L7 策略；零信任网络默认拒绝所有东西向流量。</p>
-
-        <h2>11. 三大云厂商网络架构横向对比</h2>
-
-        <table>
-          <thead>
-            <tr><th>维度</th><th>AWS</th><th>阿里云</th><th>UCloud</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>经典网络</td><td>EC2-Classic（2006-2022）</td><td>基础网络（2009-2017）</td><td>经典网络（2012-2016）</td></tr>
-            <tr><td>VPC 发布</td><td>2009（2011 GA）</td><td>2014</td><td>2016</td></tr>
-            <tr><td>硬件加速</td><td>Nitro System（2017）</td><td>X-Dragon 神龙</td><td>硬件卸载 OVS + P4 网关</td></tr>
-            <tr><td>跨域互联</td><td>Transit Gateway（2017）</td><td>云企业网 CEN（2017）</td><td>云互联</td></tr>
-            <tr><td>Overlay 协议</td><td>类 VXLAN</td><td>类 VXLAN</td><td>VXLAN/NVGRE</td></tr>
-            <tr><td>vSwitch</td><td>Nitro VPC Card</td><td>AVS</td><td>OVS（内核版/硬件卸载版）</td></tr>
-            <tr><td>网关技术</td><td>Nitro 硬件</td><td>Sailfish + Cyberstar</td><td>P4 可编程网关（BGW/CGW）</td></tr>
-            <tr><td>最新方向</td><td>VPC Lattice/Cloud WAN</td><td>洛神 3.0（云边端一体）</td><td>VPC 3.0（软硬一体）</td></tr>
-          </tbody>
-        </table>
-
-        <h2>12. 未来趋势</h2>
-
-        <h3>12.1 DPU/IPU 成为算力基础设施</h3>
-
-        <p>DPU 正在从"加速网卡"演进为"算力基础设施的第三颗芯片"（与 CPU、GPU 并列）。全栈卸载（网络、存储、安全、虚拟化全部卸载到 DPU）、eBPF 原生支持、IPU 强调基础设施与业务算力的物理隔离。</p>
-
-        <h3>12.2 可编程数据面统一</h3>
-
-        <p>P4、eBPF、OVS 三种数据面技术正在融合：P4-to-eBPF 编译器、OVS eBPF Offload、统一的可编程抽象。</p>
-
-        <h3>12.3 AI 驱动的智能网络</h3>
-
-        <p>网络大模型基于 LLM 的网络意图理解；AIOps 异常检测、根因分析、容量预测的自动化；意图驱动网络（IBN）用户声明意图，系统自动生成和部署策略。</p>
-
-        <h3>12.4 云原生网络统一平面</h3>
-
-        <p>Cilium ClusterMesh 多集群 Identity 同步；Gateway API 统一南北向流量模型；MCS API 统一东西向多集群服务发现；Kubernetes 成为跨云网络控制面。</p>
-
-        <h3>12.5 高性能网络：RDMA 与 GPU 直连</h3>
-
-        <p>AI/ML 训练集群对网络提出了全新要求：RDMA/RoCE v2 远程直接内存访问绕过内核协议栈；GPUDirect RDMA GPU 之间直接通过 RDMA 通信；AWS EFA 支持 OS-bypass 和 SRD 协议；拓扑感知调度将通信密集的 Pod 调度到同一机架。</p>
-
-        <h2>13. 总结：云计算网络架构演进的核心脉络</h2>
-
-        <p>回顾云计算网络近二十年的发展，可以提炼出五条清晰的演进主线：</p>
-
-        <p><strong>1. 隔离模式：VLAN → Overlay → VPC</strong><br>从 VLAN 的 4K 隔离域，到 VXLAN 的 1600 万虚拟网络，再到 VPC 的完整私有网络能力。每一层抽象都在解决上一层的规模瓶颈。</p>
-
-        <p><strong>2. 网络架构：三层 → Spine-Leaf → 超融合</strong><br>物理网络从传统三层架构简化为 Spine-Leaf 二层架构，再到软件定义的超融合架构。控制逻辑从分散在各层设备集中到 SDN 控制器。</p>
-
-        <p><strong>3. 转发性能：软件 → 半硬件 → 全硬件</strong><br>从 Linux Bridge 到 OVS+DPDK，到 SR-IOV 直通，再到 SmartNIC/DPU 全栈卸载。每一代都在向"接近裸金属性能"逼近。</p>
-
-        <p><strong>4. 网络范围：数据中心 → 广域网 → 云边端一体</strong><br>从单 Region 的 VPC，到跨地域的云企业网/Transit Gateway，再到覆盖 5G/IoT/边缘的万物互联网络。</p>
-
-        <p><strong>5. 智能化：人工配置 → 自动化 → 智能自治</strong><br>从 CLI 手动配置，到 SDN 控制器自动化，再到数据驱动的智能网络运维。网络的自主性越来越高，人的干预越来越少。</p>
-
-        <div class="highlight-box">
-          <p><strong>💡 总结：</strong>这五条主线交织在一起，推动着云计算网络从一个简单的二层共享网络，演变为今天覆盖全球、软硬一体、智能自治的超级网络基础设施。而每一次架构跃迁的背后，都是规模、性能、安全和效率的不懈追求。</p>
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><a class="post-card" href="../posts/vxlan-与-gre的区别.html"><div class="post-card-title">VXLAN 与 GRE 的区别</div><div class="post-card-desc">云数据中心 Overlay 网络补充：从设计目标、封装结构、VNI/Key、ECMP、NAT、防火墙、MTU 与典型场景讲透 VXLAN 和 GRE 的区别。</div><div class="post-card-meta"><span class="tag tag-network">Network</span><span>2026-05-29</span></div></a><a class="post-card" href="../posts/ip包结构与mtu位置.html"><div class="post-card-title">IP包结构与MTU位置</div><div class="post-card-desc">IP 包结构与 MTU 详解：头部字段含义、MTU 在协议栈中的位置、分片与 PMTUD 机制，以及各层封装的嵌套关系。</div><div class="post-card-meta"><span class="tag tag-network">Network</span><span>2026-05-15</span></div></a></div>
+            </div>
+          </footer>
         </div>
-
       </div>
+    </main>
 
-        <!-- TOC (auto-generated by JS) -->
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-      </div>
-      <!-- /article-layout -->
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-    </div>
-  </main>
-
-</div>
-
-<!-- Mobile TOC button + panel -->
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-// ===== Auto-generate TOC from h2/h3 =====
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var mobilePanel = document.getElementById('toc-mobile-panel');
-      if (mobilePanel) mobilePanel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-
-  // Scroll spy
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-
-  updateActiveToc();
-})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  </script>
 </body>
 </html>

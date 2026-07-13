@@ -1,49 +1,84 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pod调度与节点选择 - SRE Notes</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pod调度与节点选择 - SRE Notes</title>
+  <meta name="description" content="Kubernetes 调度全解析：预选优选终选流程、NodeSelector、亲和性/反亲和性、污点容忍、topologySpreadConstraints、Descheduler、PDB、PriorityClass、QoS。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<div class="article-page">
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#kubernetes">Kubernetes</a>
+          <span class="sep">/</span>
+          <span class="current">Pod调度与节点选择</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
+        </div>
+      </header>
 
-  <div class="article-header">
-    <div class="breadcrumb">
-      <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">Kubernetes</a>
-    </div>
-    <h1>Pod调度与节点选择</h1>
-    <div class="article-meta">
-      <span>
-        <span class="tag tag-k8s">Kubernetes</span>
-      </span>
-      <span>2026-06-06</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
-    </div>
-  </div>
+      <div class="scroll-progress" data-progress></div>
 
-  <div class="article-with-toc">
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#kubernetes">Kubernetes</a><span class="sep">/</span>
+              <span class="current">Pod调度与节点选择</span>
+            </nav>
+            <h1>Pod调度与节点选择</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-kubernetes">Kubernetes</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-06-06
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                51 分钟阅读
+              </span>
+            </div>
+          </header>
 
-    <div class="article-content">
-
-      <p>Kubernetes 调度器（kube-scheduler）是控制平面的核心组件，负责将未调度的 Pod 分配到合适的节点上运行。调度过程并非随机——它经过<strong>预选 → 优选 → 终选</strong>三个阶段，确保 Pod 既&ldquo;能跑&rdquo;又&ldquo;跑得好&rdquo;。本章从调度流程入手，逐步讲解 NodeSelector、亲和性/反亲和性、污点与容忍等调度策略。</p>
-
-<hr>
-
+          <div class="article-content">
+            
+<p>Kubernetes 调度器（kube-scheduler）是控制平面的核心组件，负责将未调度的 Pod 分配到合适的节点上运行。调度过程并非随机——它经过<strong>预选 → 优选 → 终选</strong>三个阶段，确保 Pod 既“能跑”又“跑得好”。本章从调度流程入手，逐步讲解 NodeSelector、亲和性/反亲和性、污点与容忍等调度策略。</p>
+<hr/>
 <h2>1. Pod 创建流程与调度机制</h2>
-
 <h3>Pod 创建到运行的完整流程</h3>
-
 <p>当用户通过 <code>kubectl apply</code> 或 API 创建一个 Pod 时，整个生命周期经历以下阶段：</p>
-
 <pre><code><span class="code-label">text</span>kubectl apply → API Server 收到请求
     │
     ├── 1. 认证（Authentication）：确认请求者身份
@@ -70,17 +105,11 @@ API Server 更新 Pod 的 spec.nodeName → 写入 etcd
     │
     ▼
 Pod 状态变为 Running</code></pre>
-
 <div class="flow-diagram"><pre>### 调度器核心流程：预选 → 优选 → 终选</pre></div>
-
 <p>kube-scheduler 的调度决策分为三个阶段：</p>
-
 <h4>预选（Filtering / Predicates）</h4>
-
 <p>遍历所有节点，<strong>硬性排除</strong>不符合条件的节点。任何一个预选条件不满足，该节点就被直接淘汰。</p>
-
 <p>常见的预选策略：</p>
-
 <table>
 <thead>
 <tr>
@@ -127,15 +156,10 @@ Pod 状态变为 Running</code></pre>
 </tr>
 </tbody>
 </table>
-
 <p>预选结束后，剩下的节点称为<strong>可行节点（Feasible Nodes）</strong>。</p>
-
 <h4>优选（Scoring / Priorities）</h4>
-
 <p>对所有可行节点<strong>打分排序</strong>，选出最"合适"的节点。每个优选策略独立打分，最终加权求和。</p>
-
 <p>常见优选策略：</p>
-
 <table>
 <thead>
 <tr>
@@ -182,27 +206,18 @@ Pod 状态变为 Running</code></pre>
 </tr>
 </tbody>
 </table>
-
 <h4>终选（Binding）</h4>
-
 <p>得分最高的节点成为<strong>目标节点</strong>。如果多个节点得分相同，则随机选一个（Round Robin）。</p>
-
 <p>终选步骤：</p>
-
 <ol>
 <li>调度器向 API Server 发送 Binding 请求，将 Pod 的 <code>spec.nodeName</code> 设为目标节点名</li>
 <li>API Server 更新 etcd 中的 Pod 对象</li>
 <li>目标节点的 kubelet Watch 到变化，开始拉取镜像、创建容器</li>
 </ol>
-
 <div class="highlight-box"><p><strong>注意</strong>：如果调度失败（没有可行节点，或优选阶段所有节点得分太低），Pod 保持在 <code>Pending</code> 状态。调度器会按照 backoff 策略定期重试（<code>podInitialBackoffSeconds=1s</code>，<code>podMaxBackoffSeconds=10s</code>）。</p></div>
-
 <h3>Scheduling Framework（v1.18+）</h3>
-
 <p>从 v1.18 开始，kube-scheduler 引入了 <strong>Scheduling Framework</strong>，将调度流程拆解为可扩展的插件扩展点：</p>
-
 <pre><code><span class="code-label">text</span>QueueSort → PreFilter → Filter → PostFilter → PreScore → Score → NormalizeScore → Reserve → Permit → PreBind → Bind → PostBind</code></pre>
-
 <table>
 <thead>
 <tr>
@@ -253,39 +268,26 @@ Pod 状态变为 Running</code></pre>
 </tr>
 </tbody>
 </table>
-
 <p>开发者可以通过编写自定义插件注册到上述任何扩展点，实现自定义调度逻辑，无需修改调度器源码。</p>
-
-<hr>
-
+<hr/>
 <h2>2. 一、NodeSelector</h2>
-
 <h3>1.1 介绍</h3>
-
 <p><code>nodeSelector</code> 是最简单的节点选择机制——在 Pod 的 <code>spec</code> 中指定一组键值对，Kubernetes 只会将 Pod 调度到<strong>标签完全匹配</strong>的节点上。</p>
-
 <p>它本质上是一个<strong>硬约束</strong>：如果集群中没有节点满足 <code>nodeSelector</code> 中所有键值对，Pod 会一直处于 <code>Pending</code> 状态。</p>
-
 <p><strong>适用场景</strong>：</p>
-
 <ul>
 <li>Pod 需要特定硬件（如 GPU 节点、SSD 磁盘节点）</li>
 <li>Pod 需要运行在指定区域/机房</li>
 <li>简单的环境区分（生产环境 vs 测试环境）</li>
 </ul>
-
 <p><strong>局限</strong>：</p>
-
 <ul>
 <li>只支持<strong>精确匹配</strong>（label 的 key 和 value 必须完全一致），不支持 In、NotIn、Exists 等运算符</li>
 <li>是硬约束，没有"尽量满足"的软策略</li>
 <li>如果需要更复杂的调度逻辑，应使用 nodeAffinity</li>
 </ul>
-
 <h3>1.2 实践</h3>
-
 <h4>给节点打标签</h4>
-
 <pre><code><span class="code-label">bash</span># 给 node-01 打上磁盘类型标签
 kubectl label nodes node-01 disktype=ssd
 
@@ -294,9 +296,7 @@ kubectl label nodes node-02 accelerator=nvidia-tesla-p100
 
 # 查看节点标签
 kubectl get nodes --show-labels</code></pre>
-
 <h4>Pod 中使用 nodeSelector</h4>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -307,9 +307,7 @@ spec:
     image: nginx:1.25
   nodeSelector:
     disktype: ssd   # Pod 只会被调度到有 disktype=ssd 标签的节点</code></pre>
-
 <h4>多标签组合</h4>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -317,36 +315,26 @@ metadata:
 spec:
   containers:
   - name: cuda-test
-    image: &quot;registry.k8s.io/cuda-vector-add:v0.1&quot;
+    image: "registry.k8s.io/cuda-vector-add:v0.1"
     resources:
       limits:
         nvidia.com/gpu: 1
   nodeSelector:
     accelerator: nvidia-tesla-p100  # 必须 GPU 节点
     disktype: ssd                    # 且必须是 SSD</code></pre>
-
 <div class="highlight-box"><p>nodeSelector 中的<strong>所有键值对</strong>都必须匹配，是 AND 逻辑。Pod 只会调度到同时拥有 <code>accelerator=nvidia-tesla-p100</code> <strong>和</strong> <code>disktype=ssd</code> 标签的节点。</p></div>
-
 <h4>验证调度结果</h4>
-
 <pre><code><span class="code-label">bash</span># 查看 Pod 被调度到了哪个节点
 kubectl get pod nginx-ssd -o wide
 
 # 查看调度事件
 kubectl describe pod nginx-ssd | grep -A5 Events</code></pre>
-
 <p>如果集群中没有匹配标签的节点，事件会显示：</p>
-
-<pre><code><span class="code-label">text</span>0/3 nodes are available: 3 node(s) didn&#x27;t match node selector.</code></pre>
-
-<hr>
-
+<pre><code><span class="code-label">text</span>0/3 nodes are available: 3 node(s) didn't match node selector.</code></pre>
+<hr/>
 <h2>3. 二、亲和性与反亲和性</h2>
-
 <h3>2.1 总体介绍</h3>
-
 <p>亲和性（Affinity）和反亲和性（Anti-Affinity）是 <code>nodeSelector</code> 的增强版，提供了<strong>更丰富的选择语义</strong>：</p>
-
 <table>
 <thead>
 <tr>
@@ -378,16 +366,12 @@ kubectl describe pod nginx-ssd | grep -A5 Events</code></pre>
 </tr>
 </tbody>
 </table>
-
 <p>亲和性分两个维度：</p>
-
 <ul>
 <li><strong>nodeAffinity</strong>：基于<strong>节点标签</strong>选择节点（类似增强版 nodeSelector）</li>
 <li><strong>podAffinity / podAntiAffinity</strong>：基于<strong>已运行 Pod 的标签</strong>选择节点（让 Pod "亲近"或"远离"特定 Pod）</li>
 </ul>
-
 <h3>策略类型对比</h3>
-
 <table>
 <thead>
 <tr>
@@ -409,21 +393,13 @@ kubectl describe pod nginx-ssd | grep -A5 Events</code></pre>
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p><code>IgnoredDuringExecution</code> 的含义：这些规则只在<strong>调度时生效</strong>，一旦 Pod 已经运行在节点上，即使后续节点标签变化导致条件不再满足，也不会驱逐 Pod。<code>requiredDuringSchedulingIgnoredDuringExecution</code> 中的 "IgnoredDuringExecution" 就是强调这一点。</p></div>
-
-<hr>
-
+<hr/>
 <h3>2.2 节点维度——nodeAffinity</h3>
-
 <p>nodeAffinity 让 Pod 基于<strong>节点本身的标签</strong>来表达调度偏好，是 nodeSelector 的超集。</p>
-
 <h4>2.2.1 节点亲和（硬策略 + 软策略）</h4>
-
 <p><strong>硬策略：requiredDuringSchedulingIgnoredDuringExecution</strong></p>
-
 <p>Pod <strong>必须</strong>调度到满足条件的节点，否则 Pending：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -442,11 +418,8 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <p><strong>软策略：preferredDuringSchedulingIgnoredDuringExecution</strong></p>
-
 <p>Pod <strong>倾向</strong>调度到满足条件的节点，但如果没有满足条件的节点也能调度：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -472,9 +445,7 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <p><strong>运算符说明</strong>：</p>
-
 <table>
 <thead>
 <tr>
@@ -507,20 +478,17 @@ spec:
 <tr>
 <td><code>Gt</code></td>
 <td>标签值大于给定数字</td>
-<td><code>storage Gt 500</code> → storage 标签值 > 500</td>
+<td><code>storage Gt 500</code> → storage 标签值 &gt; 500</td>
 </tr>
 <tr>
 <td><code>Lt</code></td>
 <td>标签值小于给定数字</td>
-<td><code>storage Lt 100</code> → storage 标签值 < 100</td>
+<td><code>storage Lt 100</code> → storage 标签值 &lt; 100</td>
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p><code>Gt</code> 和 <code>Lt</code> 仅适用于数值型标签值，且需要开启 <code>TaintTolerationComparisonOperators</code> 特性门控。</p></div>
-
 <p><strong>硬策略 + 软策略组合使用</strong>：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -549,13 +517,9 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <p>调度逻辑：先在 us-east-1a 和 us-east-1b 的节点中筛选（硬策略），然后在这些节点中对 SSD 节点加分（软策略）。</p>
-
 <h4>2.2.2 节点反亲和</h4>
-
 <p>节点反亲和就是用 <code>NotIn</code> 和 <code>DoesNotExist</code> 运算符表达"<strong>不要调度到某类节点</strong>"：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -571,9 +535,7 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <p><strong>软策略反亲和</strong>——倾向避开某类节点但不是硬性要求：</p>
-
 <pre><code><span class="code-label">yaml</span>preferredDuringSchedulingIgnoredDuringExecution:
 - weight: 50
   preference:
@@ -582,21 +544,13 @@ spec:
       operator: NotIn
       values:
       - us-east-1c    # 倾向避开 us-east-1c，但实在没节点也能去</code></pre>
-
 <div class="highlight-box"><p><strong>nodeAffinity 反亲和 vs nodeSelector</strong>：nodeSelector 只能"选择"节点，无法表达"排除"语义。nodeAffinity 用 NotIn/DoesNotExist 实现排除，这是 nodeSelector 无法做到的。</p></div>
-
-<hr>
-
+<hr/>
 <h3>2.3 Pod维度——podAffinity</h3>
-
 <p>podAffinity 基于<strong>已运行 Pod 的标签</strong>来决定新 Pod 的调度位置，实现"让相关的 Pod 跑在一起"或"让冲突的 Pod 跑开"。</p>
-
 <h4>2.3.1 Pod 亲和</h4>
-
 <p>##### （1）Pod 亲和调度——硬策略</p>
-
 <p>让新 Pod <strong>必须</strong>调度到与指定 Pod 相同拓扑域的节点：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -617,21 +571,15 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <p>调度逻辑：</p>
-
 <ol>
 <li>找到集群中所有标签含 <code>app=cache</code> 的 Pod</li>
 <li>看这些 Pod 所在节点的 <code>topology.kubernetes.io/zone</code> 标签值（如 <code>us-east-1a</code>）</li>
 <li>新 Pod <strong>必须</strong>调度到 <code>topology.kubernetes.io/zone=us-east-1a</code> 的节点上</li>
 </ol>
-
 <p>如果集群中没有 <code>app=cache</code> 的 Pod 正在运行，这个 Pod 会 Pending——因为找不到参考 Pod，无法确定拓扑域。</p>
-
 <p>##### （2）Pod 亲和调度——软策略</p>
-
 <p>让新 Pod <strong>倾向</strong>调度到与指定 Pod 相同拓扑域的节点：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -654,18 +602,13 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <h4>2.3.2 Pod 反亲和</h4>
-
 <p>Pod 反亲和让新 Pod <strong>远离</strong>指定 Pod 所在的拓扑域，常用于：</p>
-
 <ul>
 <li>同一 Deployment 的副本分散到不同节点/区域（避免单点故障）</li>
 <li>互相干扰的服务不在同一节点运行</li>
 </ul>
-
 <p><strong>硬策略反亲和</strong>——同一 Deployment 的 Pod 绝不在同一节点：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -693,11 +636,8 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.25</code></pre>
-
 <div class="highlight-box"><p><code>topologyKey: kubernetes.io/hostname</code> 的含义：让同一 Deployment 的 Pod 不在同一 hostname（即不同节点）上。每个节点只有一个 hostname，所以这个规则确保每个节点最多一个该 Deployment 的 Pod。</p></div>
-
 <p><strong>软策略反亲和</strong>——尽量分散但不是硬性要求：</p>
-
 <pre><code><span class="code-label">yaml</span>podAntiAffinity:
   preferredDuringSchedulingIgnoredDuringExecution:
   - weight: 100
@@ -709,39 +649,26 @@ spec:
           values:
           - web
       topologyKey: topology.kubernetes.io/zone  # 尽量不在同一 zone</code></pre>
-
 <h4>2.3.3 拓扑域</h4>
-
 <p>##### （1）什么是拓扑域</p>
-
 <p>拓扑域（Topology Domain）是 Kubernetes 中对集群节点进行<strong>逻辑分组</strong>的概念。同一拓扑域内的节点共享某个拓扑标签的值。</p>
-
 <p>举例：</p>
-
 <pre><code><span class="code-label">text</span>节点 node-01: topology.kubernetes.io/zone=us-east-1a, kubernetes.io/hostname=node-01
 节点 node-02: topology.kubernetes.io/zone=us-east-1a, kubernetes.io/hostname=node-02
 节点 node-03: topology.kubernetes.io/zone=us-east-1b, kubernetes.io/hostname=node-03
 节点 node-04: topology.kubernetes.io/zone=us-east-1b, kubernetes.io/hostname=node-04</code></pre>
-
 <div class="flow-diagram"><pre>- 以 `kubernetes.io/hostname` 为拓扑键 → 每个节点是一个独立拓扑域（4个域）
 - 以 `topology.kubernetes.io/zone` 为拓扑键 → node-01/02 同域，node-03/04 同域（2个域）</pre></div>
-
 <p>拓扑域是 podAffinity/podAntiAffinity 的核心概念——亲和/反亲和不是在"节点"层面生效，而是在"拓扑域"层面生效。</p>
-
 <p>##### （2）为何要用 topologyKey</p>
-
 <p>podAffinity/podAntiAffinity 的匹配逻辑：</p>
-
 <ol>
 <li>先通过 <code>labelSelector</code> 找到目标 Pod</li>
 <li>找到这些 Pod 所在节点上的 <code>topologyKey</code> 标签值</li>
 <li>新 Pod 被调度到（亲和）或避开（反亲和）<strong>相同 topologyKey 标签值</strong>的节点</li>
 </ol>
-
 <p><strong>如果不用 topologyKey</strong>，podAffinity 就只能以节点为单位做调度，无法表达"同一区域"、"同一机房"这类更大范围的亲和/反亲和需求。</p>
-
 <p><strong>topologyKey 的粒度决定调度粒度</strong>：</p>
-
 <table>
 <thead>
 <tr>
@@ -768,11 +695,8 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <p>##### （3）如何表示机器归属的拓扑域</p>
-
 <p>通过给节点打标签来表示机器的拓扑域归属：</p>
-
 <pre><code><span class="code-label">bash</span># 标记节点所在可用区
 kubectl label nodes node-01 topology.kubernetes.io/zone=us-east-1a
 kubectl label nodes node-02 topology.kubernetes.io/zone=us-east-1a
@@ -786,11 +710,8 @@ kubectl label nodes node-02 topology.kubernetes.io/region=us-east
 kubectl label nodes node-01 dc=shanghai-dc1
 kubectl label nodes node-02 dc=shanghai-dc1
 kubectl label nodes node-03 dc=beijing-dc1</code></pre>
-
 <p>##### （4）创建新 Pod 时如何指定拓扑域</p>
-
 <p>在 podAffinityTerm 中通过 <code>topologyKey</code> 字段指定：</p>
-
 <pre><code><span class="code-label">yaml</span>podAffinity:
   requiredDuringSchedulingIgnoredDuringExecution:
   - labelSelector:
@@ -800,13 +721,9 @@ kubectl label nodes node-03 dc=beijing-dc1</code></pre>
         values:
         - backend
     topologyKey: topology.kubernetes.io/zone   # 以 zone 为拓扑域</code></pre>
-
 <p><strong>规则</strong>：<code>topologyKey</code> 不能为空。如果指定了 <code>topologyKey</code>，所有可行节点都必须有该标签，否则调度会排除无此标签的节点。</p>
-
 <p>##### （5）拓扑域示例</p>
-
 <p><strong>场景</strong>：Web 服务和 Cache 服务需要跑在同一可用区以减少延迟</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -838,18 +755,13 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <p>解读：</p>
-
 <ul>
 <li>硬亲和：必须和 <code>app=cache</code> 的 Pod 在同一可用区</li>
 <li>软反亲和：尽量不和 <code>app=web</code> 的 Pod 在同一节点（分散副本）</li>
 </ul>
-
 <p>##### （6）默认创建好的拓扑域标签</p>
-
 <p>Kubernetes 节点默认拥有以下拓扑标签：</p>
-
 <table>
 <thead>
 <tr>
@@ -880,11 +792,8 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <p>云厂商集群（EKS、GKE、AKS）会自动根据云平台 API 为节点填充 zone 和 region 标签。自建集群需要手动打标签或通过 cloud-controller-manager 自动设置。</p>
-
 <p>##### （7）总结</p>
-
 <ul>
 <li>topologyKey 决定了 podAffinity/podAntiAffinity 的生效粒度</li>
 <li>粒度越细（hostname），调度越分散；粒度越粗（zone/region），调度越集中</li>
@@ -892,23 +801,14 @@ spec:
 <li>硬策略可能导致 Pod Pending（没有满足条件的拓扑域时），软策略不会</li>
 <li>生产环境推荐：反亲和用硬策略保证副本分散到不同节点，亲和用软策略倾向同区域但不强制</li>
 </ul>
-
-<hr>
-
+<hr/>
 <h2>4. 三、污点与容忍</h2>
-
 <h3>3.1 污点与容忍介绍</h3>
-
 <p><strong>污点（Taint）</strong> 打在节点上，<strong>排斥</strong>不容忍该污点的 Pod——让节点"嫌弃"不合适的 Pod。</p>
-
 <p><strong>容忍（Toleration）</strong> 定义在 Pod 上，<strong>允许</strong> Pod 接受节点的污点——让 Pod"接受"被嫌弃。</p>
-
 <p>两者配合使用，实现<strong>节点级准入控制</strong>：</p>
-
 <pre><code><span class="code-label">text</span>节点打污点 → 不容忍的 Pod 被排斥 → 定义了容忍的 Pod 可以调度</code></pre>
-
 <p><strong>核心区别</strong>：</p>
-
 <table>
 <thead>
 <tr>
@@ -930,18 +830,14 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <p><strong>典型场景</strong>：</p>
-
 <ul>
 <li>专用节点：GPU 节点只允许需要 GPU 的 Pod</li>
 <li>故障隔离：节点磁盘故障，标记污点驱逐 Pod</li>
 <li>维护模式：节点正在维护，不让新 Pod 调度进来</li>
 <li>Control Plane 专用：master 节点默认有污点，阻止普通 Pod</li>
 </ul>
-
 <h3>污点的三种效果</h3>
-
 <table>
 <thead>
 <tr>
@@ -964,13 +860,9 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p>Kubernetes 控制平面节点默认带有污点 <code>node-role.kubernetes.io/control-plane:NoSchedule</code>，阻止普通业务 Pod 调度到 master。</p></div>
-
 <h3>3.2 为节点打上污点</h3>
-
 <h4>打污点</h4>
-
 <pre><code><span class="code-label">bash</span># 为 node-01 打上专用节点污点（key=dedicated, value=special-user, effect=NoSchedule）
 kubectl taint nodes node-01 dedicated=special-user:NoSchedule
 
@@ -985,17 +877,13 @@ kubectl taint nodes node-04 test-only=true:PreferNoSchedule
 
 # 按标签选择节点打污点
 kubectl taint node -l role=infra dedicated=infra:NoSchedule</code></pre>
-
 <h4>查看污点</h4>
-
 <pre><code><span class="code-label">bash</span># 查看节点上的污点
 kubectl describe node node-01 | grep Taints
 
 # 查看所有节点的污点
 kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints</code></pre>
-
 <h4>删除污点</h4>
-
 <pre><code><span class="code-label">bash</span># 删除指定 key+effect 的污点（在 key:effect 后加 -）
 kubectl taint nodes node-01 dedicated=special-user:NoSchedule-
 
@@ -1004,13 +892,9 @@ kubectl taint nodes node-01 dedicated-
 
 # 删除指定 effect 的污点（保留其他 effect）
 kubectl taint nodes node-01 dedicated:NoSchedule-</code></pre>
-
 <h3>3.3 为 Pod 定义容忍</h3>
-
 <h4>基本容忍</h4>
-
 <p>容忍需要与节点污点匹配才能生效。匹配规则取决于 <code>operator</code>：</p>
-
 <table>
 <thead>
 <tr>
@@ -1032,79 +916,62 @@ kubectl taint nodes node-01 dedicated:NoSchedule-</code></pre>
 </tr>
 </tbody>
 </table>
-
 <p><strong>精确匹配（Equal）</strong>：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
   name: gpu-pod
 spec:
   tolerations:
-  - key: &quot;nvidia.com/gpu&quot;
-    operator: &quot;Equal&quot;
-    value: &quot;true&quot;
-    effect: &quot;NoSchedule&quot;
+  - key: "nvidia.com/gpu"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
   containers:
   - name: cuda-app
     image: cuda-vector-add:v0.1</code></pre>
-
 <p><strong>Exists 匹配</strong>——容忍某 key 的所有污点（不管值）：</p>
-
 <pre><code><span class="code-label">yaml</span>tolerations:
-- key: &quot;nvidia.com/gpu&quot;
-  operator: &quot;Exists&quot;
-  effect: &quot;NoSchedule&quot;</code></pre>
-
+- key: "nvidia.com/gpu"
+  operator: "Exists"
+  effect: "NoSchedule"</code></pre>
 <p><strong>容忍所有污点</strong>——key 和 effect 都为空：</p>
-
 <pre><code><span class="code-label">yaml</span>tolerations:
-- operator: &quot;Exists&quot;   # key 为空 + operator=Exists → 匹配所有污点</code></pre>
-
+- operator: "Exists"   # key 为空 + operator=Exists → 匹配所有污点</code></pre>
 <div class="highlight-box"><p>这会让 Pod 可以调度到任何有污点的节点，慎用。</p></div>
-
 <h4>多容忍组合</h4>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
   name: multi-tolerate-pod
 spec:
   tolerations:
-  - key: &quot;dedicated&quot;
-    operator: &quot;Equal&quot;
-    value: &quot;special-user&quot;
-    effect: &quot;NoSchedule&quot;
-  - key: &quot;nvidia.com/gpu&quot;
-    operator: &quot;Exists&quot;
-    effect: &quot;NoSchedule&quot;
-  - key: &quot;maint&quot;
-    operator: &quot;Equal&quot;
-    value: &quot;ongoing&quot;
-    effect: &quot;NoExecute&quot;
+  - key: "dedicated"
+    operator: "Equal"
+    value: "special-user"
+    effect: "NoSchedule"
+  - key: "nvidia.com/gpu"
+    operator: "Exists"
+    effect: "NoSchedule"
+  - key: "maint"
+    operator: "Equal"
+    value: "ongoing"
+    effect: "NoExecute"
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <div class="highlight-box"><p>Pod 的 tolerations 是<strong>累加型</strong>的——只要有一条容忍匹配了节点的某个污点，该污点就不会排斥这个 Pod。不需要一条容忍匹配所有污点。</p></div>
-
 <h4>常见容忍场景</h4>
-
 <p><strong>容忍 master 节点污点</strong>（让业务 Pod 可以调度到 control plane）：</p>
-
 <pre><code><span class="code-label">yaml</span>tolerations:
-- key: &quot;node-role.kubernetes.io/control-plane&quot;
-  operator: &quot;Exists&quot;
-  effect: &quot;NoSchedule&quot;</code></pre>
-
+- key: "node-role.kubernetes.io/control-plane"
+  operator: "Exists"
+  effect: "NoSchedule"</code></pre>
 <p><strong>容忍所有 NoSchedule 污点</strong>（用于 DaemonSet，确保每个节点都运行）：</p>
-
 <pre><code><span class="code-label">yaml</span>tolerations:
-- operator: &quot;Exists&quot;
-  effect: &quot;NoSchedule&quot;</code></pre>
-
+- operator: "Exists"
+  effect: "NoSchedule"</code></pre>
 <p><strong>DaemonSet 容忍所有污点</strong>的完整配置：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -1119,70 +986,57 @@ spec:
         app: monitor
     spec:
       tolerations:
-      - operator: &quot;Exists&quot;    # 容忍所有 NoSchedule 污点
-        effect: &quot;NoSchedule&quot;
-      - operator: &quot;Exists&quot;    # 容忍所有 NoExecute 污点
-        effect: &quot;NoExecute&quot;
+      - operator: "Exists"    # 容忍所有 NoSchedule 污点
+        effect: "NoSchedule"
+      - operator: "Exists"    # 容忍所有 NoExecute 污点
+        effect: "NoExecute"
       containers:
       - name: monitor
         image: prometheus-node-exporter:latest</code></pre>
-
 <h3>3.4 定义 Pod 驱逐时间</h3>
-
 <p><code>tolerationSeconds</code> 字段控制 Pod 在 NoExecute 污点出现后<strong>还能留在节点上的时间</strong>。</p>
-
 <h4>场景说明</h4>
-
 <p>当节点突然被打上 <code>NoExecute</code> 污点时：</p>
-
 <ul>
 <li><strong>没有容忍</strong>：Pod 立即被驱逐</li>
 <li><strong>有容忍但无 tolerationSeconds</strong>：Pod 永远不会被驱逐</li>
 <li><strong>有容忍且设置 tolerationSeconds</strong>：Pod 在 tolerationSeconds 后被驱逐</li>
 </ul>
-
 <h4>示例：Pod 可以在故障节点上停留 3600 秒</h4>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
   name: resilient-app
 spec:
   tolerations:
-  - key: &quot;node.kubernetes.io/not-ready&quot;
-    operator: &quot;Exists&quot;
-    effect: &quot;NoExecute&quot;
+  - key: "node.kubernetes.io/not-ready"
+    operator: "Exists"
+    effect: "NoExecute"
     tolerationSeconds: 3600    # 节点 NotReady 后，Pod 还能停留 1 小时
-  - key: &quot;node.kubernetes.io/unreachable&quot;
-    operator: &quot;Exists&quot;
-    effect: &quot;NoExecute&quot;
+  - key: "node.kubernetes.io/unreachable"
+    operator: "Exists"
+    effect: "NoExecute"
     tolerationSeconds: 3600    # 节点 Unreachable 后，Pod 还能停留 1 小时
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <h4>默认 tolerationSeconds</h4>
-
 <p>Kubernetes 为 Pod 自动添加两条默认容忍（通过 Admission Controller）：</p>
-
 <pre><code><span class="code-label">yaml</span># 默认容忍——节点 NotReady 后等待 300 秒（5 分钟）
 tolerations:
-- key: &quot;node.kubernetes.io/not-ready&quot;
-  operator: &quot;Exists&quot;
-  effect: &quot;NoExecute&quot;
+- key: "node.kubernetes.io/not-ready"
+  operator: "Exists"
+  effect: "NoExecute"
   tolerationSeconds: 300
 
 # 默认容忍——节点 Unreachable 后等待 300 秒（5 分钟）
 tolerations:
-- key: &quot;node.kubernetes.io/unreachable&quot;
-  operator: &quot;Exists&quot;
-  effect: &quot;NoExecute&quot;
+- key: "node.kubernetes.io/unreachable"
+  operator: "Exists"
+  effect: "NoExecute"
   tolerationSeconds: 300</code></pre>
-
 <div class="highlight-box"><p>这意味着默认情况下，节点 NotReady/Unreachable 5 分钟后，Pod 会被驱逐。如果你的 Pod 需要更长容忍时间，可以显式声明更大的 tolerationSeconds。</p></div>
-
 <h4>Kubernetes 自动添加的污点</h4>
-
 <table>
 <thead>
 <tr>
@@ -1221,44 +1075,34 @@ tolerations:
 </tr>
 </tbody>
 </table>
-
 <p>这些污点由 kubelet 和 node-controller 自动管理，无需手动添加。</p>
-
 <h4>驱逐时间实战：维护场景</h4>
-
 <pre><code><span class="code-label">bash</span># 1. 给节点打维护污点（NoExecute 驱逐已运行 Pod）
 kubectl taint nodes node-03 maint=planned:NoExecute
 
 # 2. 没有 tolerationSeconds 的容忍 → Pod 永不驱逐
 # 3. tolerationSeconds=0 的容忍 → Pod 立即驱逐
 # 4. tolerationSeconds=3600 → Pod 还能运行 1 小时再被驱逐</code></pre>
-
 <pre><code><span class="code-label">yaml</span># 立即驱逐的容忍（tolerationSeconds=0）
 tolerations:
-- key: &quot;maint&quot;
-  operator: &quot;Equal&quot;
-  value: &quot;planned&quot;
-  effect: &quot;NoExecute&quot;
+- key: "maint"
+  operator: "Equal"
+  value: "planned"
+  effect: "NoExecute"
   tolerationSeconds: 0    # 等于 0 → 立即驱逐
 
 # 优雅容忍（给 Pod 1 小时时间完成工作）
 tolerations:
-- key: &quot;maint&quot;
-  operator: &quot;Equal&quot;
-  value: &quot;planned&quot;
-  effect: &quot;NoExecute&quot;
+- key: "maint"
+  operator: "Equal"
+  value: "planned"
+  effect: "NoExecute"
   tolerationSeconds: 3600  # 1 小时后驱逐</code></pre>
-
-<hr>
-
+<hr/>
 <h2>5. 四、Pod 均匀调度——topologySpreadConstraints</h2>
-
 <p>podAntiAffinity 能让同一 Deployment 的副本分散到不同节点，但它有一个根本缺陷：<strong>它是"尽力分散"，不是"均匀分布"</strong>。当副本数多于拓扑域数时，podAntiAffinity 无法控制每个域内放几个 Pod；它只管"不在同一域"，不管"域间差多少"。</p>
-
 <p><code>topologySpreadConstraints</code> 正是为解决这个问题而引入的——它通过 <strong>maxSkew（最大倾斜度）</strong> 精确控制 Pod 在各拓扑域之间的分布差异上限，实现真正的均匀调度。</p>
-
 <h3>4.1 API 字段详解</h3>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -1276,9 +1120,7 @@ spec:
       - pod-template-hash
     nodeAffinityPolicy: Honor|Ignore # 可选 (v1.26+ beta)：是否考虑 nodeAffinity
     nodeTaintsPolicy: Honor|Ignore   # 可选 (v1.26+ beta)：是否考虑节点污点</code></pre>
-
 <p>各字段说明：</p>
-
 <table>
 <thead>
 <tr>
@@ -1305,7 +1147,7 @@ spec:
 </tr>
 <tr>
 <td><strong>minDomains</strong></td>
-<td>预期的最小拓扑域数量。当实际域数 < minDomains 时，全局最小值视为 0，使所有域都被认为严重不均衡</td>
+<td>预期的最小拓扑域数量。当实际域数 &lt; minDomains 时，全局最小值视为 0，使所有域都被认为严重不均衡</td>
 </tr>
 <tr>
 <td><strong>matchLabelKeys</strong></td>
@@ -1321,77 +1163,49 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <h3>4.2 Skew 计算算法（核心原理）</h3>
-
 <p>Skew（倾斜度）的计算是 topologySpreadConstraints 的核心逻辑。理解它，才能正确配置 maxSkew。</p>
-
 <h4>计算公式</h4>
-
 <pre><code><span class="code-label">text</span>全局最小值 (global minimum) = 所有合格拓扑域中匹配 Pod 数量的最小值
 
 某域的 ActualSkew = 该域匹配 Pod 数量 - 全局最小值
 
 约束判断：ActualSkew ≤ maxSkew → 该域可接受新 Pod
          ActualSkew &gt; maxSkew → 该域拒绝新 Pod (DoNotSchedule)</code></pre>
-
 <p>调度器源码中的判断逻辑（<code>filtering.go</code>）：</p>
-
 <pre><code><span class="code-label">text</span>skew = matchNum + selfMatchNum - minMatchNum
 if skew &gt; maxSkew → 拒绝调度到该域</code></pre>
-
 <p>其中 <code>selfMatchNum</code> = 新 Pod 自身是否匹配 labelSelector（匹配为 1，不匹配为 0），<code>minMatchNum</code> 取决于 minDomains：</p>
-
 <ul>
 <li>当合格域数量 ≥ minDomains 时，<code>minMatchNum = 所有域中最小的 Pod 数</code></li>
-<li>当合格域数量 < minDomains 时，<code>minMatchNum = 0</code>（全局最小视为 0，触发强烈均衡）</li>
+<li>当合格域数量 &lt; minDomains 时，<code>minMatchNum = 0</code>（全局最小视为 0，触发强烈均衡）</li>
 </ul>
-
 <h4>示例推演</h4>
-
 <p><strong>场景 1：三可用区集群，分布 2/2/1，maxSkew=1</strong></p>
-
 <pre><code><span class="code-label">text</span>zone-a: 2 个匹配 Pod → ActualSkew = 2 - 1 = 1 ✓ (≤ maxSkew)
 zone-b: 2 个匹配 Pod → ActualSkew = 2 - 1 = 1 ✓ (≤ maxSkew)
 zone-c: 1 个匹配 Pod → ActualSkew = 1 - 1 = 0 ✓ (全局最小域)</code></pre>
-
 <p>新 Pod 只能调度到 zone-c（调度到 zone-a/b 会使 skew 变为 2，超过 maxSkew=1）。</p>
-
 <p><strong>场景 2：三可用区集群，分布 3/1/0，maxSkew=1</strong></p>
-
 <pre><code><span class="code-label">text</span>zone-a: 3 → ActualSkew = 3 - 0 = 3 ✗
 zone-b: 1 → ActualSkew = 1 - 0 = 1 ✗
 zone-c: 0 → ActualSkew = 0 - 0 = 0 ✓ (全局最小域)</code></pre>
-
 <p>如果 <code>whenUnsatisfiable: DoNotSchedule</code>，Pod 只能调度到 zone-c。 如果 <code>whenUnsatisfiable: ScheduleAnyway</code>，Pod 优先调度到 zone-c，但在 zone-c 资源不足时也可调度到其他域。</p>
-
 <p><strong>场景 3：minDomains 的效果</strong></p>
-
 <p>假设设置了 <code>minDomains: 3</code>，但 zone-c 宕机，只剩 2 个域（分布 3/1）：</p>
-
 <div class="flow-diagram"><pre>- 合格域数量(2) &lt; minDomains(3) → **全局最小视为 0**</pre></div>
-
 <ul>
 <li>zone-a 的 skew = 3 - 0 = 3，zone-b 的 skew = 1 - 0 = 1</li>
 <li>即使 maxSkew=1，两个域都"严重不均衡"，新 Pod 被迫 Pending（DoNotSchedule）</li>
 </ul>
-
 <p>minDomains 的设计意图：当拓扑域减少（如可用区故障）时，提醒调度器"本来应该有 3 个域"，触发更强的均衡约束。</p>
-
 <h4>ScheduleAnyway 的打分逻辑</h4>
-
 <p>当 <code>whenUnsatisfiable: ScheduleAnyway</code> 时，调度器不会拒绝任何节点，但会通过打分优先选择减少倾斜度的域。打分公式（<code>scoring.go</code>）：</p>
-
 <pre><code><span class="code-label">text</span>score = matchCount × topologyNormalizingWeight + (maxSkew - 1)</code></pre>
-
 <p>其中 <code>topologyNormalizingWeight = log(domainCount + 2)</code>，用于避免大域（zone 级）的 Pod 数量稀释小域（hostname 级）的权重。匹配 Pod 越少的域得分越低（因为 matchCount 小），反而更受青睐——调度器倾向把 Pod 放到"最缺 Pod 的域"。</p>
-
 <h3>4.3 单约束 vs 多约束分布策略</h3>
-
 <h4>单约束：仅按可用区均匀分布</h4>
-
 <p>最简单的用法——确保 Pod 在各可用区之间均匀分布：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1416,15 +1230,10 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.25</code></pre>
-
 <p>效果：6 个副本在 3 个 zone 中分布为 2/2/2，任何 zone 不会超过 3 个副本。</p>
-
 <h4>多约束：Zone + Hostname 混用（生产推荐）</h4>
-
 <p>单约束只保证<strong>跨 zone 均匀</strong>，但不保证<strong>zone 内跨节点均匀</strong>。比如 2/2/2 的分布可能变成 zone-a 内 2 个副本全挤在同一节点。</p>
-
 <p>生产环境推荐<strong>双约束策略</strong>——同时约束 zone 级和 hostname 级：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1457,21 +1266,15 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.25</code></pre>
-
 <p><strong>多约束求交集</strong>：调度器寻找同时满足<strong>所有</strong>约束的节点。以上双约束的效果：</p>
-
 <ul>
 <li>zone 约束保证每个可用区不超过 2 个副本</li>
 <li>hostname 约束保证每个节点不超过 1 个副本</li>
 <li>结果：6 个副本在 3 个 zone × 2 节点/zone 中分布为 zone-a[node1:1, node2:1]、zone-b[node3:1, node4:1]、zone-c[node5:1, node6:1]</li>
 </ul>
-
 <div class="highlight-box"><p><strong>重要</strong>：当定义多个 topologySpreadConstraints 时，调度器要求节点<strong>必须同时拥有所有 topologyKey 标签</strong>。缺少任何一个 topologyKey 标签的节点会被跳过，上面已有的 Pod 也不计入倾斜度计算。因此，所有节点必须同时标注 <code>topology.kubernetes.io/zone</code> 和 <code>kubernetes.io/hostname</code>（hostname 默认存在，zone 需确保标注）。</p></div>
-
 <h4>灵活策略：zone 硬约束 + hostname 软约束</h4>
-
 <p>当节点数量不足以满足 hostname 级硬约束时（比如 zone 内只有 1 个节点），硬约束会导致 Pod Pending。更实用的做法：</p>
-
 <pre><code><span class="code-label">yaml</span>topologySpreadConstraints:
 # 跨可用区：硬约束，必须均匀
 - maxSkew: 1
@@ -1487,11 +1290,8 @@ spec:
   labelSelector:
     matchLabels:
       app: web</code></pre>
-
 <p>这样即使 zone 内只有 1 个节点，Pod 也不会 Pending，只是"尽量分散"。</p>
-
 <h3>4.4 与 podAntiAffinity 的对比</h3>
-
 <table>
 <thead>
 <tr>
@@ -1512,12 +1312,12 @@ spec:
 <td>精确控制各域 Pod 数量差异</td>
 </tr>
 <tr>
-<td><strong>域数 > Pod 数</strong></td>
+<td><strong>域数 &gt; Pod 数</strong></td>
 <td>每个 Pod 去不同域，效果很好</td>
 <td>每个 Pod 去不同域，效果等同</td>
 </tr>
 <tr>
-<td><strong>域数 < Pod 数</strong></td>
+<td><strong>域数 &lt; Pod 数</strong></td>
 <td>无法控制域间差异（可能 3:1:0）</td>
 <td>maxSkew 限制最大差异（如 2:1:1）</td>
 </tr>
@@ -1533,52 +1333,34 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <p><strong>结论</strong>：需要"均匀分布"时，优先使用 topologySpreadConstraints；需要"绝对不能在同一域"时，仍可使用 podAntiAffinity 硬策略。两者可以组合使用——topologySpreadConstraints 控制宏观均匀，podAntiAffinity 控制微观排斥。</p>
-
 <h3>4.5 默认约束</h3>
-
 <p>如果不定义任何 topologySpreadConstraints，kube-scheduler 会使用以下默认约束（ScheduleAnyway 软约束）：</p>
-
 <pre><code><span class="code-label">yaml</span>defaultConstraints:
 - maxSkew: 3
-  topologyKey: &quot;kubernetes.io/hostname&quot;
+  topologyKey: "kubernetes.io/hostname"
   whenUnsatisfiable: ScheduleAnyway
 - maxSkew: 5
-  topologyKey: &quot;topology.kubernetes.io/zone&quot;
+  topologyKey: "topology.kubernetes.io/zone"
   whenUnsatisfiable: ScheduleAnyway</code></pre>
-
 <p>默认约束是软约束，不会阻塞调度，只是倾向均匀。如果节点没有 zone 标签，hostname 级约束仍然生效。</p>
-
 <div class="highlight-box"><p><strong>注意</strong>：如果你的节点不都具备 <code>kubernetes.io/hostname</code> 和 <code>topology.kubernetes.io/zone</code> 标签，应自定义约束而非使用默认值。</p></div>
-
-<hr>
-
+<hr/>
 <h2>6. 五、Descheduler——故障恢复与重平衡</h2>
-
 <h3>5.1 为什么需要 Descheduler</h3>
-
 <p>kube-scheduler 是一个<strong>一次性决策系统</strong>——它只在 Pod 创建时做出调度决定，之后不再回头看。这意味着：</p>
-
 <ul>
 <li>节点故障恢复后，原来集中在剩余节点的 Pod <strong>不会自动回流</strong></li>
 <li>新节点加入集群后，已有 Pod <strong>不会自动迁移到新节点</strong></li>
 <li>长期运行中，Pod 分布可能变得<strong>严重不均衡</strong></li>
 </ul>
-
 <p>Descheduler 的工作就是<strong>定期检查并纠正这些偏差</strong>——找出应该迁移的 Pod，驱逐它们，让 kube-scheduler 重新调度到更合适的位置。</p>
-
 <pre><code><span class="code-label">text</span>kube-scheduler: 创建时决策 → 不再调整
 Descheduler: 定期巡检 → 驱逐偏差 Pod → kube-scheduler 重新调度</code></pre>
-
 <div class="highlight-box"><p>Descheduler <strong>不负责调度</strong>，它只负责驱逐。被驱逐的 Pod 由 kube-scheduler 根据当前集群状态重新调度。</p></div>
-
 <h3>5.2 Descheduler 策略</h3>
-
 <p>Descheduler 提供两类策略插件：</p>
-
 <p><strong>Deschedule 类</strong>（检查单个 Pod 是否应该被驱逐）：</p>
-
 <table>
 <thead>
 <tr>
@@ -1613,9 +1395,7 @@ Descheduler: 定期巡检 → 驱逐偏差 Pod → kube-scheduler 重新调度</
 </tr>
 </tbody>
 </table>
-
 <p><strong>Balance 类</strong>（检查一组 Pod 的整体分布是否合理）：</p>
-
 <table>
 <thead>
 <tr>
@@ -1642,42 +1422,35 @@ Descheduler: 定期巡检 → 驱逐偏差 Pod → kube-scheduler 重新调度</
 </tr>
 </tbody>
 </table>
-
 <h3>5.3 RemovePodsViolatingTopologySpreadConstraint 详解</h3>
-
 <p>这是与均匀调度直接相关的策略。它的工作流程：</p>
-
 <ol>
 <li>找到所有定义了 topologySpreadConstraints 的 Pod</li>
 <li>计算各拓扑域的实际倾斜度</li>
-<li>如果实际 skew > maxSkew，从倾斜度最大的域中驱逐最少数量的 Pod</li>
+<li>如果实际 skew &gt; maxSkew，从倾斜度最大的域中驱逐最少数量的 Pod</li>
 <li>驱逐后 kube-scheduler 重新调度，自然流向倾斜度小的域</li>
 </ol>
-
 <p><strong>配置示例</strong>：</p>
-
-<pre><code><span class="code-label">yaml</span>apiVersion: &quot;descheduler/v1alpha2&quot;
-kind: &quot;DeschedulerPolicy&quot;
+<pre><code><span class="code-label">yaml</span>apiVersion: "descheduler/v1alpha2"
+kind: "DeschedulerPolicy"
 profiles:
   - name: topology-rebalance
     pluginConfig:
-    - name: &quot;RemovePodsViolatingTopologySpreadConstraint&quot;
+    - name: "RemovePodsViolatingTopologySpreadConstraint"
       args:
         constraints:
           - DoNotSchedule          # 默认只处理硬约束
           # - ScheduleAnyway       # 加上此行也处理软约束
         namespaces:
-          include: [&quot;production&quot;]
+          include: ["production"]
         labelSelector:
           matchLabels:
             app: critical-app
     plugins:
       balance:
         enabled:
-          - &quot;RemovePodsViolatingTopologySpreadConstraint&quot;</code></pre>
-
+          - "RemovePodsViolatingTopologySpreadConstraint"</code></pre>
 <p><strong>支持的约束字段</strong>：</p>
-
 <table>
 <thead>
 <tr>
@@ -1720,11 +1493,8 @@ profiles:
 </tr>
 </tbody>
 </table>
-
 <h3>5.4 故障恢复重平衡场景</h3>
-
 <p><strong>场景：可用区故障恢复</strong></p>
-
 <pre><code><span class="code-label">text</span>初始状态：6 副本均匀分布在 zone-a(2) / zone-b(2) / zone-c(2)
 
 zone-a 宕机 → 副本集中在 zone-b(3) / zone-c(3)  ← 严重不均衡！
@@ -1737,9 +1507,7 @@ Descheduler 运行：
   2. 从 zone-b 和 zone-c 各驱逐 1 个 Pod
   3. kube-scheduler 将新 Pod 调度到 zone-a
   4. 最终回到 zone-a(2) / zone-b(2) / zone-c(2) ✓</code></pre>
-
 <p><strong>场景：新节点加入集群</strong></p>
-
 <pre><code><span class="code-label">text</span>初始：4 副本分布在 node1(2) / node2(2)  ← hostname skew=0 没问题
 
 node3 加入集群 → 但已有 Pod 不会自动迁移
@@ -1749,11 +1517,8 @@ Descheduler 运行：
   2. 从 node1 驱逐 1 个 Pod
   3. kube-scheduler 调度到 node3
   4. 最终 node1(1) / node2(2) / node3(1) → 继续调整直到均衡</code></pre>
-
 <h3>5.5 安装 Descheduler</h3>
-
 <h4>Helm 安装（推荐）</h4>
-
 <pre><code><span class="code-label">bash</span># 添加 Helm 仓库
 helm repo add descheduler https://kubernetes-sigs.github.io/descheduler/
 helm repo update
@@ -1762,79 +1527,65 @@ helm repo update
 helm install descheduler descheduler/descheduler \
   --namespace kube-system \
   --set deschedulingIntervalSeconds=3600   # 每 3600 秒运行一次</code></pre>
-
 <h4>完整策略配置示例</h4>
-
-<pre><code><span class="code-label">yaml</span>apiVersion: &quot;descheduler/v1alpha2&quot;
-kind: &quot;DeschedulerPolicy&quot;
+<pre><code><span class="code-label">yaml</span>apiVersion: "descheduler/v1alpha2"
+kind: "DeschedulerPolicy"
 profiles:
   - name: production-rebalance
     pluginConfig:
     # 拓扑分布重平衡
-    - name: &quot;RemovePodsViolatingTopologySpreadConstraint&quot;
+    - name: "RemovePodsViolatingTopologySpreadConstraint"
       args:
         constraints:
           - DoNotSchedule
     # 去重：同一节点不放同一 RS 的多个副本
-    - name: &quot;RemoveDuplicates&quot;
+    - name: "RemoveDuplicates"
       args:
         excludeOwnerKinds:
-          - &quot;DaemonSet&quot;
+          - "DaemonSet"
     # 节点亲和/污点违规
-    - name: &quot;RemovePodsViolatingNodeAffinity&quot;
+    - name: "RemovePodsViolatingNodeAffinity"
       args:
         nodeAffinityType:
-          - &quot;requiredDuringSchedulingIgnoredDuringExecution&quot;
-    - name: &quot;RemovePodsViolatingNodeTaints&quot;
+          - "requiredDuringSchedulingIgnoredDuringExecution"
+    - name: "RemovePodsViolatingNodeTaints"
     # 低利用率节点重平衡
-    - name: &quot;LowNodeUtilization&quot;
+    - name: "LowNodeUtilization"
       args:
         thresholds:
-          &quot;cpu&quot;: 20
-          &quot;memory&quot;: 20
-          &quot;pods&quot;: 20
+          "cpu": 20
+          "memory": 20
+          "pods": 20
         targetThresholds:
-          &quot;cpu&quot;: 60
-          &quot;memory&quot;: 60
-          &quot;pods&quot;: 60
+          "cpu": 60
+          "memory": 60
+          "pods": 60
     plugins:
       balance:
         enabled:
-          - &quot;RemovePodsViolatingTopologySpreadConstraint&quot;
-          - &quot;RemoveDuplicates&quot;
-          - &quot;LowNodeUtilization&quot;
+          - "RemovePodsViolatingTopologySpreadConstraint"
+          - "RemoveDuplicates"
+          - "LowNodeUtilization"
       deschedule:
         enabled:
-          - &quot;RemovePodsViolatingNodeAffinity&quot;
-          - &quot;RemovePodsViolatingNodeTaints&quot;</code></pre>
-
+          - "RemovePodsViolatingNodeAffinity"
+          - "RemovePodsViolatingNodeTaints"</code></pre>
 <h4>Dry-run 模式</h4>
-
 <p>先查看哪些 Pod 会被驱逐，不实际执行：</p>
-
 <pre><code><span class="code-label">bash</span># 运行 dry-run
 kubectl exec -n kube-system descheduler-xxx -- /bin/descheduler --dry-run</code></pre>
-
 <h3>5.6 Descheduler 与 PDB 的交互</h3>
-
 <p>Descheduler 在驱逐 Pod 时<strong>必须遵守 PodDisruptionBudget</strong>。如果 PDB 的 <code>disruptionsAllowed=0</code>，Descheduler 无法驱逐该 Pod，重平衡操作被阻塞。</p>
-
 <p>因此：</p>
-
 <ul>
 <li>为关键服务设置合理的 PDB（如 <code>maxUnavailable: 1</code>），既允许逐步驱逐又保护可用性</li>
 <li>不要设置 <code>maxUnavailable: 0</code> 或 <code>minAvailable: 100%</code>，这会完全阻止 Descheduler 工作</li>
 <li>Descheduler 不会绕过 PDB——如果 PDB 阻止驱逐，Descheduler 会跳过该 Pod</li>
 </ul>
-
-<hr>
-
+<hr/>
 <h2>7. 六、PodDisruptionBudget（PDB）</h2>
-
 <h3>6.1 自愿中断与非自愿中断</h3>
-
 <p>Kubernetes 将 Pod 中断分为两类：</p>
-
 <table>
 <thead>
 <tr>
@@ -1856,11 +1607,8 @@ kubectl exec -n kube-system descheduler-xxx -- /bin/descheduler --dry-run</code>
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p>PDB <strong>只保护自愿中断</strong>，对非自愿中断无效。但非自愿中断导致的 Pod 丢失<strong>也会计入 PDB 预算</strong>——如果节点故障已经把健康 Pod 数降到 <code>desiredHealthy</code> 以下，后续的 <code>kubectl drain</code> 会被 PDB 阻止。</p></div>
-
 <h3>6.2 PDB API</h3>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -1876,9 +1624,7 @@ spec:
 
   # v1.26+ 可选：不健康 Pod 的驱逐策略
   unhealthyPodEvictionPolicy: AlwaysAllow</code></pre>
-
 <h4>minAvailable vs maxUnavailable</h4>
-
 <table>
 <thead>
 <tr>
@@ -1903,11 +1649,8 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <p><strong>推荐</strong>：大多数无状态服务使用 <code>maxUnavailable</code>，因为它随副本数自动适应。有状态仲裁服务使用 <code>minAvailable</code> 设为仲裁数。</p>
-
 <h4>unhealthyPodEvictionPolicy（v1.26+）</h4>
-
 <table>
 <thead>
 <tr>
@@ -1926,18 +1669,12 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p><strong>强烈建议</strong>：除非运行基于仲裁的有状态服务，都应设 <code>AlwaysAllow</code>。默认的 <code>IfHealthyBudget</code> 会让 CrashLoopBackOff 的 Pod 永远阻塞 <code>kubectl drain</code>。</p></div>
-
 <h3>6.3 PDB 状态字段</h3>
-
 <pre><code><span class="code-label">bash</span>kubectl get pdb web-app-pdb</code></pre>
-
 <p>输出示例：</p>
-
 <pre><code><span class="code-label">text</span>NAME          MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   CURRENT HEALTHY   DESIRED HEALTHY
 web-app-pdb   N/A             1                 1                     5                 4</code></pre>
-
 <table>
 <thead>
 <tr>
@@ -1960,11 +1697,8 @@ web-app-pdb   N/A             1                 1                     5         
 </tr>
 </tbody>
 </table>
-
 <h3>6.4 PDB 配置示例</h3>
-
 <h4>无状态服务——maxUnavailable</h4>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -1976,11 +1710,8 @@ spec:
   selector:
     matchLabels:
       app: web-api</code></pre>
-
 <p>效果：<code>kubectl drain</code> 每次只驱逐 1 个 Pod，等待新 Pod Ready 后再驱逐下一个。</p>
-
 <h4>有状态仲裁服务——minAvailable</h4>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -1992,43 +1723,29 @@ spec:
   selector:
     matchLabels:
       app: etcd</code></pre>
-
 <h4>百分比配置</h4>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: web-app-pdb
 spec:
-  maxUnavailable: &quot;25%&quot;     # 5 副本时允许 1 个不可用（ceil(5×0.25)=2，实际宽松）
+  maxUnavailable: "25%"     # 5 副本时允许 1 个不可用（ceil(5×0.25)=2，实际宽松）
   selector:
     matchLabels:
       app: web-app</code></pre>
-
 <h3>6.5 PDB 与其他机制的交互</h3>
-
 <h4>PDB vs Deployment 滚动更新</h4>
-
 <p>PDB <strong>不约束</strong> Deployment 的滚动更新。Deployment 控制器通过 <code>maxSurge</code> 和 <code>maxUnavailable</code> 自行管理更新节奏。PDB 只约束外部自愿中断（drain、Descheduler、Cluster Autoscaler）。</p>
-
 <div class="highlight-box"><p>如果 <code>kubectl drain</code> 和滚动更新同时发生，两者叠加的不可用 Pod 数会受 PDB 检查。</p></div>
-
 <h4>PDB vs Cluster Autoscaler</h4>
-
 <p>Cluster Autoscaler 在缩容前检查节点上的 Pod 是否可被驱逐。如果任何 PDB 阻止驱逐，该节点不会被缩容。</p>
-
 <p>常见阻塞场景：</p>
-
 <div class="flow-diagram"><pre>- `maxUnavailable: 0` → 永远阻止驱逐，节点永远不缩容
 - `minAvailable: 100%` → 同上
 - 单副本 Deployment + 任何限制性 PDB → drain 永远阻塞</pre></div>
-
 <h4>PDB vs Descheduler</h4>
-
 <p>Descheduler 驱逐 Pod 时调用 Eviction API，必须遵守 PDB。如果 <code>disruptionsAllowed=0</code>，Descheduler 跳过该 Pod。</p>
-
 <h3>6.6 常见陷阱</h3>
-
 <table>
 <thead>
 <tr>
@@ -2059,9 +1776,7 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <h3>6.7 PDB 最佳实践</h3>
-
 <ol>
 <li><strong>为每个 Deployment/StatefulSet 设置 PDB</strong>——无状态用 <code>maxUnavailable: 1</code>，有状态用 <code>minAvailable</code> 设为仲裁数</li>
 <li><strong>至少运行 2 个副本</strong>——单副本服务无法通过 PDB 同时保护可用性和允许维护</li>
@@ -2070,27 +1785,17 @@ spec:
 <li><strong>每个 PDB 选择唯一的 Pod 集</strong>——不要让两个 PDB 覆盖相同的 Pod</li>
 <li><strong>Descheduler + PDB 联合配置</strong>——PDB 允许逐步驱逐（maxUnavailable: 1），Descheduler 定期重平衡</li>
 </ol>
-
-<hr>
-
-<h2>8. 七、优先级调度与抢占（PriorityClass & Preemption）</h2>
-
+<hr/>
+<h2>8. 七、优先级调度与抢占（PriorityClass &amp; Preemption）</h2>
 <h3>7.1 介绍</h3>
-
 <p><strong>Pod 优先级（Priority）</strong> 是 Kubernetes 为 Pod 赋予的数值化重要性标记——值越大，优先级越高，调度器越优先调度，资源紧张时也越不容易被驱逐。</p>
-
 <p><strong>抢占（Preemption）</strong> 是优先级机制的延伸——当高优先级 Pod 无法调度时，调度器会<strong>驱逐（抢占）</strong> 低优先级 Pod 来腾出资源。</p>
-
 <pre><code><span class="code-label">text</span>Pod 优先级 → 调度队列排序 → 高优先级 Pod 先调度
          ↓
    无法调度 → 触发抢占 → 驱逐低优先级 Pod → 高优先级 Pod 获得资源</code></pre>
-
 <div class="highlight-box"><p><strong>关键区别</strong>：priority 影响<strong>调度顺序</strong>和<strong>抢占能力</strong>，QoS 影响<strong>驱逐顺序</strong>。两者是<strong>正交</strong>的——一个高优先级 + BestEffort 的 Pod 在调度时优先，但在节点压力驱逐时会被优先驱逐（因为 BestEffort）。详见第八、九节。</p></div>
-
 <p>PriorityClass 是 Kubernetes 用来定义优先级级别的集群级资源（无命名空间），Pod 通过 <code>priorityClassName</code> 引用它。</p>
-
 <h3>7.2 PriorityClass API</h3>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
@@ -2098,8 +1803,7 @@ metadata:
 value: 1000000                  # 必填：优先级整数值，越大越优先
 globalDefault: false            # 可选：是否作为默认优先级（集群中只能有一个）
 preemptionPolicy: PreemptLowerPriority  # 可选：抢占策略（v1.24+ stable）
-description: &quot;此优先级类应用于 XYZ 服务&quot;</code></pre>
-
+description: "此优先级类应用于 XYZ 服务"</code></pre>
 <table>
 <thead>
 <tr>
@@ -2126,11 +1830,8 @@ description: &quot;此优先级类应用于 XYZ 服务&quot;</code></pre>
 </tr>
 </tbody>
 </table>
-
 <h4>系统内置 PriorityClass</h4>
-
 <p>Kubernetes 默认提供两个高优先级 PriorityClass，确保关键组件始终被调度：</p>
-
 <table>
 <thead>
 <tr>
@@ -2152,13 +1853,9 @@ description: &quot;此优先级类应用于 XYZ 服务&quot;</code></pre>
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p>自定义 PriorityClass 的 <code>name</code> <strong>不能</strong>以 <code>system-</code> 为前缀。</p></div>
-
 <h4>非抢占式 PriorityClass</h4>
-
 <p><code>preemptionPolicy: Never</code> 的 Pod 会被放在调度队列中优先级较低 Pod 之前，但<strong>不会抢占</strong>其他 Pod。适用场景：数据科学工作负载——希望优先调度于其他作业，但不愿意因为抢占而丢弃正在运行的计算结果。</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
@@ -2166,12 +1863,9 @@ metadata:
 value: 1000000
 preemptionPolicy: Never
 globalDefault: false
-description: &quot;高优先级但不会抢占其他 Pod&quot;</code></pre>
-
+description: "高优先级但不会抢占其他 Pod"</code></pre>
 <h3>7.3 Pod 使用 PriorityClass</h3>
-
 <p>Pod 通过 <code>spec.priorityClassName</code> 引用 PriorityClass：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -2181,9 +1875,7 @@ spec:
   containers:
   - name: nginx
     image: nginx:1.25</code></pre>
-
 <p>对 Deployment 来说，只需在 Pod 模板中指定：</p>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -2196,36 +1888,25 @@ spec:
       containers:
       - name: nginx
         image: nginx:1.25</code></pre>
-
 <h3>7.4 优先级对调度的影响</h3>
-
 <h4>调度队列排序</h4>
-
 <p>当启用 Pod 优先级时，调度器按优先级<strong>降序</strong>排列所有 Pending Pod，高优先级 Pod 总是排在调度队列前面。</p>
-
 <h4>抢占流程</h4>
-
 <p>当高优先级 Pod <strong>P</strong> 无法调度时：</p>
-
 <ol>
 <li>调度器寻找一个节点，如果在该节点上驱逐一个或多个优先级低于 <strong>P</strong> 的 Pod，<strong>P</strong> 就能被调度</li>
 <li>找到后，驱逐低优先级 Pod（称为"牺牲者"）</li>
 <li>牺牲者被终止后，<strong>P</strong> 被调度到该节点</li>
 </ol>
-
 <p><strong>关键行为</strong>：</p>
-
 <ul>
 <li>抢占只驱逐<strong>必要的</strong>低优先级 Pod，不会全部驱逐</li>
 <li>牺牲者获得<strong>体面终止期</strong>（默认 30s），然后被强制终止</li>
 <li><strong>P</strong> 的 <code>status.nominatedNodeName</code> 被设为目标节点名，标记"已为该 Pod 预留资源"</li>
 <li>如果牺牲者终止期间有更高优先级 Pod 到达，该节点可能被更高优先级的 Pod 获取</li>
 </ul>
-
 <div class="highlight-box"><p><strong>抢占不保证 PDB</strong>：调度器会尽量寻找不违反 PDB 的牺牲者，但如果找不到，<strong>仍然执行抢占</strong>，即使违反 PDB。这是"尽力而为"而非"保证"。</p></div>
-
 <h3>7.5 抢占的限制</h3>
-
 <table>
 <thead>
 <tr>
@@ -2248,9 +1929,7 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <h3>7.6 常见问题</h3>
-
 <table>
 <thead>
 <tr>
@@ -2277,16 +1956,12 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <h3>7.7 优先级与 QoS 的关系</h3>
-
 <p>Pod 优先级和 QoS 是<strong>两个正交的维度</strong>：</p>
-
 <ul>
 <li><strong>调度抢占</strong>：只看优先级，不看 QoS</li>
 <li><strong>节点压力驱逐</strong>：kubelet 综合考虑 QoS、优先级和资源使用量（详见第九节）</li>
 </ul>
-
 <table>
 <thead>
 <tr>
@@ -2318,32 +1993,21 @@ spec:
 </tr>
 </tbody>
 </table>
-
-<hr>
-
+<hr/>
 <h2>9. 八、QoS（服务质量）类</h2>
-
 <h3>8.1 介绍</h3>
-
 <p><strong>QoS（Quality of Service）</strong> 是 Kubernetes 根据 Pod 中容器的资源 requests 和 limits 自动分配给 Pod 的"质量等级"。它决定了节点资源紧张时 <strong>Pod 被驱逐的优先级顺序</strong>。</p>
-
 <p>Kubernetes 将 Pod 分为三个 QoS 类：</p>
-
 <pre><code><span class="code-label">text</span>BestEffort（最差保护） → Burstable（中等保护） → Guaranteed（最强保护）
    先被驱逐 ←              中间              ←    最后被驱逐</code></pre>
-
 <div class="highlight-box"><p><strong>核心原则</strong>：QoS 由 Pod 创建时确定，<strong>整个生命周期不变</strong>。原地资源调整如果导致 QoS 变化，会被准入阶段拒绝。</p></div>
-
 <h3>8.2 Guaranteed（保证类）</h3>
-
 <p><strong>最严格的资源限制，最不可能被驱逐</strong>。Pod 中获得 <strong>Guaranteed QoS 需要满足</strong>：</p>
-
 <ul>
 <li>Pod 中的<strong>每个容器</strong>都必须设置 <strong>memory limit 和 memory request</strong>，且两者<strong>相等</strong></li>
 <li>Pod 中的<strong>每个容器</strong>都必须设置 <strong>CPU limit 和 CPU request</strong>，且两者<strong>相等</strong></li>
 <li>以上所有值必须大于 0</li>
 </ul>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -2354,31 +2018,24 @@ spec:
     image: nginx:1.25
     resources:
       requests:
-        memory: &quot;256Mi&quot;
-        cpu: &quot;500m&quot;
+        memory: "256Mi"
+        cpu: "500m"
       limits:
-        memory: &quot;256Mi&quot;   # limit == request → Guaranteed
-        cpu: &quot;500m&quot;        # limit == request → Guaranteed</code></pre>
-
+        memory: "256Mi"   # limit == request → Guaranteed
+        cpu: "500m"        # limit == request → Guaranteed</code></pre>
 <p><strong>关键特性</strong>：</p>
-
 <ul>
 <li>这些 Pod <strong>不会被节点压力驱逐</strong>（除非所有容器的资源使用量都超过其 request）</li>
 <li>可以使用 <code>static</code> CPU 管理策略独占 CPU 核心</li>
 <li>OOM 时 <code>oom_score_adj</code> 为 <strong>-997</strong>（最不容易被 OOM Killer 杀死）</li>
 </ul>
-
 <h3>8.3 Burstable（可突发类）</h3>
-
 <p><strong>有一些资源保证下限，但不要求严格的 limit 匹配</strong>。处于中间保护级别。</p>
-
 <p><strong>满足以下条件即为 Burstable</strong>：</p>
-
 <ul>
 <li>不满足 Guaranteed 的条件</li>
 <li>Pod 中<strong>至少有一个容器</strong>设置了内存或 CPU 的 request 或 limit</li>
 </ul>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -2389,38 +2046,30 @@ spec:
     image: nginx:1.25
     resources:
       requests:
-        memory: &quot;256Mi&quot;    # 设置了 request
-        cpu: &quot;500m&quot;
+        memory: "256Mi"    # 设置了 request
+        cpu: "500m"
       # 没有设置 limits → Burstable（limit 默认等于节点容量）</code></pre>
-
 <p>另一种 Burstable 场景——request 和 limit 不相等：</p>
-
 <pre><code><span class="code-label">yaml</span>resources:
   requests:
-    memory: &quot;256Mi&quot;
-    cpu: &quot;500m&quot;
+    memory: "256Mi"
+    cpu: "500m"
   limits:
-    memory: &quot;512Mi&quot;        # limit != request → Burstable
-    cpu: &quot;1000m&quot;</code></pre>
-
+    memory: "512Mi"        # limit != request → Burstable
+    cpu: "1000m"</code></pre>
 <p><strong>关键特性</strong>：</p>
-
 <ul>
 <li>有 request 下限保证，但可在资源充裕时"突发"使用更多资源</li>
 <li>只有在所有 BestEffort Pod 被驱逐后，才可能被驱逐</li>
 <li><strong>资源使用量未超过 request 的 Burstable Pod 不会被驱逐</strong></li>
 <li>OOM 时 <code>oom_score_adj</code> 计算公式：<code>min(max(2, 1000 - (1000 × memoryRequestBytes) / machineMemoryCapacityBytes), 999)</code></li>
 </ul>
-
 <h3>8.4 BestEffort（尽力而为类）</h3>
-
 <p><strong>没有任何资源保证，优先级最低</strong>。Pod 是 BestEffort 当且仅当：</p>
-
 <ul>
 <li>Pod 中<strong>所有容器</strong>都没有设置内存或 CPU 的 request 或 limit</li>
 <li>Pod 本身也没有设置任何 Pod 级别的内存或 CPU 的 request 或 limit</li>
 </ul>
-
 <pre><code><span class="code-label">yaml</span>apiVersion: v1
 kind: Pod
 metadata:
@@ -2430,26 +2079,20 @@ spec:
   - name: app
     image: nginx:1.25
     # 没有 resources 字段 → BestEffort</code></pre>
-
 <p><strong>关键特性</strong>：</p>
-
 <ul>
 <li>可以使用节点上未被 Guaranteed 和 Burstable Pod 预留的<strong>所有剩余资源</strong></li>
 <li>节点资源紧张时<strong>最先被驱逐</strong></li>
 <li>OOM 时 <code>oom_score_adj</code> 为 <strong>1000</strong>（最容易被 OOM Killer 杀死）</li>
 </ul>
-
 <h3>8.5 QoS 判定逻辑总结</h3>
-
 <pre><code><span class="code-label">text</span>Pod 中每个容器是否都设置了 memory limit == memory request
         且 CPU limit == CPU request（都 &gt; 0）？
         ├── 是 → Guaranteed
         └── 否 → 是否至少有一个容器设置了 memory 或 CPU 的 request 或 limit？
                 ├── 是 → Burstable
                 └── 否 → BestEffort</code></pre>
-
 <h3>8.6 QoS 对驱逐的影响</h3>
-
 <table>
 <thead>
 <tr>
@@ -2486,32 +2129,21 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p><strong>重要</strong>：kubelet 驱逐时<strong>不直接使用 QoS 类</strong>来决定驱逐顺序，而是综合考虑资源使用量、优先级和 request 的关系。但 QoS 类可以很好地预测驱逐顺序，两者高度一致。</p></div>
-
 <h3>8.7 独立于 QoS 的行为</h3>
-
 <p>以下行为与 QoS 类<strong>无关</strong>：</p>
-
 <ul>
 <li>所有超过 limit 的容器都会被 kubelet <strong>杀死并重启</strong>（不影响同 Pod 其他容器）</li>
 <li>容器超出 request 时，所在 Pod 成为驱逐候选对象（驱逐时整个 Pod 所有容器被终止）</li>
 <li>kube-scheduler 的抢占逻辑<strong>不考虑 QoS 类</strong>，只看优先级</li>
 <li>QoS 类在 Pod 创建时确定，整个生命周期不变</li>
 </ul>
-
-<hr>
-
+<hr/>
 <h2>10. 九、节点压力驱逐（Node-pressure Eviction）</h2>
-
 <h3>9.1 介绍</h3>
-
 <p><strong>节点压力驱逐</strong>是 kubelet 主动终止 Pod 以回收节点资源的过程。当节点的内存、磁盘空间或 inode 等资源达到特定消耗水平时，kubelet 会驱逐 Pod 以防止资源耗尽（饥饿）。</p>
-
 <pre><code><span class="code-label">text</span>kubelet 监控节点资源 → 达到驱逐阈值 → 驱逐 Pod → 回收资源 → 节点恢复健康</code></pre>
-
 <p>节点压力驱逐不同于 API 发起的驱逐（<code>kubectl drain</code>、Descheduler 等）：</p>
-
 <table>
 <thead>
 <tr>
@@ -2543,13 +2175,9 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <h3>9.2 驱逐信号与阈值</h3>
-
 <p>kubelet 使用<strong>驱逐信号</strong>（当前资源状态）与<strong>驱逐条件</strong>（阈值）进行比较，决定是否触发驱逐。</p>
-
 <h4>驱逐信号</h4>
-
 <table>
 <thead>
 <tr>
@@ -2601,11 +2229,8 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p><strong>memory.available 的计算</strong>：在 Linux 上来自 cgroupfs，而非 <code>free -m</code>。kubelet 排除了 <code>inactive_file</code>（非活动 LRU 列表上的文件缓存），因为假设在压力下可回收。在 Windows 上来自全局内存提交级别。</p></div>
-
 <h4>文件系统分类</h4>
-
 <table>
 <thead>
 <tr>
@@ -2628,22 +2253,16 @@ spec:
 </tr>
 </tbody>
 </table>
-
 <h3>9.3 硬驱逐 vs 软驱逐</h3>
-
 <h4>硬驱逐条件（Hard Eviction）</h4>
-
 <p><strong>没有宽限期</strong>——达到阈值立即杀死 Pod：</p>
-
 <pre><code><span class="code-label">yaml</span># kubelet 配置
 evictionHard:
-  memory.available: &quot;100Mi&quot;      # 内存不足 100Mi 时立即驱逐
-  nodefs.available: &quot;10%&quot;        # 节点文件系统不足 10% 时立即驱逐
-  imagefs.available: &quot;15%&quot;       # 镜像文件系统不足 15% 时立即驱逐
-  nodefs.inodesFree: &quot;5%&quot;        # 节点 inode 不足 5% 时立即驱逐</code></pre>
-
+  memory.available: "100Mi"      # 内存不足 100Mi 时立即驱逐
+  nodefs.available: "10%"        # 节点文件系统不足 10% 时立即驱逐
+  imagefs.available: "15%"       # 镜像文件系统不足 15% 时立即驱逐
+  nodefs.inodesFree: "5%"        # 节点 inode 不足 5% 时立即驱逐</code></pre>
 <p>kubelet 默认硬驱逐条件（Linux）：</p>
-
 <table>
 <thead>
 <tr>
@@ -2654,39 +2273,34 @@ evictionHard:
 <tbody>
 <tr>
 <td><code>memory.available</code></td>
-<td><code>< 100Mi</code></td>
+<td><code>&lt; 100Mi</code></td>
 </tr>
 <tr>
 <td><code>nodefs.available</code></td>
-<td><code>< 10%</code>（Windows 节点）</td>
+<td><code>&lt; 10%</code>（Windows 节点）</td>
 </tr>
 <tr>
 <td><code>imagefs.available</code></td>
-<td><code>< 15%</code></td>
+<td><code>&lt; 15%</code></td>
 </tr>
 <tr>
 <td><code>nodefs.inodesFree</code></td>
-<td><code>< 5%</code></td>
+<td><code>&lt; 5%</code></td>
 </tr>
 <tr>
 <td><code>imagefs.inodesFree</code></td>
-<td><code>< 5%</code></td>
+<td><code>&lt; 5%</code></td>
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p>如果你修改了任何驱逐参数，其他参数的默认值会被清零。为保持默认值，设置 <code>mergeDefaultEvictionSettings: true</code>。</p></div>
-
 <h4>软驱逐条件（Soft Eviction）</h4>
-
 <p><strong>有宽限期</strong>——阈值持续超过宽限期后才触发驱逐：</p>
-
 <pre><code><span class="code-label">yaml</span>evictionSoft:
-  memory.available: &quot;1.5Gi&quot;       # 软驱逐条件
+  memory.available: "1.5Gi"       # 软驱逐条件
 evictionSoftGracePeriod:
-  memory.available: &quot;1m30s&quot;       # 条件持续 1 分 30 秒后才触发
+  memory.available: "1m30s"       # 条件持续 1 分 30 秒后才触发
 evictionMaxPodGracePeriod: 60     # Pod 终止的最大宽限期（秒）</code></pre>
-
 <table>
 <thead>
 <tr>
@@ -2697,7 +2311,7 @@ evictionMaxPodGracePeriod: 60     # Pod 终止的最大宽限期（秒）</code>
 <tbody>
 <tr>
 <td><code>evictionSoft</code></td>
-<td>软驱逐阈值，形式 <code>signal<quantity</code></td>
+<td>软驱逐阈值，形式 <code>signal<quantity< code=""></quantity<></code></td>
 </tr>
 <tr>
 <td><code>evictionSoftGracePeriod</code></td>
@@ -2709,19 +2323,14 @@ evictionMaxPodGracePeriod: 60     # Pod 终止的最大宽限期（秒）</code>
 </tr>
 </tbody>
 </table>
-
 <h3>9.4 驱逐监控间隔</h3>
-
 <ul>
 <li>kubelet 每 <strong><code>housekeeping-interval</code></strong>（默认 <strong>10s</strong>）评估一次驱逐条件</li>
 <li>节点状况更新频率：<strong><code>--node-status-update-frequency</code></strong>（默认 <strong>10s</strong>）</li>
 <li>节点状况转换过渡期：<strong><code>eviction-pressure-transition-period</code></strong>（默认 <strong>5m</strong>），防止震荡</li>
 </ul>
-
 <h3>9.5 节点状况映射</h3>
-
 <p>kubelet 将驱逐信号映射为节点状况，控制平面再将其映射为污点：</p>
-
 <table>
 <thead>
 <tr>
@@ -2748,38 +2357,25 @@ evictionMaxPodGracePeriod: 60     # Pod 终止的最大宽限期（秒）</code>
 </tr>
 </tbody>
 </table>
-
 <h3>9.6 驱逐前资源回收</h3>
-
 <p>kubelet 在驱逐用户 Pod 之前，<strong>先尝试回收节点级资源</strong>：</p>
-
 <p><strong>DiskPressure 时</strong>：</p>
-
 <pre><code><span class="code-label">text</span>1. 对已死亡的 Pod 和容器进行垃圾收集
 2. 删除未使用的容器镜像
 3. 如果仍不足 → 驱逐用户 Pod</code></pre>
-
 <p><strong>无 imagefs/containerfs</strong>（单一 nodefs）：</p>
-
 <pre><code><span class="code-label">text</span>nodefs 达阈值 → 1. 垃圾收集死亡 Pod/容器 → 2. 删除未使用镜像 → 3. 驱逐 Pod</code></pre>
-
 <p><strong>有 imagefs</strong>（镜像单独存储）：</p>
-
 <pre><code><span class="code-label">text</span>nodefs 达阈值 → 垃圾收集死亡 Pod/容器
 imagefs 达阈值 → 删除未使用镜像</code></pre>
-
 <h3>9.7 驱逐时 Pod 的选择</h3>
-
 <p>kubelet 按以下优先级决定驱逐哪些 Pod（<strong>同时考虑三个因素</strong>）：</p>
-
 <ol>
 <li><strong>资源使用量是否超过 request</strong></li>
 <li><strong>Pod 优先级</strong></li>
 <li><strong>相对于 request 的资源使用量</strong></li>
 </ol>
-
 <p>驱逐顺序：</p>
-
 <pre><code><span class="code-label">text</span>第一优先（最容易被驱逐）：
   BestEffort / Burstable Pod 中资源使用量超过其 request 的
   → 按优先级排序，优先级低的先被驱逐
@@ -2789,24 +2385,17 @@ imagefs 达阈值 → 删除未使用镜像</code></pre>
   Burstable Pod 中资源使用量未超过其 request 的
   + Guaranteed Pod
   → 按优先级排序，优先级低的先被驱逐</code></pre>
-
 <div class="highlight-box"><p><strong>关键理解</strong>：Guaranteed Pod 只有在所有容器都被指定了相等的 request 和 limit 时才<strong>保证不被驱逐</strong>。但如果系统守护进程（如 kubelet、journald）消耗的资源超过预留值，即使 Guaranteed Pod 也可能被驱逐——此时 kubelet 会选择优先级最低的 Guaranteed Pod。</p></div>
-
 <h3>9.8 最小驱逐回收</h3>
-
 <p>有时驱逐一个 Pod 只能回收少量资源，导致 kubelet 反复触发驱逐。通过 <code>evictionMinimumReclaim</code> 设置每次驱逐后<strong>额外回收</strong>的资源量：</p>
-
 <pre><code><span class="code-label">yaml</span>evictionHard:
-  memory.available: &quot;500Mi&quot;
-  nodefs.available: &quot;1Gi&quot;
+  memory.available: "500Mi"
+  nodefs.available: "1Gi"
 evictionMinimumReclaim:
-  memory.available: &quot;0Mi&quot;     # 回收到 500Mi 后不再额外回收
-  nodefs.available: &quot;500Mi&quot;   # 回收到 1Gi 后额外回收 500Mi，直到 1.5Gi</code></pre>
-
+  memory.available: "0Mi"     # 回收到 500Mi 后不再额外回收
+  nodefs.available: "500Mi"   # 回收到 1Gi 后额外回收 500Mi，直到 1.5Gi</code></pre>
 <h3>9.9 OOM 行为与 QoS</h3>
-
 <p>如果 kubelet 来不及驱逐就被 OOM，内核的 <code>oom_killer</code> 接管。kubelet 根据 QoS 为每个容器设置 <code>oom_score_adj</code>：</p>
-
 <table>
 <thead>
 <tr>
@@ -2833,27 +2422,17 @@ evictionMinimumReclaim:
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p><code>system-node-critical</code> 优先级的 Pod 容器 <code>oom_score_adj</code> 也设为 <strong>-997</strong>。</p></div>
-
 <h3>9.10 良好实践</h3>
-
 <h4>驱逐策略与资源预留配合</h4>
-
 <p>确保调度器不会把 Pod 调度到"刚调度就触发驱逐"的节点：</p>
-
 <pre><code><span class="code-label">text</span>节点内存：10GiB
 system-reserved: 1.5Gi  （系统预留 10% + 驱逐阈值 500Mi）
 eviction-hard: memory.available&lt;500Mi</code></pre>
-
 <p>这样系统预留 + 驱逐阈值 = 1.5Gi，节点实际上有 8.5Gi 可调度内存。</p>
-
 <h4>DaemonSet 与驱逐</h4>
-
 <p>如果希望 DaemonSet Pod 不被驱逐，给它设置<strong>足够高的 priorityClass</strong>。</p>
-
 <h3>9.11 已知问题</h3>
-
 <table>
 <thead>
 <tr>
@@ -2875,11 +2454,8 @@ eviction-hard: memory.available&lt;500Mi</code></pre>
 </tr>
 </tbody>
 </table>
-
-<hr>
-
+<hr/>
 <h2>11. 调度策略对比总结</h2>
-
 <table>
 <thead>
 <tr>
@@ -2970,125 +2546,67 @@ eviction-hard: memory.available&lt;500Mi</code></pre>
 </tr>
 </tbody>
 </table>
-
 <div class="highlight-box"><p><strong>组合使用建议</strong>：生产环境中，通常用 PriorityClass 确保关键服务优先（如支付服务高优先级），nodeAffinity 硬策略确保 Pod 跑在指定区域，topologySpreadConstraints 双约束确保跨可用区和跨节点均匀分布，Taint/Toleration 实现专用节点准入控制，合理配置资源 requests/limits 以获得合适的 QoS 类（关键服务用 Guaranteed），PDB 保护维护期间的可用性，Descheduler 定期纠正分布偏差，节点压力驱逐作为兜底的自动保护机制。多者互补，缺一不可。</p></div>
 
-    </div>
+          </div>
 
-    <!-- TOC -->
-    <aside class="toc-container" id="toc-container">
-      <div class="toc-title">目录</div>
-      <ul class="toc-list" id="toc-list"></ul>
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev" href="../posts/Ingress-Nginx高阶用法与流量控制.html">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">Ingress-Nginx 高阶用法与流量控制</span>
+              </a>
+              <a class="article-nav-link next" href="../posts/kubernetes-持久化存储.html">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">Kubernetes 持久化存储</span>
+              </a>
+            </nav>
+
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><a class="post-card" href="../posts/kubernetes-持久化存储.html"><div class="post-card-title">Kubernetes 持久化存储</div><div class="post-card-desc">Kubernetes 持久化存储：PV/PVC/StorageClass 核心概念、Local PV 实战、FlexVolume 到 CSI 演进、UCloud…</div><div class="post-card-meta"><span class="tag tag-kubernetes">Kubernetes</span><span>2026-06-12</span></div></a><a class="post-card" href="../posts/Ingress-Nginx三种部署模式实战.html"><div class="post-card-title">Ingress-Nginx 三种部署模式实战</div><div class="post-card-desc">三节点 K8s 集群实战部署 ingress-nginx 三种模式：Deployment+NodePort、DaemonSet+HostNetwork、Daem…</div><div class="post-card-meta"><span class="tag tag-kubernetes">Kubernetes</span><span>2026-05-31</span></div></a><a class="post-card" href="../posts/Ingress-Nginx高阶用法与流量控制.html"><div class="post-card-title">Ingress-Nginx 高阶用法与流量控制</div><div class="post-card-desc">Ingress-Nginx 金丝雀/蓝绿/灰度/滚动发布全攻略：基于权重、请求头、Cookie、正则的流量控制，TLS 站点构建与 cert-manager 自…</div><div class="post-card-meta"><span class="tag tag-kubernetes">Kubernetes</span><span>2026-05-31</span></div></a></div>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </main>
+
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
     </aside>
-
   </div>
 
-</div>
-
-<!-- Footer -->
-<footer class="site-footer">
-  <div class="footer-inner">
-    <div class="footer-links">
-      <a href="../index.html">首页</a>
-      <a href="../about.html">关于</a>
-      <a href="https://github.com/pro12221" target="_blank">GitHub</a>
-    </div>
-    <div class="footer-copy">&copy; 2026 SRE Notes. Powered by Cloudflare Pages.</div>
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
   </div>
-</footer>
 
-<!-- Mobile TOC -->
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var panel = document.getElementById('toc-mobile-panel');
-      if (panel) panel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 80 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-  updateActiveToc();
-})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/nav.js"></script>
-
+  </script>
 </body>
 </html>

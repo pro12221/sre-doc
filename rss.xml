@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>SRE Notes — Cloud Native Tech Notes</title>
+  <link>https://sre-note.pages.dev</link>
+  <description>一位 SRE 工程师的云原生、分布式系统、Kubernetes 与可观测性实战笔记。</description>
+  <language>zh-CN</language>
+  <atom:link href="https://sre-note.pages.dev/rss.xml" rel="self" type="application/rss+xml"/>
+  <item>
+    <title>iptables、IPVS 与 nftables 详解</title>
+    <link>https://sre-note.pages.dev/posts/iptables-ipvs-nftables详解.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/iptables-ipvs-nftables详解.html</guid>
+    <pubDate>2026-06-21T00:00:00+08:00</pubDate>
+    <category>linux</category>
+    <description>Linux 内核三大包处理框架详解：iptables/IPVS/nftables 的 Netfilter hook 机制、内核数据结构、conntrack 状态机、NAT 实现与 kube-proxy 选型。</description>
+  </item>
+  <item>
+    <title>Kubernetes 持久化存储</title>
+    <link>https://sre-note.pages.dev/posts/kubernetes-持久化存储.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/kubernetes-持久化存储.html</guid>
+    <pubDate>2026-06-12T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes 持久化存储：PV/PVC/StorageClass 核心概念、Local PV 实战、FlexVolume 到 CSI 演进、UCloud CSI 架构与创建流程实战解析。</description>
+  </item>
+  <item>
+    <title>Prometheus 深入浅出</title>
+    <link>https://sre-note.pages.dev/posts/prometheus-深入浅出.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/prometheus-深入浅出.html</guid>
+    <pubDate>2026-06-11T00:00:00+08:00</pubDate>
+    <category>observability</category>
+    <description>Prometheus 全链路学习指南：架构原理与源码解析、Pull/Push 模型、Google 四黄金信号与 USE/RED 方法论、K8s 监控实战、PromQL 完整参考与 15+ 实战查询。</description>
+  </item>
+  <item>
+    <title>Prometheus 深入浅出</title>
+    <link>https://sre-note.pages.dev/posts/prometheus-深入浅出.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/prometheus-深入浅出.html</guid>
+    <pubDate>2026-06-11T00:00:00+08:00</pubDate>
+    <category>observability</category>
+    <description>Prometheus 全链路学习指南：架构原理与源码解析、Pull/Push 模型、Google 四黄金信号与 USE/RED 方法论、K8s 监控实战、PromQL 完整参考与 15+ 实战查询。</description>
+  </item>
+  <item>
+    <title>Pod调度与节点选择</title>
+    <link>https://sre-note.pages.dev/posts/kubernetes调度.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/kubernetes调度.html</guid>
+    <pubDate>2026-06-06T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes 调度全解析：预选优选终选流程、NodeSelector、亲和性/反亲和性、污点容忍、topologySpreadConstraints、Descheduler、PDB、PriorityClass、QoS。</description>
+  </item>
+  <item>
+    <title>UCloud Terraform 基础设施自动化</title>
+    <link>https://sre-note.pages.dev/posts/ucloud-terraform-基础设施自动化.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/ucloud-terraform-基础设施自动化.html</guid>
+    <pubDate>2026-06-01T00:00:00+08:00</pubDate>
+    <category>iac</category>
+    <description>使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。</description>
+  </item>
+  <item>
+    <title>Ingress-Nginx 三种部署模式实战</title>
+    <link>https://sre-note.pages.dev/posts/Ingress-Nginx三种部署模式实战.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/Ingress-Nginx三种部署模式实战.html</guid>
+    <pubDate>2026-05-31T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>三节点 K8s 集群实战部署 ingress-nginx 三种模式：Deployment+NodePort、DaemonSet+HostNetwork、DaemonSet+NodePort。</description>
+  </item>
+  <item>
+    <title>Ingress-Nginx 高阶用法与流量控制</title>
+    <link>https://sre-note.pages.dev/posts/Ingress-Nginx高阶用法与流量控制.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/Ingress-Nginx高阶用法与流量控制.html</guid>
+    <pubDate>2026-05-31T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Ingress-Nginx 金丝雀/蓝绿/灰度/滚动发布全攻略：基于权重、请求头、Cookie、正则的流量控制，TLS 站点构建与 cert-manager 自动证书。</description>
+  </item>
+  <item>
+    <title>云计算网络架构演进</title>
+    <link>https://sre-note.pages.dev/posts/云计算网络架构演进.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/云计算网络架构演进.html</guid>
+    <pubDate>2026-05-30T00:00:00+08:00</pubDate>
+    <category>network</category>
+    <description>从经典网络到 VPC、从软件转发到软硬一体化、从数据中心到云边端一体：AWS/阿里云/UCloud 三大厂商网络架构演进。</description>
+  </item>
+  <item>
+    <title>Ingress 三种部署模式与底层原理</title>
+    <link>https://sre-note.pages.dev/posts/Ingress三种部署模式与底层原理.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/Ingress三种部署模式与底层原理.html</guid>
+    <pubDate>2026-05-30T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes Ingress 详解：Deployment/DaemonSet+HostNetwork/NodePort 三种部署模式对比、Nginx Ingress Controller 控制循环与 Lua Balancer 原理。</description>
+  </item>
+  <item>
+    <title>VXLAN 与 GRE 的区别</title>
+    <link>https://sre-note.pages.dev/posts/vxlan-与-gre的区别.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/vxlan-与-gre的区别.html</guid>
+    <pubDate>2026-05-29T00:00:00+08:00</pubDate>
+    <category>network</category>
+    <description>云数据中心 Overlay 网络补充：从设计目标、封装结构、VNI/Key、ECMP、NAT、防火墙、MTU 与典型场景讲透 VXLAN 和 GRE 的区别。</description>
+  </item>
+  <item>
+    <title>文件描述符与文件句柄</title>
+    <link>https://sre-note.pages.dev/posts/文件描述符与文件句柄.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/文件描述符与文件句柄.html</guid>
+    <pubDate>2026-05-26T00:00:00+08:00</pubDate>
+    <category>linux</category>
+    <description>Linux 文件描述符与文件句柄总结：通过 Python os.open 示例观察 /proc/PID/fd，理解 FD、打开文件对象、inode 与路径的关系。</description>
+  </item>
+  <item>
+    <title>Kubernetes Service原理</title>
+    <link>https://sre-note.pages.dev/posts/kubernetes-service原理.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/kubernetes-service原理.html</guid>
+    <pubDate>2026-05-21T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes Service 原理详解：conntrack 连接跟踪与不对称路径问题、iptables/ipvs 两种模式下数据包流转全链路、四种 Service 类型。</description>
+  </item>
+  <item>
+    <title>K8s权限管理</title>
+    <link>https://sre-note.pages.dev/posts/k8s权限管理.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/k8s权限管理.html</guid>
+    <pubDate>2026-05-20T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes 权限管理全流程：RBAC 核心对象与判定逻辑、用户证书创建与 CSR 审批、kubeconfig 文件结构解析、ServiceAccount 机制。</description>
+  </item>
+  <item>
+    <title>Security Context和Linux Capabilities详解</title>
+    <link>https://sre-note.pages.dev/posts/security-context和linux-capabilities详解.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/security-context和linux-capabilities详解.html</guid>
+    <pubDate>2026-05-20T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes Security Context 核心机制：Linux Capabilities 四组集合与传递规则、Pod/容器级安全配置字段详解、最小权限配置范式。</description>
+  </item>
+  <item>
+    <title>CoreDNS 服务发现与 DNS 优化实战</title>
+    <link>https://sre-note.pages.dev/posts/coredns-服务发现与-dns-优化实战.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/coredns-服务发现与-dns-优化实战.html</guid>
+    <pubDate>2026-05-18T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes CoreDNS 高级配置：Stub Domains、自定义上游、NodeLocal DNSCache 缓存层、缓存预热与负缓存调优，DNS 延迟从 50ms 降到 1ms 的完整路径。</description>
+  </item>
+  <item>
+    <title>静态站点自动部署实战</title>
+    <link>https://sre-note.pages.dev/posts/静态站点自动部署实战.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/静态站点自动部署实战.html</guid>
+    <pubDate>2026-05-16T00:00:00+08:00</pubDate>
+    <category>devops</category>
+    <description>从 Markdown 写作到 Cloudflare Pages 上线：GitHub Actions Workflow 配置、Cloudflare Secrets 设置、完整发布流程与故障排查指南。</description>
+  </item>
+  <item>
+    <title>k8s API组织结构</title>
+    <link>https://sre-note.pages.dev/posts/k8s-api组织结构.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/k8s-api组织结构.html</guid>
+    <pubDate>2026-05-16T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes API 组织形式详解：Group/Version/Resource 三层结构、list-watch 机制、kubectl proxy 认证代理原理与直接访问 6443 的区别。</description>
+  </item>
+  <item>
+    <title>ConfigMap 与 Secret</title>
+    <link>https://sre-note.pages.dev/posts/configmap-secret.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/configmap-secret.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes ConfigMap 和 Secret 详解：创建方式、环境变量引用、卷挂载使用，以及 Secret 内置类型与安全实践。</description>
+  </item>
+  <item>
+    <title>IP包结构与MTU位置</title>
+    <link>https://sre-note.pages.dev/posts/ip包结构与mtu位置.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/ip包结构与mtu位置.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>network</category>
+    <description>IP 包结构与 MTU 详解：头部字段含义、MTU 在协议栈中的位置、分片与 PMTUD 机制，以及各层封装的嵌套关系。</description>
+  </item>
+  <item>
+    <title>Harness Engineering 是什么</title>
+    <link>https://sre-note.pages.dev/posts/harness-engineering是什么.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/harness-engineering是什么.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>当 AI 智能体取代人类成为代码主要生产者时，工程师从&quot;写代码&quot;转向&quot;设计环境、明确意图、构建反馈回路&quot;，让智能体可靠执行——人类掌舵，智能体执行。</description>
+  </item>
+  <item>
+    <title>AI常见术语</title>
+    <link>https://sre-note.pages.dev/posts/ai常见术语.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/ai常见术语.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>AI 基础术语详解：拟合与过拟合的区别、符号主义与联结主义的核心思想、权重和偏移量的作用、激活函数引入非线性的必要性。</description>
+  </item>
+  <item>
+    <title>NLP基础概念</title>
+    <link>https://sre-note.pages.dev/posts/nlp基础概念.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/nlp基础概念.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>NLP 文本表示进化史：从 VSM 稀疏向量到 N-gram 接龙猜词，再到 Word2Vec 稠密语义向量和 ELMo 语境动态表示，一步步走向现代大模型。</description>
+  </item>
+  <item>
+    <title>LLM类型介绍</title>
+    <link>https://sre-note.pages.dev/posts/llm类型介绍.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/llm类型介绍.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>大语言模型分类概览：Base 模型与 Chat 模型的区别、多模态 LLM、Agent 模型、Code 模型，以及提示（Prompting）与微调（Fine-tuning）的差异。</description>
+  </item>
+  <item>
+    <title>训练微调与强化学习</title>
+    <link>https://sre-note.pages.dev/posts/训练微调与强化学习.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/训练微调与强化学习.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>LLM 三阶段训练范式：预训练、微调、强化学习的核心逻辑，以及将大模型类比操作系统内核的独特视角。</description>
+  </item>
+  <item>
+    <title>大模型怎么练出来</title>
+    <link>https://sre-note.pages.dev/posts/大模型怎么练出来.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/大模型怎么练出来.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>从数据准备到模型部署的完整流程：Tokenizer (BPE)、数据清洗八步骤、预训练与后训练 (SFT/RLHF/DPO)、神经网络训练原理与反向传播。</description>
+  </item>
+  <item>
+    <title>模型推理</title>
+    <link>https://sre-note.pages.dev/posts/模型推理.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/模型推理.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>LLM 推理流程六步走：分词 → 嵌入 → Transformer 计算 → 输出 Logits → 采样 → 自回归生成，逐 token 循环直到结束。</description>
+  </item>
+  <item>
+    <title>Function Calling与MCP</title>
+    <link>https://sre-note.pages.dev/posts/function-calling与mcp.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/function-calling与mcp.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>ai</category>
+    <description>LLM 工具调用全链路：Function Calling 五步流程、MCP 标准化协议的客户端/服务器架构、Tool 与 Skill 的区别及技能四要素。</description>
+  </item>
+  <item>
+    <title>CPU软中断高排查记录</title>
+    <link>https://sre-note.pages.dev/posts/cpu软中断高排查记录.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/cpu软中断高排查记录.html</guid>
+    <pubDate>2026-05-15T00:00:00+08:00</pubDate>
+    <category>linux</category>
+    <description>KVM 宿主机 CPU 软中断高排查：perf 定位热点、/proc/softirqs 确认 NET_RX 分布不均、RPS 关闭导致软中断无法跨核分流的根因分析与优化方案。</description>
+  </item>
+  <item>
+    <title>Admission Webhook 开发</title>
+    <link>https://sre-note.pages.dev/posts/admission-webhook.html</link>
+    <guid isPermaLink="true">https://sre-note.pages.dev/posts/admission-webhook.html</guid>
+    <pubDate>2026-05-12T00:00:00+08:00</pubDate>
+    <category>kubernetes</category>
+    <description>Kubernetes Admission Webhook 机制详解：Mutating / Validating 流程、AdmissionReview 返回格式、Python Flask 实现及证书配置完整指南。</description>
+  </item>
+</channel>
+</rss>

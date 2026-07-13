@@ -1,167 +1,122 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>K8s权限管理 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K8s权限管理 - SRE Notes</title>
+  <meta name="description" content="Kubernetes 权限管理全流程：RBAC 核心对象与判定逻辑、用户证书创建与 CSR 审批、kubeconfig 文件结构解析、ServiceAccount 机制。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<!-- Mobile Toggle -->
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <!-- ====== Sidebar ====== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item active">
-          <span class="dot" style="background:var(--tag-k8s)"></span>
-          Kubernetes
-          <span class="count">4</span>
-        </a>
-        <a href="../index.html#go" class="nav-item">
-          <span class="dot" style="background:var(--tag-go)"></span>
-          Go
-          <span class="count">2</span>
-        </a>
-        <a href="../index.html#python" class="nav-item">
-          <span class="dot" style="background:var(--tag-python)"></span>
-          Python
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#devops" class="nav-item">
-          <span class="dot" style="background:var(--tag-devops)"></span>
-          DevOps
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#linux" class="nav-item">
-          <span class="dot" style="background:var(--tag-linux)"></span>
-          Linux
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#network" class="nav-item">
-          <span class="dot" style="background:var(--tag-network)"></span>
-          Network
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#ai" class="nav-item">
-          <span class="dot" style="background:var(--tag-ai)"></span>
-          AI
-          <span class="count">8</span>
-        </a>
-      </div>
-
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
-          <span class="dot" style="background:#24292e"></span>
-          GitHub
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      &copy; 2026 Tech Notes
-    </div>
-  </aside>
-
-  <!-- ====== Main Content ====== -->
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#kubernetes">Kubernetes</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#kubernetes">Kubernetes</a>
+          <span class="sep">/</span>
+          <span class="current">K8s权限管理</span>
         </div>
-        <h1>K8s权限管理</h1>
-        <div class="article-meta">
-          <span>
-            <span class="tag tag-k8s">Kubernetes</span>
-          </span>
-          <span>2026-05-20</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div class="article-layout">
+      <div class="scroll-progress" data-progress></div>
 
-        <div class="article-content">
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#kubernetes">Kubernetes</a><span class="sep">/</span>
+              <span class="current">K8s权限管理</span>
+            </nav>
+            <h1>K8s权限管理</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-kubernetes">Kubernetes</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-05-20
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                9 分钟阅读
+              </span>
+            </div>
+          </header>
 
-        <h2>1. RBAC 机制概述</h2>
-
-        <p>RBAC（Role-Based Access Control）是 Kubernetes 中控制 API 访问权限的核心机制，从 v1.8 起默认启用。核心思想：<strong>谁（Subject）可以对什么资源（Resource）做什么操作（Verb）</strong>。</p>
-
-        <p>当请求到达 API Server 时，RBAC 判定流程：</p>
-
-        <ol>
-          <li>认证阶段确认请求者身份（User/Group/ServiceAccount）</li>
-          <li>遍历所有与该身份相关的 RoleBinding / ClusterRoleBinding</li>
-          <li>检查绑定的 Role / ClusterRole 中的规则是否允许该操作</li>
-          <li><strong>只要有一条规则匹配即放行，没有匹配则拒绝</strong></li>
-        </ol>
-
-        <div class="highlight-box">
-          <p><strong>💡 提示：</strong>RBAC 是累加型的——只能授予权限，不能拒绝。如果需要拒绝某些操作，需配合 <code>NodeRestriction</code>、Pod Security Standards 等准入控制实现。</p>
-        </div>
-
-        <h2>2. RBAC 核心对象</h2>
-
-        <table>
-          <thead>
-            <tr><th>对象</th><th>作用域</th><th>说明</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><strong>Role</strong></td><td>命名空间内</td><td>定义一组权限规则，只作用于单个 namespace</td></tr>
-            <tr><td><strong>ClusterRole</strong></td><td>集群级别</td><td>定义集群范围的权限（如节点、PV 等非命名空间资源，或跨所有 namespace 的权限）</td></tr>
-            <tr><td><strong>RoleBinding</strong></td><td>命名空间内</td><td>将 Role 绑定给 Subject（User/Group/ServiceAccount）</td></tr>
-            <tr><td><strong>ClusterRoleBinding</strong></td><td>集群级别</td><td>将 ClusterRole 绑定给 Subject</td></tr>
-          </tbody>
-        </table>
-
-        <p>关键点：<strong>Role + RoleBinding 限定在 namespace 内，ClusterRole + ClusterRoleBinding 作用于整个集群</strong>。但 ClusterRole 也可以通过 RoleBinding 在某个 namespace 内引用——这时集群级的权限规则会被"收缩"到该 namespace 范围内。</p>
-
-        <h2>3. 权限规则结构</h2>
-
-        <p>一条规则由三部分组成：</p>
-
+          <div class="article-content">
+            
+<h2>1. RBAC 机制概述</h2>
+<p>RBAC（Role-Based Access Control）是 Kubernetes 中控制 API 访问权限的核心机制，从 v1.8 起默认启用。核心思想：<strong>谁（Subject）可以对什么资源（Resource）做什么操作（Verb）</strong>。</p>
+<p>当请求到达 API Server 时，RBAC 判定流程：</p>
+<ol>
+<li>认证阶段确认请求者身份（User/Group/ServiceAccount）</li>
+<li>遍历所有与该身份相关的 RoleBinding / ClusterRoleBinding</li>
+<li>检查绑定的 Role / ClusterRole 中的规则是否允许该操作</li>
+<li><strong>只要有一条规则匹配即放行，没有匹配则拒绝</strong></li>
+</ol>
+<div class="highlight-box">
+<p><strong>💡 提示：</strong>RBAC 是累加型的——只能授予权限，不能拒绝。如果需要拒绝某些操作，需配合 <code>NodeRestriction</code>、Pod Security Standards 等准入控制实现。</p>
+</div>
+<h2>2. RBAC 核心对象</h2>
+<table>
+<thead>
+<tr><th>对象</th><th>作用域</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Role</strong></td><td>命名空间内</td><td>定义一组权限规则，只作用于单个 namespace</td></tr>
+<tr><td><strong>ClusterRole</strong></td><td>集群级别</td><td>定义集群范围的权限（如节点、PV 等非命名空间资源，或跨所有 namespace 的权限）</td></tr>
+<tr><td><strong>RoleBinding</strong></td><td>命名空间内</td><td>将 Role 绑定给 Subject（User/Group/ServiceAccount）</td></tr>
+<tr><td><strong>ClusterRoleBinding</strong></td><td>集群级别</td><td>将 ClusterRole 绑定给 Subject</td></tr>
+</tbody>
+</table>
+<p>关键点：<strong>Role + RoleBinding 限定在 namespace 内，ClusterRole + ClusterRoleBinding 作用于整个集群</strong>。但 ClusterRole 也可以通过 RoleBinding 在某个 namespace 内引用——这时集群级的权限规则会被"收缩"到该 namespace 范围内。</p>
+<h2>3. 权限规则结构</h2>
+<p>一条规则由三部分组成：</p>
 <pre><code><span class="code-label">YAML</span>rules:
 - apiGroups: ["", "apps"]           # 资源所属的 API 组（"" 是核心组）
   resources: ["pods", "deployments"] # 操作的资源类型
   verbs: ["get", "list", "watch"]    # 允许的操作</code></pre>
-
-        <p>常见 verbs：<code>get</code>、<code>list</code>、<code>watch</code>、<code>create</code>、<code>update</code>、<code>patch</code>、<code>delete</code>、<code>deletecollection</code>。</p>
-
-        <p>还可以用 <code>resourceNames</code> 字段进一步限定到特定资源实例，比如只允许访问名为 <code>my-config</code> 的 ConfigMap。</p>
-
-        <h2>4. Subject 类型</h2>
-
-        <p>RBAC 中 Subject 有三种类型：</p>
-
-        <ol>
-          <li><strong>User</strong> — 外部用户，由集群外的认证系统（如 OIDC、证书）管理，K8s 本身不存储 User 对象</li>
-          <li><strong>Group</strong> — 用户组，同样由外部认证系统提供</li>
-          <li><strong>ServiceAccount</strong> — K8s 内部身份，Pod 通过挂载 token 自动获取，用于 Pod 内进程访问 API Server</li>
-        </ol>
-
-        <h2>5. 创建用户实体与凭证</h2>
-
-        <p>K8s 没有 User API 对象，用户身份完全依赖<strong>外部凭证</strong>来表征。整个流程：<strong>造证书 → 签名 → 写入 kubeconfig → 绑定权限 → 创建 context → 切换使用</strong>。</p>
-
-        <h3>5.1 生成用户私钥和 CSR</h3>
-
+<p>常见 verbs：<code>get</code>、<code>list</code>、<code>watch</code>、<code>create</code>、<code>update</code>、<code>patch</code>、<code>delete</code>、<code>deletecollection</code>。</p>
+<p>还可以用 <code>resourceNames</code> 字段进一步限定到特定资源实例，比如只允许访问名为 <code>my-config</code> 的 ConfigMap。</p>
+<h2>4. Subject 类型</h2>
+<p>RBAC 中 Subject 有三种类型：</p>
+<ol>
+<li><strong>User</strong> — 外部用户，由集群外的认证系统（如 OIDC、证书）管理，K8s 本身不存储 User 对象</li>
+<li><strong>Group</strong> — 用户组，同样由外部认证系统提供</li>
+<li><strong>ServiceAccount</strong> — K8s 内部身份，Pod 通过挂载 token 自动获取，用于 Pod 内进程访问 API Server</li>
+</ol>
+<h2>5. 创建用户实体与凭证</h2>
+<p>K8s 没有 User API 对象，用户身份完全依赖<strong>外部凭证</strong>来表征。整个流程：<strong>造证书 → 签名 → 写入 kubeconfig → 绑定权限 → 创建 context → 切换使用</strong>。</p>
+<h3>5.1 生成用户私钥和 CSR</h3>
 <pre><code><span class="code-label">Bash</span># 1. 生成私钥
 openssl genrsa -out devuser.key 2048
 
@@ -169,30 +124,22 @@ openssl genrsa -out devuser.key 2048
 #    -subj 中的 CN 就是 Kubernetes 识别的用户名，O 是组名
 openssl req -new -key devuser.key -out devuser.csr \
   -subj "/CN=devuser/O=dev-team/O=developers"</code></pre>
-
-        <p>关键字段：</p>
-
-        <ul>
-          <li><strong>CN（Common Name）</strong>→ K8s 中的 <code>User</code> 名</li>
-          <li><strong>O（Organization）</strong>→ K8s 中的 <code>Group</code> 名，可以写多个</li>
-        </ul>
-
-        <h3>5.2 用集群 CA 签发证书</h3>
-
-        <p>方式一：直接用 CA 密钥签发（需要拿到 master 节点的 CA 证书和密钥）</p>
-
+<p>关键字段：</p>
+<ul>
+<li><strong>CN（Common Name）</strong>→ K8s 中的 <code>User</code> 名</li>
+<li><strong>O（Organization）</strong>→ K8s 中的 <code>Group</code> 名，可以写多个</li>
+</ul>
+<h3>5.2 用集群 CA 签发证书</h3>
+<p>方式一：直接用 CA 密钥签发（需要拿到 master 节点的 CA 证书和密钥）</p>
 <pre><code><span class="code-label">Bash</span>openssl x509 -req -in devuser.csr \
   -CA /etc/kubernetes/pki/ca.crt \
   -CAkey /etc/kubernetes/pki/ca.key \
   -CAcreateserial \
   -out devuser.crt \
   -days 365</code></pre>
-
-        <p>方式二：通过 CSR 审批流程（适用于云托管集群，拿不到 CA key）</p>
-
+<p>方式二：通过 CSR 审批流程（适用于云托管集群，拿不到 CA key）</p>
 <pre><code><span class="code-label">Bash</span># 将 CSR base64 编码
 cat devuser.csr | base64 | tr -d '\n'</code></pre>
-
 <pre><code><span class="code-label">YAML</span>apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
@@ -203,17 +150,13 @@ spec:
   expirationSeconds: 86400
   usages:
   - client auth</code></pre>
-
 <pre><code><span class="code-label">Bash</span># 审批通过
 kubectl certificate approve devuser-csr
 
 # 取出签好的证书
-kubectl get csr devuser-csr -o jsonpath='{.status.certificate}' | base64 -d > devuser.crt</code></pre>
-
-        <h3>5.3 创建 RBAC 权限绑定</h3>
-
-        <p>此时 devuser 还没有任何权限，需要创建 Role + RoleBinding：</p>
-
+kubectl get csr devuser-csr -o jsonpath='{.status.certificate}' | base64 -d &gt; devuser.crt</code></pre>
+<h3>5.3 创建 RBAC 权限绑定</h3>
+<p>此时 devuser 还没有任何权限，需要创建 Role + RoleBinding：</p>
 <pre><code><span class="code-label">YAML</span>apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -226,7 +169,6 @@ rules:
 - apiGroups: [""]
   resources: ["pods/log"]
   verbs: ["get"]</code></pre>
-
 <pre><code><span class="code-label">YAML</span>apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -240,15 +182,11 @@ roleRef:
   kind: Role
   name: dev-developer
   apiGroup: rbac.authorization.k8s.io</code></pre>
-
-        <h3>5.4 在 kubeconfig 中设置凭证</h3>
-
+<h3>5.4 在 kubeconfig 中设置凭证</h3>
 <pre><code><span class="code-label">Bash</span>kubectl config set-credentials devuser \
   --client-certificate=devuser.crt \
   --client-key=devuser.key</code></pre>
-
-        <h3>5.5 创建 Context 并切换</h3>
-
+<h3>5.5 创建 Context 并切换</h3>
 <pre><code><span class="code-label">Bash</span># 创建 context
 kubectl config set-context devuser-context \
   --cluster=your-cluster-name \
@@ -261,10 +199,8 @@ kubectl config use-context devuser-context
 # 验证
 kubectl auth can-i create deployments
 kubectl auth can-i list pods -n dev</code></pre>
-
-        <h3>5.6 全景流程</h3>
-
-        <div class="flow-diagram">
+<h3>5.6 全景流程</h3>
+<div class="flow-diagram">
 <pre>openssl genrsa → devuser.key (私钥)
         │
         ▼
@@ -278,14 +214,10 @@ openssl req -new → devuser.csr (签名请求，CN=devuser)
         ├──→ Role + RoleBinding            (授予权限)
         ▼
 kubectl config use-context → 就可以操作集群了</pre>
-        </div>
-
-        <h2>6. kubeconfig 文件解析</h2>
-
-        <p>kubeconfig 是 Kubernetes 客户端的配置文件，默认路径 <code>~/.kube/config</code>，它本质上就是一组<strong>集群、凭证、上下文</strong>的映射关系。</p>
-
-        <h3>6.1 三大顶层段</h3>
-
+</div>
+<h2>6. kubeconfig 文件解析</h2>
+<p>kubeconfig 是 Kubernetes 客户端的配置文件，默认路径 <code>~/.kube/config</code>，它本质上就是一组<strong>集群、凭证、上下文</strong>的映射关系。</p>
+<h3>6.1 三大顶层段</h3>
 <pre><code><span class="code-label">YAML</span>apiVersion: v1
 kind: Config
 preferences: {}
@@ -309,68 +241,51 @@ contexts:     # 上下文列表 —— 组合集群和凭证
     cluster: my-cluster
     user: devuser
     namespace: dev</code></pre>
-
-        <p>三者的关系：<code>context = cluster + user + namespace</code></p>
-
-        <h3>6.2 clusters 段</h3>
-
-        <table>
-          <thead>
-            <tr><th>字段</th><th>说明</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>server</code></td><td>API Server 的 URL</td></tr>
-            <tr><td><code>certificate-authority</code></td><td>集群 CA 证书文件路径，验证 API Server 身份</td></tr>
-            <tr><td><code>certificate-authority-data</code></td><td>同上，base64 内嵌</td></tr>
-            <tr><td><code>insecure-skip-tls-verify</code></td><td>跳过 TLS 验证，生产环境绝不建议</td></tr>
-          </tbody>
-        </table>
-
-        <h3>6.3 users 段认证方式</h3>
-
-        <table>
-          <thead>
-            <tr><th>认证方式</th><th>字段</th><th>适用场景</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><strong>X.509 证书</strong></td><td><code>client-certificate</code> + <code>client-key</code></td><td>自建集群、用户证书认证</td></tr>
-            <tr><td><strong>Token</strong></td><td><code>token</code></td><td>ServiceAccount token、静态 token</td></tr>
-            <tr><td><strong>OIDC</strong></td><td><code>auth-provider</code> → <code>oidc</code> 配置块</td><td>企业 SSO 对接</td></tr>
-            <tr><td><strong>Exec 插件</strong></td><td><code>exec</code> → 命令 + 参数</td><td>云厂商 CLI 动态获取凭证</td></tr>
-          </tbody>
-        </table>
-
-        <h3>6.4 contexts 段</h3>
-
-        <p>同一个 <code>user</code> 可以出现在多个 context 中，同一个 <code>cluster</code> 也可以配不同 <code>user</code>。<code>namespace</code> 字段只是默认值，<code>kubectl -n</code> 可以覆盖。</p>
-
-        <h3>6.5 配置合并与优先级</h3>
-
-        <p>kubectl 按以下顺序加载配置，后加载的覆盖先加载的：</p>
-
-        <ol>
-          <li>系统级配置：<code>/etc/kubernetes/admin.conf</code></li>
-          <li>用户级配置：<code>~/.kube/config</code></li>
-          <li>指定文件：<code>KUBECONFIG=/path/a:/path/b</code></li>
-        </ol>
-
-        <p><code>KUBECONFIG</code> 支持多文件，用 <code>:</code>（Linux）或 <code>;</code>（Windows）分隔。</p>
-
-        <h3>6.6 常用操作</h3>
-
+<p>三者的关系：<code>context = cluster + user + namespace</code></p>
+<h3>6.2 clusters 段</h3>
+<table>
+<thead>
+<tr><th>字段</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td><code>server</code></td><td>API Server 的 URL</td></tr>
+<tr><td><code>certificate-authority</code></td><td>集群 CA 证书文件路径，验证 API Server 身份</td></tr>
+<tr><td><code>certificate-authority-data</code></td><td>同上，base64 内嵌</td></tr>
+<tr><td><code>insecure-skip-tls-verify</code></td><td>跳过 TLS 验证，生产环境绝不建议</td></tr>
+</tbody>
+</table>
+<h3>6.3 users 段认证方式</h3>
+<table>
+<thead>
+<tr><th>认证方式</th><th>字段</th><th>适用场景</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>X.509 证书</strong></td><td><code>client-certificate</code> + <code>client-key</code></td><td>自建集群、用户证书认证</td></tr>
+<tr><td><strong>Token</strong></td><td><code>token</code></td><td>ServiceAccount token、静态 token</td></tr>
+<tr><td><strong>OIDC</strong></td><td><code>auth-provider</code> → <code>oidc</code> 配置块</td><td>企业 SSO 对接</td></tr>
+<tr><td><strong>Exec 插件</strong></td><td><code>exec</code> → 命令 + 参数</td><td>云厂商 CLI 动态获取凭证</td></tr>
+</tbody>
+</table>
+<h3>6.4 contexts 段</h3>
+<p>同一个 <code>user</code> 可以出现在多个 context 中，同一个 <code>cluster</code> 也可以配不同 <code>user</code>。<code>namespace</code> 字段只是默认值，<code>kubectl -n</code> 可以覆盖。</p>
+<h3>6.5 配置合并与优先级</h3>
+<p>kubectl 按以下顺序加载配置，后加载的覆盖先加载的：</p>
+<ol>
+<li>系统级配置：<code>/etc/kubernetes/admin.conf</code></li>
+<li>用户级配置：<code>~/.kube/config</code></li>
+<li>指定文件：<code>KUBECONFIG=/path/a:/path/b</code></li>
+</ol>
+<p><code>KUBECONFIG</code> 支持多文件，用 <code>:</code>（Linux）或 <code>;</code>（Windows）分隔。</p>
+<h3>6.6 常用操作</h3>
 <pre><code><span class="code-label">Bash</span>kubectl config view              # 查看完整配置（脱敏）
 kubectl config view --raw        # 不脱敏，显示证书原文
 kubectl config use-context ctx   # 切换 context
 kubectl config current-context   # 查看当前 context
 kubectl config set-context --current --namespace=kube-system  # 修改当前 context 的 namespace</code></pre>
-
-        <h2>7. ServiceAccount 详解</h2>
-
-        <p>ServiceAccount（SA）是 Kubernetes <strong>内置的身份机制</strong>，专门给集群内部的进程（Pod）使用，让 Pod 里的程序能以确定身份访问 API Server。</p>
-
-        <h3>7.1 核心机制</h3>
-
-        <div class="flow-diagram">
+<h2>7. ServiceAccount 详解</h2>
+<p>ServiceAccount（SA）是 Kubernetes <strong>内置的身份机制</strong>，专门给集群内部的进程（Pod）使用，让 Pod 里的程序能以确定身份访问 API Server。</p>
+<h3>7.1 核心机制</h3>
+<div class="flow-diagram">
 <pre>Pod 启动
   │
   ├── 自动挂载 SA 的 token 到 /var/run/secrets/kubernetes.io/serviceaccount/
@@ -381,19 +296,15 @@ kubectl config set-context --current --namespace=kube-system  # 修改当前 con
   └── Pod 内程序用这个 token 调用 API Server
         │
         └── API Server 根据 SA 身份 + RBAC 规则决定是否放行</pre>
-        </div>
-
-        <p>Pod 默认使用所在 namespace 的 <code>default</code> SA，除非显式指定。</p>
-
-        <h3>7.2 创建与使用</h3>
-
+</div>
+<p>Pod 默认使用所在 namespace 的 <code>default</code> SA，除非显式指定。</p>
+<h3>7.2 创建与使用</h3>
 <pre><code><span class="code-label">YAML</span># 创建 SA
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: my-sa
   namespace: dev</code></pre>
-
 <pre><code><span class="code-label">YAML</span># Pod 中引用 SA
 apiVersion: v1
 kind: Pod
@@ -405,7 +316,6 @@ spec:
   containers:
   - name: app
     image: my-app:latest</code></pre>
-
 <pre><code><span class="code-label">YAML</span># 给 SA 绑定权限
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -420,59 +330,45 @@ roleRef:
   kind: Role
   name: pod-reader
   apiGroup: rbac.authorization.k8s.io</code></pre>
-
-        <h3>7.3 SA 的身份标识</h3>
-
-        <p>SA 的完整标识：<code>system:serviceaccount:{namespace}:{sa-name}</code></p>
-
+<h3>7.3 SA 的身份标识</h3>
+<p>SA 的完整标识：<code>system:serviceaccount:{namespace}:{sa-name}</code></p>
 <pre><code><span class="code-label">Bash</span>kubectl auth can-i list pods \
   --as=system:serviceaccount:dev:my-sa \
   -n dev</code></pre>
-
-        <h3>7.4 Token 演进</h3>
-
-        <table>
-          <thead>
-            <tr><th>阶段</th><th>机制</th><th>特点</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><strong>v1.22 之前</strong></td><td>SA 自动关联 Secret，存永久 token</td><td>不过期，泄露即永久风险</td></tr>
-            <tr><td><strong>v1.22+</strong></td><td>TokenRequest API 动态签发短期 token</td><td>默认 1 小时过期，Pod 挂载投射卷</td></tr>
-            <tr><td><strong>手动创建</strong></td><td><code>kubectl create token my-sa</code></td><td>按需获取临时 token</td></tr>
-          </tbody>
-        </table>
-
-        <p>v1.24 起创建 SA 不再自动生成 Secret：</p>
-
+<h3>7.4 Token 演进</h3>
+<table>
+<thead>
+<tr><th>阶段</th><th>机制</th><th>特点</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>v1.22 之前</strong></td><td>SA 自动关联 Secret，存永久 token</td><td>不过期，泄露即永久风险</td></tr>
+<tr><td><strong>v1.22+</strong></td><td>TokenRequest API 动态签发短期 token</td><td>默认 1 小时过期，Pod 挂载投射卷</td></tr>
+<tr><td><strong>手动创建</strong></td><td><code>kubectl create token my-sa</code></td><td>按需获取临时 token</td></tr>
+</tbody>
+</table>
+<p>v1.24 起创建 SA 不再自动生成 Secret：</p>
 <pre><code><span class="code-label">Bash</span># 获取临时 token
 kubectl create token my-sa -n dev
 
 # 指定有效期
 kubectl create token my-sa -n dev --duration=2h</code></pre>
-
-        <h3>7.5 SA vs User</h3>
-
-        <table>
-          <thead>
-            <tr><th>维度</th><th>ServiceAccount</th><th>User</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>管理方式</td><td>K8s API 对象</td><td>无 API 对象，外部认证系统管理</td></tr>
-            <tr><td>使用者</td><td>Pod 内进程</td><td>kubectl 操作者、CI/CD 系统</td></tr>
-            <tr><td>认证方式</td><td>自动挂载 token / TokenRequest</td><td>证书、OIDC、Webhook 等</td></tr>
-            <tr><td>作用域</td><td>命名空间级别</td><td>集群级别</td></tr>
-            <tr><td>RBAC Subject</td><td><code>kind: ServiceAccount</code></td><td><code>kind: User</code> 或 <code>kind: Group</code></td></tr>
-          </tbody>
-        </table>
-
-        <h2>8. 命名空间 SA 与全局权限</h2>
-
-        <p><strong>ServiceAccount 永远属于某个 namespace，K8s 不存在集群级别的 SA</strong>。"全局效果"是 RBAC 绑定造成的错觉。</p>
-
-        <h3>8.1 "全局效果"的来源</h3>
-
-        <p>SA 本身是局部的，但通过 <strong>ClusterRoleBinding</strong> 可以让一个 namespace 内的 SA 获得跨所有 namespace 的权限：</p>
-
+<h3>7.5 SA vs User</h3>
+<table>
+<thead>
+<tr><th>维度</th><th>ServiceAccount</th><th>User</th></tr>
+</thead>
+<tbody>
+<tr><td>管理方式</td><td>K8s API 对象</td><td>无 API 对象，外部认证系统管理</td></tr>
+<tr><td>使用者</td><td>Pod 内进程</td><td>kubectl 操作者、CI/CD 系统</td></tr>
+<tr><td>认证方式</td><td>自动挂载 token / TokenRequest</td><td>证书、OIDC、Webhook 等</td></tr>
+<tr><td>作用域</td><td>命名空间级别</td><td>集群级别</td></tr>
+<tr><td>RBAC Subject</td><td><code>kind: ServiceAccount</code></td><td><code>kind: User</code> 或 <code>kind: Group</code></td></tr>
+</tbody>
+</table>
+<h2>8. 命名空间 SA 与全局权限</h2>
+<p><strong>ServiceAccount 永远属于某个 namespace，K8s 不存在集群级别的 SA</strong>。"全局效果"是 RBAC 绑定造成的错觉。</p>
+<h3>8.1 "全局效果"的来源</h3>
+<p>SA 本身是局部的，但通过 <strong>ClusterRoleBinding</strong> 可以让一个 namespace 内的 SA 获得跨所有 namespace 的权限：</p>
 <pre><code><span class="code-label">YAML</span>apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -485,21 +381,18 @@ roleRef:
   kind: ClusterRole
   name: view
   apiGroup: rbac.authorization.k8s.io</code></pre>
-
-        <h3>8.2 两种绑定方式的区别</h3>
-
-        <table>
-          <thead>
-            <tr><th>绑定方式</th><th>权限范围</th><th>SA 能操作的范围</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><strong>RoleBinding</strong> + Role</td><td>namespace 内</td><td>只能操作 SA 所在 namespace</td></tr>
-            <tr><td><strong>RoleBinding</strong> + ClusterRole</td><td>namespace 内</td><td>ClusterRole 规则被收窄到 RoleBinding 所在 namespace</td></tr>
-            <tr><td><strong>ClusterRoleBinding</strong> + ClusterRole</td><td>集群级别</td><td>可操作所有 namespace + 集群级资源</td></tr>
-          </tbody>
-        </table>
-
-        <div class="flow-diagram">
+<h3>8.2 两种绑定方式的区别</h3>
+<table>
+<thead>
+<tr><th>绑定方式</th><th>权限范围</th><th>SA 能操作的范围</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>RoleBinding</strong> + Role</td><td>namespace 内</td><td>只能操作 SA 所在 namespace</td></tr>
+<tr><td><strong>RoleBinding</strong> + ClusterRole</td><td>namespace 内</td><td>ClusterRole 规则被收窄到 RoleBinding 所在 namespace</td></tr>
+<tr><td><strong>ClusterRoleBinding</strong> + ClusterRole</td><td>集群级别</td><td>可操作所有 namespace + 集群级资源</td></tr>
+</tbody>
+</table>
+<div class="flow-diagram">
 <pre>SA (namespace: dev)
   │
   ├── RoleBinding(dev) + Role
@@ -510,31 +403,23 @@ roleRef:
   │
   └── ClusterRoleBinding + ClusterRole
         → 可操作所有 namespace + 集群级资源</pre>
-        </div>
-
-        <h3>8.3 kube-system 下的 SA 不是"全局 SA"</h3>
-
-        <p><code>kube-system</code> 下的 SA（coredns、endpoint-controller 等）只是恰好创建在该 namespace 中，通过 ClusterRoleBinding 获得了集群级权限。放到任何 namespace 都能达到同样效果。</p>
-
-        <h3>8.4 实际设计模式</h3>
-
-        <div class="card">
-          <p><strong>模式一：每个 namespace 独立 SA + RoleBinding</strong>（最常见，最安全）</p>
-          <p>不同 namespace 同名 SA 是完全独立的两个身份，权限互不干扰。</p>
-        </div>
-
-        <div class="card">
-          <p><strong>模式二：一个 SA + ClusterRoleBinding</strong>（集群级运维工具、Controller）</p>
-          <p>适用于 Prometheus、Falco、巡检工具等需要跨 namespace 只读的组件。</p>
-        </div>
-
-        <div class="card">
-          <p><strong>模式三：SA 跨 namespace 引用</strong></p>
-          <p>RoleBinding/ClusterRoleBinding 的 subjects 中指定 SA 的 namespace 即可授权。</p>
-        </div>
-
-        <h2>9. 排查命令速查</h2>
-
+</div>
+<h3>8.3 kube-system 下的 SA 不是"全局 SA"</h3>
+<p><code>kube-system</code> 下的 SA（coredns、endpoint-controller 等）只是恰好创建在该 namespace 中，通过 ClusterRoleBinding 获得了集群级权限。放到任何 namespace 都能达到同样效果。</p>
+<h3>8.4 实际设计模式</h3>
+<div class="card">
+<p><strong>模式一：每个 namespace 独立 SA + RoleBinding</strong>（最常见，最安全）</p>
+<p>不同 namespace 同名 SA 是完全独立的两个身份，权限互不干扰。</p>
+</div>
+<div class="card">
+<p><strong>模式二：一个 SA + ClusterRoleBinding</strong>（集群级运维工具、Controller）</p>
+<p>适用于 Prometheus、Falco、巡检工具等需要跨 namespace 只读的组件。</p>
+</div>
+<div class="card">
+<p><strong>模式三：SA 跨 namespace 引用</strong></p>
+<p>RoleBinding/ClusterRoleBinding 的 subjects 中指定 SA 的 namespace 即可授权。</p>
+</div>
+<h2>9. 排查命令速查</h2>
 <pre><code><span class="code-label">Bash</span># 检查某个 SA 是否有特定权限
 kubectl auth can-i list pods --as=system:serviceaccount:default:my-sa
 
@@ -550,128 +435,65 @@ kubectl get clusterrolebindings -o wide
 # 查看当前身份
 kubectl auth whoami</code></pre>
 
+          </div>
+
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev" href="../posts/coredns-服务发现与-dns-优化实战.html">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">CoreDNS 服务发现与 DNS 优化实战</span>
+              </a>
+              <a class="article-nav-link next" href="../posts/security-context和linux-capabilities详解.html">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">Security Context和Linux Capabilities详解</span>
+              </a>
+            </nav>
+
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><a class="post-card" href="../posts/kubernetes-持久化存储.html"><div class="post-card-title">Kubernetes 持久化存储</div><div class="post-card-desc">Kubernetes 持久化存储：PV/PVC/StorageClass 核心概念、Local PV 实战、FlexVolume 到 CSI 演进、UCloud…</div><div class="post-card-meta"><span class="tag tag-kubernetes">Kubernetes</span><span>2026-06-12</span></div></a><a class="post-card" href="../posts/kubernetes调度.html"><div class="post-card-title">Pod调度与节点选择</div><div class="post-card-desc">Kubernetes 调度全解析：预选优选终选流程、NodeSelector、亲和性/反亲和性、污点容忍、topologySpreadConstraints、D…</div><div class="post-card-meta"><span class="tag tag-kubernetes">Kubernetes</span><span>2026-06-06</span></div></a><a class="post-card" href="../posts/Ingress-Nginx三种部署模式实战.html"><div class="post-card-title">Ingress-Nginx 三种部署模式实战</div><div class="post-card-desc">三节点 K8s 集群实战部署 ingress-nginx 三种模式：Deployment+NodePort、DaemonSet+HostNetwork、Daem…</div><div class="post-card-meta"><span class="tag tag-kubernetes">Kubernetes</span><span>2026-05-31</span></div></a></div>
+            </div>
+          </footer>
+        </div>
       </div>
+    </main>
 
-        <!-- TOC (auto-generated by JS) -->
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-      </div>
-      <!-- /article-layout -->
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-    </div>
-  </main>
-
-</div>
-
-<!-- Mobile TOC button + panel -->
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-// ===== Auto-generate TOC from h2/h3 =====
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var mobilePanel = document.getElementById('toc-mobile-panel');
-      if (mobilePanel) mobilePanel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-
-  // Scroll spy
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-
-  updateActiveToc();
-})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  </script>
 </body>
 </html>

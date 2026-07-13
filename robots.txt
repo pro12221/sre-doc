@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /posts/template.html
+Disallow: /css/
+Disallow: /js/
+Disallow: /MarkDown/
+
+Sitemap: /sitemap.xml

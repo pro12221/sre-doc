@@ -1,118 +1,84 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UCloud Terraform 基础设施自动化 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UCloud Terraform 基础设施自动化 - SRE Notes</title>
+  <meta name="description" content="使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<!-- Mobile Toggle -->
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <!-- ====== Sidebar ====== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item">
-          <span class="dot" style="background:var(--tag-k8s)"></span>
-          Kubernetes
-          <span class="count">9</span>
-        </a>
-        <a href="../index.html#go" class="nav-item">
-          <span class="dot" style="background:var(--tag-go)"></span>
-          Go
-          <span class="count">2</span>
-        </a>
-        <a href="../index.html#python" class="nav-item">
-          <span class="dot" style="background:var(--tag-python)"></span>
-          Python
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#devops" class="nav-item">
-          <span class="dot" style="background:var(--tag-devops)"></span>
-          DevOps
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#iac" class="nav-item active">
-          <span class="dot" style="background:var(--tag-iac)"></span>
-          IaC
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#linux" class="nav-item">
-          <span class="dot" style="background:var(--tag-linux)"></span>
-          Linux
-          <span class="count">2</span>
-        </a>
-        <a href="../index.html#network" class="nav-item">
-          <span class="dot" style="background:var(--tag-network)"></span>
-          Network
-          <span class="count">3</span>
-        </a>
-        <a href="../index.html#ai" class="nav-item">
-          <span class="dot" style="background:var(--tag-ai)"></span>
-          AI
-          <span class="count">8</span>
-        </a>
-      </div>
-
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
-          <span class="dot" style="background:#24292e"></span>
-          GitHub
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      &copy; 2026 Tech Notes
-    </div>
-  </aside>
-
-  <!-- ====== Main Content ====== -->
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#iac">IaC</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#iac">IaC</a>
+          <span class="sep">/</span>
+          <span class="current">UCloud Terraform 基础设…</span>
         </div>
-        <h1>UCloud Terraform 基础设施自动化</h1>
-        <div class="article-meta">
-          <span>
-            <span class="tag tag-iac">IaC</span>
-          </span>
-          <span>2026-06-01</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div class="article-layout">
+      <div class="scroll-progress" data-progress></div>
 
-        <div class="article-content">
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#iac">IaC</a><span class="sep">/</span>
+              <span class="current">UCloud Terraform 基础设施自动化</span>
+            </nav>
+            <h1>UCloud Terraform 基础设施自动化</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-iac">IaC</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-06-01
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                3 分钟阅读
+              </span>
+            </div>
+          </header>
 
-        <div class="highlight-box">
-          <p><strong>💡 使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。</strong></p>
-        </div>
-
-        <h2>1. 环境准备</h2>
-
-        <h3>1.1 安装 Terraform</h3>
-
+          <div class="article-content">
+            
+<div class="highlight-box">
+<p><strong>💡 使用 Terraform 管理 UCloud 云资源，实现基础设施即代码（IaC）。</strong></p>
+</div>
+<h2>1. 环境准备</h2>
+<h3>1.1 安装 Terraform</h3>
 <pre><code><span class="code-label">bash</span># macOS
 brew install terraform
 
@@ -122,41 +88,31 @@ brew install terraform
 wget https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip
 unzip terraform_1.9.8_linux_amd64.zip
 sudo mv terraform /usr/local/bin/</code></pre>
-
-        <h3>1.2 获取 UCloud API 密钥</h3>
-
-        <p>登录 <a href="https://console.ucloud.cn/uapi/apikey" target="_blank">UCloud 控制台</a> → API 密钥管理，创建一对密钥，获取：</p>
-
-        <ul>
-          <li><code>PublicKey</code></li>
-          <li><code>PrivateKey</code></li>
-          <li><code>ProjectId</code>（子账号必填）</li>
-        </ul>
-
-        <h3>1.3 配置环境变量（推荐）</h3>
-
+<h3>1.2 获取 UCloud API 密钥</h3>
+<p>登录 <a href="https://console.ucloud.cn/uapi/apikey" target="_blank">UCloud 控制台</a> → API 密钥管理，创建一对密钥，获取：</p>
+<ul>
+<li><code>PublicKey</code></li>
+<li><code>PrivateKey</code></li>
+<li><code>ProjectId</code>（子账号必填）</li>
+</ul>
+<h3>1.3 配置环境变量（推荐）</h3>
 <pre><code><span class="code-label">bash</span>export UCLOUD_PUBLIC_KEY="你的PublicKey"
 export UCLOUD_PRIVATE_KEY="你的PrivateKey"
 export UCLOUD_PROJECT_ID="你的ProjectId"</code></pre>
-
-        <h2>2. 项目结构</h2>
-
-        <div class="flow-diagram">IaC/
+<h2>2. 项目结构</h2>
+<div class="flow-diagram">IaC/
 └── ucloud-cn-wlcb/          # 乌兰察布地域基础设施
     ├── main.tf               # 核心资源定义
     ├── variables.tf          # 变量声明
     ├── outputs.tf            # 输出定义
     └── terraform.tfvars      # 密钥配置（不提交到 Git）</div>
-
-        <h2>3. Terraform 代码</h2>
-
-        <h3>3.1 main.tf — 核心资源</h3>
-
+<h2>3. Terraform 代码</h2>
+<h3>3.1 main.tf — 核心资源</h3>
 <pre><code><span class="code-label">hcl</span>terraform {
   required_providers {
     ucloud = {
       source  = "ucloud/ucloud"
-      version = "~> 1.39.0"
+      version = "~&gt; 1.39.0"
     }
   }
 }
@@ -218,9 +174,7 @@ resource "ucloud_eip_association" "new" {
   eip_id      = ucloud_eip.new[count.index].id
   resource_id = ucloud_instance.new[count.index].id
 }</code></pre>
-
-        <h3>3.2 variables.tf — 变量声明</h3>
-
+<h3>3.2 variables.tf — 变量声明</h3>
 <pre><code><span class="code-label">hcl</span>variable "ucloud_public_key" {
   type      = string
   sensitive = true
@@ -235,9 +189,7 @@ variable "ucloud_project_id" {
   type      = string
   sensitive = true
 }</code></pre>
-
-        <h3>3.3 outputs.tf — 输出定义</h3>
-
+<h3>3.3 outputs.tf — 输出定义</h3>
 <pre><code><span class="code-label">hcl</span>output "instance_ids" {
   value = ucloud_instance.new[*].id
 }
@@ -249,79 +201,54 @@ output "instance_public_ips" {
 output "instance_private_ips" {
   value = ucloud_instance.new[*].private_ip
 }</code></pre>
-
-        <h3>3.4 terraform.tfvars — 密钥配置</h3>
-
+<h3>3.4 terraform.tfvars — 密钥配置</h3>
 <pre><code><span class="code-label">hcl</span>ucloud_public_key  = "你的PublicKey"
 ucloud_private_key = "你的PrivateKey"
 ucloud_project_id  = "org-j41zws"</code></pre>
-
-        <div class="highlight-box">
-          <p><strong>⚠️ 此文件包含敏感信息，绝不能提交到 Git。</strong> 已在 <code>.gitignore</code> 中排除。</p>
-        </div>
-
-        <h2>4. 操作流程</h2>
-
-        <h3>4.1 初始化</h3>
-
+<div class="highlight-box">
+<p><strong>⚠️ 此文件包含敏感信息，绝不能提交到 Git。</strong> 已在 <code>.gitignore</code> 中排除。</p>
+</div>
+<h2>4. 操作流程</h2>
+<h3>4.1 初始化</h3>
 <pre><code><span class="code-label">bash</span>cd IaC/ucloud-cn-wlcb
 terraform init</code></pre>
-
-        <h3>4.2 预览变更</h3>
-
+<h3>4.2 预览变更</h3>
 <pre><code><span class="code-label">bash</span>terraform plan</code></pre>
-
-        <h3>4.3 部署</h3>
-
+<h3>4.3 部署</h3>
 <pre><code><span class="code-label">bash</span>terraform apply</code></pre>
-
-        <h3>4.4 查看输出</h3>
-
+<h3>4.4 查看输出</h3>
 <pre><code><span class="code-label">bash</span>terraform output</code></pre>
-
-        <h3>4.5 销毁</h3>
-
+<h3>4.5 销毁</h3>
 <pre><code><span class="code-label">bash</span>terraform destroy</code></pre>
-
-        <h2>5. 资源清单</h2>
-
-        <p>本次部署创建 9 个资源：</p>
-
-        <table>
-          <thead>
-            <tr><th>资源类型</th><th>数量</th><th>说明</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>ucloud_instance</code></td><td>3</td><td>O 型 4C8G 云主机，Ubuntu 24.04，20GB RSSD 系统盘 + 200GB RSSD 数据盘</td></tr>
-            <tr><td><code>ucloud_eip</code></td><td>3</td><td>BGP 弹性公网 IP，1Mbps 带宽</td></tr>
-            <tr><td><code>ucloud_eip_association</code></td><td>3</td><td>EIP 绑定到云主机</td></tr>
-          </tbody>
-        </table>
-
-        <h3>5.1 网络配置</h3>
-
-        <table>
-          <thead>
-            <tr><th>项目</th><th>值</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>地域</td><td>cn-wlcb（乌兰察布）</td></tr>
-            <tr><td>可用区</td><td>cn-wlcb-01</td></tr>
-            <tr><td>VPC</td><td>uvnet-l1iy0umj（DefaultVPC，10.60.0.0/16）</td></tr>
-            <tr><td>子网</td><td>subnet-32bsfnag（DefaultNetwork）</td></tr>
-          </tbody>
-        </table>
-
-        <h3>5.2 登录方式</h3>
-
+<h2>5. 资源清单</h2>
+<p>本次部署创建 9 个资源：</p>
+<table>
+<thead>
+<tr><th>资源类型</th><th>数量</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ucloud_instance</code></td><td>3</td><td>O 型 4C8G 云主机，Ubuntu 24.04，20GB RSSD 系统盘 + 200GB RSSD 数据盘</td></tr>
+<tr><td><code>ucloud_eip</code></td><td>3</td><td>BGP 弹性公网 IP，1Mbps 带宽</td></tr>
+<tr><td><code>ucloud_eip_association</code></td><td>3</td><td>EIP 绑定到云主机</td></tr>
+</tbody>
+</table>
+<h3>5.1 网络配置</h3>
+<table>
+<thead>
+<tr><th>项目</th><th>值</th></tr>
+</thead>
+<tbody>
+<tr><td>地域</td><td>cn-wlcb（乌兰察布）</td></tr>
+<tr><td>可用区</td><td>cn-wlcb-01</td></tr>
+<tr><td>VPC</td><td>uvnet-l1iy0umj（DefaultVPC，10.60.0.0/16）</td></tr>
+<tr><td>子网</td><td>subnet-32bsfnag（DefaultNetwork）</td></tr>
+</tbody>
+</table>
+<h3>5.2 登录方式</h3>
 <pre><code><span class="code-label">bash</span>ssh root@&lt;公网IP&gt;</code></pre>
-
-        <p>使用 SSH 密钥对（KeyPair ID: <code>6264dd</code>）登录，无需密码。</p>
-
-        <h3>5.3 数据盘初始化</h3>
-
-        <p>登录主机后执行：</p>
-
+<p>使用 SSH 密钥对（KeyPair ID: <code>6264dd</code>）登录，无需密码。</p>
+<h3>5.3 数据盘初始化</h3>
+<p>登录主机后执行：</p>
 <pre><code><span class="code-label">bash</span># 查看数据盘设备名（通常为 /dev/vdb）
 lsblk
 
@@ -333,176 +260,100 @@ mkdir -p /data
 mount /dev/vdb /data
 
 # 开机自动挂载
-echo '/dev/vdb /data ext4 defaults 0 0' >> /etc/fstab
+echo '/dev/vdb /data ext4 defaults 0 0' &gt;&gt; /etc/fstab
 
 # 验证
 df -h /data</code></pre>
-
-        <h2>6. 扩展指南</h2>
-
-        <h3>6.1 扩容（增加实例数）</h3>
-
-        <p>修改 <code>main.tf</code> 中 <code>count = 3</code> 为所需数量，然后 <code>terraform apply</code>。Terraform 会自动只创建新增的实例。</p>
-
-        <h3>6.2 缩容</h3>
-
-        <p>减少 <code>count</code> 值，<code>terraform apply</code> 会自动销毁多余的实例（从末尾编号开始移除）。</p>
-
-        <h3>6.3 升级配置</h3>
-
-        <p>修改 <code>instance_type</code>（如 <code>o-basic-4</code> → <code>o-basic-8</code>），需同时设置：</p>
-
+<h2>6. 扩展指南</h2>
+<h3>6.1 扩容（增加实例数）</h3>
+<p>修改 <code>main.tf</code> 中 <code>count = 3</code> 为所需数量，然后 <code>terraform apply</code>。Terraform 会自动只创建新增的实例。</p>
+<h3>6.2 缩容</h3>
+<p>减少 <code>count</code> 值，<code>terraform apply</code> 会自动销毁多余的实例（从末尾编号开始移除）。</p>
+<h3>6.3 升级配置</h3>
+<p>修改 <code>instance_type</code>（如 <code>o-basic-4</code> → <code>o-basic-8</code>），需同时设置：</p>
 <pre><code><span class="code-label">hcl</span>allow_stopping_for_update = true</code></pre>
+<p>Terraform 会先停机再变更配置。</p>
+<h3>6.4 添加更多资源</h3>
+<table>
+<thead>
+<tr><th>需求</th><th>添加资源类型</th></tr>
+</thead>
+<tbody>
+<tr><td>负载均衡</td><td><code>ucloud_lb</code> + <code>ucloud_lb_listener</code> + <code>ucloud_lb_attachment</code></td></tr>
+<tr><td>安全组</td><td><code>ucloud_security_group</code></td></tr>
+<tr><td>云数据库</td><td><code>ucloud_db_instance</code></td></tr>
+<tr><td>Redis</td><td><code>ucloud_redis_instance</code></td></tr>
+<tr><td>自定义 VPC</td><td><code>ucloud_vpc</code> + <code>ucloud_subnet</code></td></tr>
+</tbody>
+</table>
+<h2>7. 注意事项</h2>
+<ol>
+<li><strong>数据盘挂载方式</strong>：使用 <code>data_disks</code> 内联块随实例一起创建，避免独立 <code>ucloud_disk</code> + <code>ucloud_disk_attachment</code> 的并发竞态问题</li>
+<li><strong>ForceNew 字段</strong>：<code>availability_zone</code>、<code>boot_disk_type</code> 等字段变更会触发资源重建</li>
+<li><strong>计费模式</strong>：<code>charge_type = "dynamic"</code> 为按小时计费，生产环境建议改为 <code>month</code> 包月</li>
+<li><strong>状态文件</strong>：<code>terraform.tfstate</code> 包含敏感信息，生产环境应使用远程 Backend（如 S3）存储</li>
+<li><strong><code>terraform.tfvars</code></strong>：包含 API 密钥，已在 <code>.gitignore</code> 中排除，不得提交到版本库</li>
+</ol>
 
-        <p>Terraform 会先停机再变更配置。</p>
+          </div>
 
-        <h3>6.4 添加更多资源</h3>
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev disabled" href="#">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">没有更早的文章</span>
+              </a>
+              <a class="article-nav-link next disabled" href="#">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">没有更新的文章</span>
+              </a>
+            </nav>
 
-        <table>
-          <thead>
-            <tr><th>需求</th><th>添加资源类型</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>负载均衡</td><td><code>ucloud_lb</code> + <code>ucloud_lb_listener</code> + <code>ucloud_lb_attachment</code></td></tr>
-            <tr><td>安全组</td><td><code>ucloud_security_group</code></td></tr>
-            <tr><td>云数据库</td><td><code>ucloud_db_instance</code></td></tr>
-            <tr><td>Redis</td><td><code>ucloud_redis_instance</code></td></tr>
-            <tr><td>自定义 VPC</td><td><code>ucloud_vpc</code> + <code>ucloud_subnet</code></td></tr>
-          </tbody>
-        </table>
-
-        <h2>7. 注意事项</h2>
-
-        <ol>
-          <li><strong>数据盘挂载方式</strong>：使用 <code>data_disks</code> 内联块随实例一起创建，避免独立 <code>ucloud_disk</code> + <code>ucloud_disk_attachment</code> 的并发竞态问题</li>
-          <li><strong>ForceNew 字段</strong>：<code>availability_zone</code>、<code>boot_disk_type</code> 等字段变更会触发资源重建</li>
-          <li><strong>计费模式</strong>：<code>charge_type = "dynamic"</code> 为按小时计费，生产环境建议改为 <code>month</code> 包月</li>
-          <li><strong>状态文件</strong>：<code>terraform.tfstate</code> 包含敏感信息，生产环境应使用远程 Backend（如 S3）存储</li>
-          <li><strong><code>terraform.tfvars</code></strong>：包含 API 密钥，已在 <code>.gitignore</code> 中排除，不得提交到版本库</li>
-        </ol>
-
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><div class="empty-state">暂无相关文章</div></div>
+            </div>
+          </footer>
+        </div>
       </div>
+    </main>
 
-        <!-- TOC (auto-generated by JS) -->
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-      </div>
-      <!-- /article-layout -->
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-    </div>
-  </main>
-
-</div>
-
-<!-- Mobile TOC button + panel -->
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-// ===== Auto-generate TOC from h2/h3 =====
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var mobilePanel = document.getElementById('toc-mobile-panel');
-      if (mobilePanel) mobilePanel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-
-  // Scroll spy
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-
-  updateActiveToc();
-})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  </script>
 </body>
 </html>

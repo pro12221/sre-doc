@@ -1,280 +1,196 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NLP基础概念 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NLP基础概念 - SRE Notes</title>
+  <meta name="description" content="NLP 文本表示进化史：从 VSM 稀疏向量到 N-gram 接龙猜词，再到 Word2Vec 稠密语义向量和 ELMo 语境动态表示，一步步走向现代大模型。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item">
-          <span class="dot" style="background:var(--tag-k8s)"></span>
-          Kubernetes
-          <span class="count">2</span>
-        </a>
-        <a href="../index.html#go" class="nav-item">
-          <span class="dot" style="background:var(--tag-go)"></span>
-          Go
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#python" class="nav-item">
-          <span class="dot" style="background:var(--tag-python)"></span>
-          Python
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#devops" class="nav-item">
-          <span class="dot" style="background:var(--tag-devops)"></span>
-          DevOps
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#linux" class="nav-item">
-          <span class="dot" style="background:var(--tag-linux)"></span>
-          Linux
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#network" class="nav-item">
-          <span class="dot" style="background:var(--tag-network)"></span>
-          Network
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#ai" class="nav-item active">
-          <span class="dot" style="background:var(--tag-ai)"></span>
-          AI
-          <span class="count">8</span>
-        </a>
-      </div>
-
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
-          <span class="dot" style="background:#24292e"></span>
-          GitHub
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      &copy; 2026 Tech Notes
-    </div>
-  </aside>
-
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#ai">AI</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#ai">AI</a>
+          <span class="sep">/</span>
+          <span class="current">NLP基础概念</span>
         </div>
-        <h1>NLP基础概念</h1>
-        <div class="article-meta">
-          <span>
-            <span class="tag tag-ai">AI</span>
-          </span>
-          <span>2026-05-15</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
+        </div>
+      </header>
+
+      <div class="scroll-progress" data-progress></div>
+
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#ai">AI</a><span class="sep">/</span>
+              <span class="current">NLP基础概念</span>
+            </nav>
+            <h1>NLP基础概念</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-ai">AI</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-05-15
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                2 分钟阅读
+              </span>
+            </div>
+          </header>
+
+          <div class="article-content">
+            
+<h2>1. 文本表示的发展历程</h2>
+<h3>1.1 向量空间模型 (VSM) —— "查字典打钩"</h3>
+<p><strong>核心逻辑</strong>：准备一个巨大的词汇表，每篇文档就是在这个表里"打钩"。</p>
+<ul>
+<li><strong>例子</strong>：词汇表有1万个词，你的句子里出现了第5、10、100个词。那你的向量就是在第5、10、100个位置写"1"，其他9997个位置全是"0"。</li>
+<li><strong>大白话</strong>：就像在填一张超级长的表格，有这个词就打个勾。</li>
+<li><strong>缺点</strong>：
+            <ul>
+<li><strong>表格太长</strong>：绝大多数地方是空的（稀疏性）。</li>
+<li><strong>没脑子</strong>：它只看词有没有出现，不看顺序。比如"我不爱他"和"他不爱我"，生成的向量是一模一样的。</li>
+</ul>
+</li>
+</ul>
+<h3>1.2 N-gram 语言模型 —— "接龙猜词"</h3>
+<p><strong>核心逻辑</strong>：预测下一个词出现的概率。它认为一个词的出现只跟前面几个词有关。</p>
+<ul>
+<li><strong>例子</strong>：
+            <ul>
+<li><strong>2-gram (Bigram)</strong>：看到"吃"，猜后面大概率接"饭"，小概率接"药"。</li>
+<li><strong>3-gram (Trigram)</strong>：看到"我 喜欢"，猜后面大概率接"你"。</li>
+</ul>
+</li>
+<li><strong>大白话</strong>：根据前几个词推测下一个词。</li>
+<li><strong>缺点</strong>：它是"近视眼"，只能看到前面1-2个词。如果你写个长句子，它就记不住开头在说什么了。</li>
+</ul>
+<h3>1.3 Word2Vec —— "物以类聚，人以群分"</h3>
+<p><strong>核心逻辑</strong>：不再用几万维的稀疏向量，而是用几百维的"稠密数字"来代表词，且<strong>意思相近的词，数字也接近</strong>。</p>
+<ul>
+<li><strong>两种练功方式</strong>：
+            <ul>
+<li><strong>CBOW</strong>：根据周围的词（上下文）猜中间那个词。</li>
+<li><strong>Skip-Gram</strong>：根据中间那个词猜周围有哪些词。</li>
+</ul>
+</li>
+<li><strong>神奇之处</strong>：它能学到语义。在数学上，<code>国王 - 男人 + 女人 = 女王</code>。</li>
+<li><strong>缺点</strong>：<strong>"死脑子"</strong>。一个词一旦训练好，向量就固定了。比如"苹果"这个词，在"苹果手机"和"吃个苹果"里，它的向量是完全一样的。</li>
+</ul>
+<h3>1.4 ELMo —— "看心情（语境）变脸"</h3>
+<p><strong>核心逻辑</strong>：解决"一词多义"的问题。它会根据一句话的上下文，<strong>动态地</strong>计算词向量。</p>
+<ul>
+<li><strong>大白话</strong>：它像个翻译官，会根据语境给同一个词分配不同的含义。</li>
+<li><strong>例子</strong>：
+            <ul>
+<li>句子A："我今天买了一个<strong>苹果</strong>（电子产品）"。</li>
+<li>句子B："这个<strong>苹果</strong>（水果）真甜"。</li>
+<li>在 ELMo 里，这两个"苹果"的向量是不一样的。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：慢。因为它用的是一种叫 LSTM 的老架构，处理长句子非常费劲。</li>
+</ul>
+<h2>2. 总结：进化路线图</h2>
+<ol>
+<li><strong>VSM</strong>：最原始的统计，单纯看词出没出现。</li>
+<li><strong>N-gram</strong>：开始考虑词与词的接龙关系。</li>
+<li><strong>Word2Vec</strong>：开始理解词的内在含义，但不会变通。</li>
+<li><strong>ELMo</strong>：学会了根据语境实时调整词的含义（一词多义）。</li>
+</ol>
+
+          </div>
+
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev" href="../posts/ai常见术语.html">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">AI常见术语</span>
+              </a>
+              <a class="article-nav-link next" href="../posts/llm类型介绍.html">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">LLM类型介绍</span>
+              </a>
+            </nav>
+
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><a class="post-card" href="../posts/harness-engineering是什么.html"><div class="post-card-title">Harness Engineering 是什么</div><div class="post-card-desc">当 AI 智能体取代人类成为代码主要生产者时，工程师从&quot;写代码&quot;转向&quot;设计环境、明确意图、构建反馈回路&quot;，让智能体可靠执行——人类掌舵，智能体执行。</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a><a class="post-card" href="../posts/ai常见术语.html"><div class="post-card-title">AI常见术语</div><div class="post-card-desc">AI 基础术语详解：拟合与过拟合的区别、符号主义与联结主义的核心思想、权重和偏移量的作用、激活函数引入非线性的必要性。</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a><a class="post-card" href="../posts/llm类型介绍.html"><div class="post-card-title">LLM类型介绍</div><div class="post-card-desc">大语言模型分类概览：Base 模型与 Chat 模型的区别、多模态 LLM、Agent 模型、Code 模型，以及提示（Prompting）与微调（Fine-t…</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a></div>
+            </div>
+          </footer>
         </div>
       </div>
+    </main>
 
-      <div class="article-layout">
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-        <div class="article-content">
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-        <h2>1. 文本表示的发展历程</h2>
-
-        <h3>1.1 向量空间模型 (VSM) —— "查字典打钩"</h3>
-
-        <p><strong>核心逻辑</strong>：准备一个巨大的词汇表，每篇文档就是在这个表里"打钩"。</p>
-
-        <ul>
-          <li><strong>例子</strong>：词汇表有1万个词，你的句子里出现了第5、10、100个词。那你的向量就是在第5、10、100个位置写"1"，其他9997个位置全是"0"。</li>
-          <li><strong>大白话</strong>：就像在填一张超级长的表格，有这个词就打个勾。</li>
-          <li><strong>缺点</strong>：
-            <ul>
-              <li><strong>表格太长</strong>：绝大多数地方是空的（稀疏性）。</li>
-              <li><strong>没脑子</strong>：它只看词有没有出现，不看顺序。比如"我不爱他"和"他不爱我"，生成的向量是一模一样的。</li>
-            </ul>
-          </li>
-        </ul>
-
-        <h3>1.2 N-gram 语言模型 —— "接龙猜词"</h3>
-
-        <p><strong>核心逻辑</strong>：预测下一个词出现的概率。它认为一个词的出现只跟前面几个词有关。</p>
-
-        <ul>
-          <li><strong>例子</strong>：
-            <ul>
-              <li><strong>2-gram (Bigram)</strong>：看到"吃"，猜后面大概率接"饭"，小概率接"药"。</li>
-              <li><strong>3-gram (Trigram)</strong>：看到"我 喜欢"，猜后面大概率接"你"。</li>
-            </ul>
-          </li>
-          <li><strong>大白话</strong>：根据前几个词推测下一个词。</li>
-          <li><strong>缺点</strong>：它是"近视眼"，只能看到前面1-2个词。如果你写个长句子，它就记不住开头在说什么了。</li>
-        </ul>
-
-        <h3>1.3 Word2Vec —— "物以类聚，人以群分"</h3>
-
-        <p><strong>核心逻辑</strong>：不再用几万维的稀疏向量，而是用几百维的"稠密数字"来代表词，且<strong>意思相近的词，数字也接近</strong>。</p>
-
-        <ul>
-          <li><strong>两种练功方式</strong>：
-            <ul>
-              <li><strong>CBOW</strong>：根据周围的词（上下文）猜中间那个词。</li>
-              <li><strong>Skip-Gram</strong>：根据中间那个词猜周围有哪些词。</li>
-            </ul>
-          </li>
-          <li><strong>神奇之处</strong>：它能学到语义。在数学上，<code>国王 - 男人 + 女人 = 女王</code>。</li>
-          <li><strong>缺点</strong>：<strong>"死脑子"</strong>。一个词一旦训练好，向量就固定了。比如"苹果"这个词，在"苹果手机"和"吃个苹果"里，它的向量是完全一样的。</li>
-        </ul>
-
-        <h3>1.4 ELMo —— "看心情（语境）变脸"</h3>
-
-        <p><strong>核心逻辑</strong>：解决"一词多义"的问题。它会根据一句话的上下文，<strong>动态地</strong>计算词向量。</p>
-
-        <ul>
-          <li><strong>大白话</strong>：它像个翻译官，会根据语境给同一个词分配不同的含义。</li>
-          <li><strong>例子</strong>：
-            <ul>
-              <li>句子A："我今天买了一个<strong>苹果</strong>（电子产品）"。</li>
-              <li>句子B："这个<strong>苹果</strong>（水果）真甜"。</li>
-              <li>在 ELMo 里，这两个"苹果"的向量是不一样的。</li>
-            </ul>
-          </li>
-          <li><strong>缺点</strong>：慢。因为它用的是一种叫 LSTM 的老架构，处理长句子非常费劲。</li>
-        </ul>
-
-        <h2>2. 总结：进化路线图</h2>
-
-        <ol>
-          <li><strong>VSM</strong>：最原始的统计，单纯看词出没出现。</li>
-          <li><strong>N-gram</strong>：开始考虑词与词的接龙关系。</li>
-          <li><strong>Word2Vec</strong>：开始理解词的内在含义，但不会变通。</li>
-          <li><strong>ELMo</strong>：学会了根据语境实时调整词的含义（一词多义）。</li>
-        </ol>
-
-      </div>
-
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
-
-      </div>
-
-    </div>
-  </main>
-
-</div>
-
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var mobilePanel = document.getElementById('toc-mobile-panel');
-      if (mobilePanel) mobilePanel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-    li.appendChild(a);
-    tocList.appendChild(li);
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-  updateActiveToc();
-})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  </script>
 </body>
 </html>

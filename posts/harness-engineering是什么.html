@@ -1,341 +1,228 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harness Engineering 是什么 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harness Engineering 是什么 - SRE Notes</title>
+  <meta name="description" content="当 AI 智能体取代人类成为代码主要生产者时，工程师从&quot;写代码&quot;转向&quot;设计环境、明确意图、构建反馈回路&quot;，让智能体可靠执行——人类掌舵，智能体执行。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<!-- Mobile Toggle -->
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <!-- ====== Sidebar ====== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item">
-          <span class="dot" style="background:var(--tag-k8s)"></span>
-          Kubernetes
-          <span class="count">1</span>
-        </a>
-        <a href="../index.html#go" class="nav-item">
-          <span class="dot" style="background:var(--tag-go)"></span>
-          Go
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#python" class="nav-item">
-          <span class="dot" style="background:var(--tag-python)"></span>
-          Python
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#devops" class="nav-item">
-          <span class="dot" style="background:var(--tag-devops)"></span>
-          DevOps
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#linux" class="nav-item">
-          <span class="dot" style="background:var(--tag-linux)"></span>
-          Linux
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#network" class="nav-item">
-          <span class="dot" style="background:var(--tag-network)"></span>
-          Network
-          <span class="count">0</span>
-        </a>
-        <a href="../index.html#ai" class="nav-item active">
-          <span class="dot" style="background:var(--tag-ai)"></span>
-          AI
-          <span class="count">1</span>
-        </a>
-      </div>
-
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank">
-          <span class="dot" style="background:#24292e"></span>
-          GitHub
-        </a>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      &copy; 2026 Tech Notes
-    </div>
-  </aside>
-
-  <!-- ====== Main Content ====== -->
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#ai">AI</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#ai">AI</a>
+          <span class="sep">/</span>
+          <span class="current">Harness Engineering …</span>
         </div>
-        <h1>Harness Engineering 是什么</h1>
-        <div class="article-meta">
-          <span>
-            <span class="tag tag-ai">AI</span>
-          </span>
-          <span>2026-05-15</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div class="article-layout">
+      <div class="scroll-progress" data-progress></div>
 
-        <div class="article-content">
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#ai">AI</a><span class="sep">/</span>
+              <span class="current">Harness Engineering 是什么</span>
+            </nav>
+            <h1>Harness Engineering 是什么</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-ai">AI</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-05-15
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                4 分钟阅读
+              </span>
+            </div>
+          </header>
 
-        <h2>1. 一句话定义</h2>
-
-        <p><strong>Harness Engineering（驾驭工程）</strong>：当 AI 智能体取代人类成为代码的主要生产者时，工程师的核心工作从"写代码"转向"设计环境、明确意图、构建反馈回路"，让智能体可靠地执行。<strong>人类掌舵，智能体执行。</strong></p>
-
-        <h2>2. 核心发现</h2>
-
-        <p>OpenAI 用 3 名工程师 + Codex，5 个月内交付了一个约 <strong>100 万行代码</strong>的产品（有真实内外部用户），合并了约 1,500 个 PR，效率约为手工编码的 <strong>10 倍</strong>。全程 <strong>零行人工代码</strong>。</p>
-
-        <h2>3. 六条关键原则</h2>
-
-        <table>
-          <thead>
-            <tr><th>#</th><th>原则</th><th>含义</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1</td>
-              <td><strong>代码仓库是唯一的记录系统</strong></td>
-              <td>智能体看不到的东西等于不存在。Slack 讨论、Google Docs 中的决策必须编码进仓库，否则智能体无法发现。给智能体的是<strong>地图（AGENTS.md），而非百科全书</strong>。</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td><strong>为智能体可读性优化</strong></td>
-              <td>代码和文档的首要读者是 AI，不是人。选择"无聊但稳定"的技术栈（API 稳定、训练集中常见），某些场景下自己重写比绕过不透明的第三方库更划算。</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td><strong>强制不变量，不微管实现</strong></td>
-              <td>架构边界通过自定义 linter + 结构测试<strong>机械执行</strong>（如分层依赖方向、边界解析数据形状），但实现细节留给智能体自由发挥。约束让速度不降、架构不漂移。</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td><strong>吞吐量改变合并理念</strong></td>
-              <td>高吞吐下，纠错成本低、等待成本高。PR 生命周期短，偶发测试失败不阻塞合并，智能体可自行压缩合并自己的 PR。</td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td><strong>品味编码为规则</strong></td>
-              <td>人类的审查反馈、重构偏好不留在脑子里，而是转化为 linter 规则或文档更新。<strong>当文档不够时，把规则写成代码。</strong></td>
-            </tr>
-            <tr>
-              <td>6</td>
-              <td><strong>持续垃圾回收</strong></td>
-              <td>智能体会复现仓库中的坏模式，导致漂移。解决方案：定期运行后台 Codex 任务扫描偏差、发起重构 PR（类似 GC），每天还债而非累积后一次性偿还。</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h2>4. 工程师角色转变</h2>
-
-        <table>
-          <thead>
-            <tr><th>传统</th><th>Harness Engineering</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>编写代码</td><td>设计环境与约束</td></tr>
-            <tr><td>Code Review</td><td>构建自动化审查回路（智能体审智能体）</td></tr>
-            <tr><td>手动 QA</td><td>赋予智能体可观测性（日志/指标/追踪）+ Chrome DevTools 协议驱动 UI 验证</td></tr>
-            <tr><td>解决技术债</td><td>将还债编码为自动化流程</td></tr>
-            <tr><td>文档维护</td><td>CI 强制文档新鲜度，doc-gardening 智能体自动修复过期文档</td></tr>
-          </tbody>
-        </table>
-
-        <h2>5. 智能体端到端自主能力</h2>
-
-        <p>给定一个提示，Codex 可以完成以下全流程：</p>
-
-        <div class="flow-steps">
-          <div class="flow-step"><strong>复现 Bug</strong>使用 Chrome DevTools 协议驱动应用，捕获故障状态</div>
-          <div class="flow-step"><strong>录制故障视频</strong>记录问题发生的完整过程</div>
-          <div class="flow-step"><strong>实施修复</strong>在代码库中定位并修改代码</div>
-          <div class="flow-step"><strong>验证修复</strong>重启应用，通过 UI 自动化确认问题已解决</div>
-          <div class="flow-step"><strong>录制修复视频</strong>记录解决方案的完整演示</div>
-          <div class="flow-step"><strong>开 PR 并回应审阅</strong>处理智能体和人类的反馈，修复构建故障</div>
-          <div class="flow-step"><strong>合并</strong>仅在需要人类判断时才交由人工处理</div>
-        </div>
-
-        <h2>6. 核心洞察</h2>
-
-        <div class="highlight-box">
-          <p>构建软件仍然需要纪律，但纪律更多地体现在<strong>支撑结构</strong>上，而不是代码上。工具、抽象和反馈回路变得比代码本身更重要。</p>
-        </div>
-
-        <p>Harness Engineering 的本质：不是让 AI 替你写代码，而是构建一套"驾驭系统"——让智能体在结构化、可验证、有反馈的环境中自主运行，人类只在关键判断点介入。</p>
-
-        <h2>7. 关键实践细节</h2>
-
-        <h3>7.1 渐进式情境披露</h3>
-
-        <p>AGENTS.md 保持约 100 行，作为内容目录指向 <code>docs/</code> 目录中的深层信息。设计文档已编目索引，执行计划作为一等工件被版本控制。智能体从小而稳定的切入点开始，被引导去查看下一步需要的信息，而不是一开始就被淹没。</p>
-
-        <h3>7.2 架构分层模型</h3>
-
-        <p>每个业务域划分为固定的层，依赖方向严格验证：</p>
-
-        <div class="flow-diagram">Types → Config → Repo → Service → Runtime → UI
+          <div class="article-content">
+            
+<h2>1. 一句话定义</h2>
+<p><strong>Harness Engineering（驾驭工程）</strong>：当 AI 智能体取代人类成为代码的主要生产者时，工程师的核心工作从"写代码"转向"设计环境、明确意图、构建反馈回路"，让智能体可靠地执行。<strong>人类掌舵，智能体执行。</strong></p>
+<h2>2. 核心发现</h2>
+<p>OpenAI 用 3 名工程师 + Codex，5 个月内交付了一个约 <strong>100 万行代码</strong>的产品（有真实内外部用户），合并了约 1,500 个 PR，效率约为手工编码的 <strong>10 倍</strong>。全程 <strong>零行人工代码</strong>。</p>
+<h2>3. 六条关键原则</h2>
+<table>
+<thead>
+<tr><th>#</th><th>原则</th><th>含义</th></tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>代码仓库是唯一的记录系统</strong></td>
+<td>智能体看不到的东西等于不存在。Slack 讨论、Google Docs 中的决策必须编码进仓库，否则智能体无法发现。给智能体的是<strong>地图（AGENTS.md），而非百科全书</strong>。</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>为智能体可读性优化</strong></td>
+<td>代码和文档的首要读者是 AI，不是人。选择"无聊但稳定"的技术栈（API 稳定、训练集中常见），某些场景下自己重写比绕过不透明的第三方库更划算。</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>强制不变量，不微管实现</strong></td>
+<td>架构边界通过自定义 linter + 结构测试<strong>机械执行</strong>（如分层依赖方向、边界解析数据形状），但实现细节留给智能体自由发挥。约束让速度不降、架构不漂移。</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>吞吐量改变合并理念</strong></td>
+<td>高吞吐下，纠错成本低、等待成本高。PR 生命周期短，偶发测试失败不阻塞合并，智能体可自行压缩合并自己的 PR。</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>品味编码为规则</strong></td>
+<td>人类的审查反馈、重构偏好不留在脑子里，而是转化为 linter 规则或文档更新。<strong>当文档不够时，把规则写成代码。</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>持续垃圾回收</strong></td>
+<td>智能体会复现仓库中的坏模式，导致漂移。解决方案：定期运行后台 Codex 任务扫描偏差、发起重构 PR（类似 GC），每天还债而非累积后一次性偿还。</td>
+</tr>
+</tbody>
+</table>
+<h2>4. 工程师角色转变</h2>
+<table>
+<thead>
+<tr><th>传统</th><th>Harness Engineering</th></tr>
+</thead>
+<tbody>
+<tr><td>编写代码</td><td>设计环境与约束</td></tr>
+<tr><td>Code Review</td><td>构建自动化审查回路（智能体审智能体）</td></tr>
+<tr><td>手动 QA</td><td>赋予智能体可观测性（日志/指标/追踪）+ Chrome DevTools 协议驱动 UI 验证</td></tr>
+<tr><td>解决技术债</td><td>将还债编码为自动化流程</td></tr>
+<tr><td>文档维护</td><td>CI 强制文档新鲜度，doc-gardening 智能体自动修复过期文档</td></tr>
+</tbody>
+</table>
+<h2>5. 智能体端到端自主能力</h2>
+<p>给定一个提示，Codex 可以完成以下全流程：</p>
+<div class="flow-steps">
+<div class="flow-step"><strong>复现 Bug</strong>使用 Chrome DevTools 协议驱动应用，捕获故障状态</div>
+<div class="flow-step"><strong>录制故障视频</strong>记录问题发生的完整过程</div>
+<div class="flow-step"><strong>实施修复</strong>在代码库中定位并修改代码</div>
+<div class="flow-step"><strong>验证修复</strong>重启应用，通过 UI 自动化确认问题已解决</div>
+<div class="flow-step"><strong>录制修复视频</strong>记录解决方案的完整演示</div>
+<div class="flow-step"><strong>开 PR 并回应审阅</strong>处理智能体和人类的反馈，修复构建故障</div>
+<div class="flow-step"><strong>合并</strong>仅在需要人类判断时才交由人工处理</div>
+</div>
+<h2>6. 核心洞察</h2>
+<div class="highlight-box">
+<p>构建软件仍然需要纪律，但纪律更多地体现在<strong>支撑结构</strong>上，而不是代码上。工具、抽象和反馈回路变得比代码本身更重要。</p>
+</div>
+<p>Harness Engineering 的本质：不是让 AI 替你写代码，而是构建一套"驾驭系统"——让智能体在结构化、可验证、有反馈的环境中自主运行，人类只在关键判断点介入。</p>
+<h2>7. 关键实践细节</h2>
+<h3>7.1 渐进式情境披露</h3>
+<p>AGENTS.md 保持约 100 行，作为内容目录指向 <code>docs/</code> 目录中的深层信息。设计文档已编目索引，执行计划作为一等工件被版本控制。智能体从小而稳定的切入点开始，被引导去查看下一步需要的信息，而不是一开始就被淹没。</p>
+<h3>7.2 架构分层模型</h3>
+<p>每个业务域划分为固定的层，依赖方向严格验证：</p>
+<div class="flow-diagram">Types → Config → Repo → Service → Runtime → UI
                     ↕
               Providers（横切关注点：认证、连接器、遥测、功能标志）</div>
+<p>自定义 linter 和结构测试强制执行这些规则，错误信息中直接注入修复指令。</p>
+<h3>7.3 熵与垃圾回收</h3>
+<p>智能体会复现仓库中已有的模式——包括不理想的模式。解决方案是将"黄金原则"编码到仓库中，并建立循环清理流程：</p>
+<ul>
+<li>优先共享工具包而非手写辅助函数，集中管理不变量</li>
+<li>不使用"YOLO 式"探测数据，验证边界或依赖类型化 SDK</li>
+<li>定期运行后台 Codex 任务扫描偏差并发起重构 PR</li>
+<li>大多数重构 PR 可在一分钟内审查并自动合并</li>
+</ul>
+<p>技术债务就像高息贷款：持续小额偿还远好于累积后一次性解决。</p>
 
-        <p>自定义 linter 和结构测试强制执行这些规则，错误信息中直接注入修复指令。</p>
+          </div>
 
-        <h3>7.3 熵与垃圾回收</h3>
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev disabled" href="#">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">没有更早的文章</span>
+              </a>
+              <a class="article-nav-link next" href="../posts/ai常见术语.html">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">AI常见术语</span>
+              </a>
+            </nav>
 
-        <p>智能体会复现仓库中已有的模式——包括不理想的模式。解决方案是将"黄金原则"编码到仓库中，并建立循环清理流程：</p>
-
-        <ul>
-          <li>优先共享工具包而非手写辅助函数，集中管理不变量</li>
-          <li>不使用"YOLO 式"探测数据，验证边界或依赖类型化 SDK</li>
-          <li>定期运行后台 Codex 任务扫描偏差并发起重构 PR</li>
-          <li>大多数重构 PR 可在一分钟内审查并自动合并</li>
-        </ul>
-
-        <p>技术债务就像高息贷款：持续小额偿还远好于累积后一次性解决。</p>
-
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><a class="post-card" href="../posts/ai常见术语.html"><div class="post-card-title">AI常见术语</div><div class="post-card-desc">AI 基础术语详解：拟合与过拟合的区别、符号主义与联结主义的核心思想、权重和偏移量的作用、激活函数引入非线性的必要性。</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a><a class="post-card" href="../posts/nlp基础概念.html"><div class="post-card-title">NLP基础概念</div><div class="post-card-desc">NLP 文本表示进化史：从 VSM 稀疏向量到 N-gram 接龙猜词，再到 Word2Vec 稠密语义向量和 ELMo 语境动态表示，一步步走向现代大模型。</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a><a class="post-card" href="../posts/llm类型介绍.html"><div class="post-card-title">LLM类型介绍</div><div class="post-card-desc">大语言模型分类概览：Base 模型与 Chat 模型的区别、多模态 LLM、Agent 模型、Code 模型，以及提示（Prompting）与微调（Fine-t…</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a></div>
+            </div>
+          </footer>
+        </div>
       </div>
+    </main>
 
-        <!-- TOC (auto-generated by JS) -->
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-      </div>
-      <!-- /article-layout -->
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-    </div>
-  </main>
-
-</div>
-
-<!-- Mobile TOC button + panel -->
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-
-function toggleMobileToc() {
-  document.getElementById('toc-mobile-panel').classList.toggle('show');
-}
-
-// ===== Auto-generate TOC from h2/h3 =====
-(function() {
-  var content = document.querySelector('.article-content');
-  if (!content) return;
-
-  var headings = content.querySelectorAll('h2, h3');
-  var tocList = document.getElementById('toc-list');
-  var tocMobileList = document.getElementById('toc-mobile-list');
-  if (!tocList || headings.length === 0) return;
-
-  var counter = 0;
-  headings.forEach(function(h) {
-    counter++;
-    var slug = 'section-' + counter;
-    h.id = slug;
-
-    var li = document.createElement('li');
-    li.className = 'toc-item';
-
-    var a = document.createElement('a');
-    a.className = 'toc-link' + (h.tagName === 'H3' ? ' level-h3' : '');
-    a.href = '#' + slug;
-    a.textContent = h.textContent;
-    a.setAttribute('data-target', slug);
-
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var target = document.getElementById(slug);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      var mobilePanel = document.getElementById('toc-mobile-panel');
-      if (mobilePanel) mobilePanel.classList.remove('show');
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
     });
-
-    li.appendChild(a);
-    tocList.appendChild(li);
-
-    if (tocMobileList) {
-      var li2 = li.cloneNode(true);
-      li2.querySelector('a').addEventListener('click', function(e) {
-        e.preventDefault();
-        var target = document.getElementById(slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('toc-mobile-panel').classList.remove('show');
-      });
-      tocMobileList.appendChild(li2);
-    }
-  });
-
-  // Scroll spy
-  var allTocLinks = document.querySelectorAll('.toc-link');
-  var allHeadings = content.querySelectorAll('h2, h3');
-
-  function updateActiveToc() {
-    var scrollTop = window.scrollY || document.documentElement.scrollTop;
-    var currentId = '';
-    allHeadings.forEach(function(h) {
-      if (h.offsetTop - 60 <= scrollTop) currentId = h.id;
-    });
-    allTocLinks.forEach(function(link) {
-      link.classList.toggle('active', link.getAttribute('data-target') === currentId);
-    });
-  }
-
-  var ticking = false;
-  window.addEventListener('scroll', function() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() { updateActiveToc(); ticking = false; });
-      ticking = true;
-    }
-  });
-
-  updateActiveToc();
-})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  </script>
 </body>
 </html>

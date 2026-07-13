@@ -1,361 +1,341 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>大模型怎么练出来 - Tech Notes</title>
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大模型怎么练出来 - SRE Notes</title>
+  <meta name="description" content="从数据准备到模型部署的完整流程：Tokenizer (BPE)、数据清洗八步骤、预训练与后训练 (SFT/RLHF/DPO)、神经网络训练原理与反向传播。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/doc.css">
+  <link rel="stylesheet" href="../css/content.css">
+  <link rel="stylesheet" href="../css/components.css">
 </head>
 <body>
+  <div class="app-shell with-toc">
+    <aside class="sidebar" data-sidebar></aside>
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-<div class="layout">
-
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="../index.html" class="blog-title"><span class="icon">📒</span> Tech Notes</a>
-      <div class="blog-subtitle">技术笔记 · 持续更新</div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">分类</div>
-        <a href="../index.html#kubernetes" class="nav-item"><span class="dot" style="background:var(--tag-k8s)"></span>Kubernetes<span class="count">2</span></a>
-        <a href="../index.html#go" class="nav-item"><span class="dot" style="background:var(--tag-go)"></span>Go<span class="count">0</span></a>
-        <a href="../index.html#python" class="nav-item"><span class="dot" style="background:var(--tag-python)"></span>Python<span class="count">0</span></a>
-        <a href="../index.html#devops" class="nav-item"><span class="dot" style="background:var(--tag-devops)"></span>DevOps<span class="count">0</span></a>
-        <a href="../index.html#linux" class="nav-item"><span class="dot" style="background:var(--tag-linux)"></span>Linux<span class="count">0</span></a>
-        <a href="../index.html#network" class="nav-item"><span class="dot" style="background:var(--tag-network)"></span>Network<span class="count">1</span></a>
-        <a href="../index.html#ai" class="nav-item active"><span class="dot" style="background:var(--tag-ai)"></span>AI<span class="count">8</span></a>
-      </div>
-      <div class="nav-section" style="margin-top:16px">
-        <div class="nav-section-title">链接</div>
-        <a href="https://github.com/pro12221" class="nav-item" target="_blank"><span class="dot" style="background:#24292e"></span>GitHub</a>
-      </div>
-    </nav>
-    <div class="sidebar-footer">&copy; 2026 Tech Notes</div>
-  </aside>
-
-  <main class="main">
-    <div class="content-wrapper">
-
-      <div class="article-header">
-        <div class="breadcrumb">
-          <a href="../index.html">首页</a> / <a href="../index.html#ai">AI</a>
+    <main class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle-mobile" data-sidebar-toggle aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-breadcrumb">
+          <span class="prompt">~</span>
+          <span class="sep">/</span>
+          <a href="../index.html">home</a>
+          <span class="sep">/</span>
+          <a href="../index.html#ai">AI</a>
+          <span class="sep">/</span>
+          <span class="current">大模型怎么练出来</span>
         </div>
-        <h1>大模型怎么练出来</h1>
-        <div class="article-meta">
-          <span><span class="tag tag-ai">AI</span></span>
-          <span>2026-05-15</span>
-      <button class="full-width-toggle" id="full-width-toggle" title="切换全宽">
-        <svg class="fw-icon-expand" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5L1 9l4 4"/><path d="M13 5l4 4-4 4"/></svg>
-        <svg class="fw-icon-collapse" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9h16"/><path d="M5 5l4 4-4 4"/><path d="M13 5l-4 4 4 4"/></svg>
-      </button>
+        <div class="topbar-actions">
+          <button class="topbar-btn" data-palette-open aria-label="Search articles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="topbar-btn" data-theme-toggle aria-label="Toggle theme">
+            <svg data-theme-icon="dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg data-theme-icon="light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <a class="topbar-btn" href="https://github.com/pro12221" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div class="article-layout">
-        <div class="article-content">
+      <div class="scroll-progress" data-progress></div>
 
-        <p>造一个大模型，不管是 GPT-4、Claude 还是 Llama，本质上都要搞定五件事：</p>
+      <div class="content-scroll" data-content-scroll>
+        <div class="page">
+          <header class="article-header">
+            <nav class="breadcrumb">
+              <span class="prompt">~</span><span class="sep">/</span>
+              <a href="../index.html">home</a><span class="sep">/</span>
+              <a href="../index.html#ai">AI</a><span class="sep">/</span>
+              <span class="current">大模型怎么练出来</span>
+            </nav>
+            <h1>大模型怎么练出来</h1>
+            <div class="article-meta-row">
+              <span class="tag tag-ai">AI</span>
+              
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                2026-05-15
+              </span>
+              <span class="meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                12 分钟阅读
+              </span>
+            </div>
+          </header>
 
-        <ol>
-          <li><strong>架构（Architecture）</strong>：用什么样的神经网络？目前答案几乎统一——Transformer。</li>
-          <li><strong>训练算法和损失函数（Training Algorithm &amp; Loss）</strong>：怎么训？优化什么目标？</li>
-          <li><strong>数据（Data）</strong>：喂什么样的数据进去？</li>
-          <li><strong>评估（Evaluation）</strong>：怎么判断模型好不好？</li>
-          <li><strong>系统工程（Systems）</strong>：怎么让训练跑得动、跑得快？</li>
-        </ol>
-
-        <h2>1. Tokenizer</h2>
-
-        <p>你可能知道大模型的输入输出都是 token，但你想过一个问题没有：<strong>文本是怎么变成 token 的？</strong></p>
-
-        <p>最简单的想法是按词切分——"我 喜欢 吃 苹果"，每个词一个 token。但这有个问题：如果遇到一个拼写错误的词，比如"苹菓"，你的词表里没有，就没法处理了。</p>
-
-        <p>另一个极端是按字符切分——每个字符一个 token。这倒是能处理所有情况，但序列会变得超长。你知道 Transformer 的计算复杂度是跟序列长度的平方成正比的，序列太长计算量会爆炸。</p>
-
-        <p>所以实际用的是一种折中方案——<strong>BPE（Byte Pair Encoding，字节对编码）</strong>。</p>
-
-        <p>BPE 的原理很直观：</p>
-        <ol>
-          <li>先把所有文本拆成最小单元（字符级别）</li>
-          <li>统计哪些相邻字符组合出现得最频繁</li>
-          <li>把最频繁的组合合并成一个新 token</li>
-          <li>重复步骤 2-3，直到达到目标词表大小</li>
-        </ol>
-
-        <p>举个例子。假设语料库里有这些词：token、tokenizer、to、today。</p>
-        <ul>
-          <li>第一步：全拆成字符 → t, o, k, e, n, i, z, e, r, t, o, t, o, d, a, y</li>
-          <li>第二步：统计发现 "t" 和 "o" 出现在一起最多 → 合并成 "to" 这个新 token</li>
-          <li>第三步：统计发现 "to" 和 "k" 出现在一起比较多 → 合并成 "tok"</li>
-        </ul>
-
-        <p>就这样一直合并下去。最终，常见的词（比如 "token"）会变成一个完整的 token，而罕见的词会被拆成几个子 token。</p>
-
-        <p>平均下来，<strong>一个 token 大约对应 3-4 个英文字母</strong>。中文的话，一个汉字通常对应 1-2 个 token。</p>
-
-        <h2>2. 数据</h2>
-
-        <h3>2.1 步骤 1：下载"整个互联网"</h3>
-        <p>用网络爬虫爬取网页。比较常用的公开数据集是 Common Crawl，它每个月都会更新，把互联网上的新网页加进来。目前 Common Crawl 包含大约 2500 亿个页面。</p>
-
-        <h3>2.2 步骤 2：提取正文文本</h3>
-        <p>把 HTML 里的实际文本内容提取出来，去掉标签、广告、导航栏、页脚等。这一步看似简单，但实际很麻烦：</p>
-        <ul>
-          <li>数学公式的提取特别难（LaTeX 格式、MathML 格式、图片格式...）</li>
-          <li>很多论坛和网站有固定的头部和尾部模板（boilerplate），每个页面都重复，要去掉</li>
-          <li>有些网站的正文是通过 JavaScript 动态加载的，爬虫可能抓不到</li>
-        </ul>
-
-        <h3>2.3 步骤 3：过滤有害内容</h3>
-        <p>NSFW 内容、仇恨言论、个人隐私信息（PII）... 这些都要过滤掉。通常的做法是维护一个巨大的黑名单（特定网站直接排除），同时训练一个小型分类器来自动检测有害内容。</p>
-
-        <h3>2.4 步骤 4：去重</h3>
-        <p>这一步非常重要，也非常消耗计算资源。去重的对象包括：</p>
-        <ul>
-          <li><strong>URL 去重</strong>：不同的 URL 可能指向同一个页面</li>
-          <li><strong>内容去重</strong>：论坛的头部、尾部模板在所有帖子里都一样</li>
-          <li><strong>段落去重</strong>：某些经典段落（比如常见书籍的片段）可能在互联网上被复制了成千上万次</li>
-        </ul>
-
-        <div class="highlight-box">
-          <p><strong>💡 提示：</strong>如果不做去重，模型会在这些重复内容上过拟合，导致后面使用时经常背出原文。</p>
-        </div>
-
-        <h3>2.5 步骤 5：启发式质量过滤</h3>
-        <p>用规则来过滤低质量文档：</p>
-        <ul>
-          <li>如果一个网页只有 3 个词 → 大概率没啥用</li>
-          <li>如果一个网页有 1000 万个词 → 可能是某种数据 dump，不是正常文章</li>
-          <li>如果文档中的词长分布异常（平均词长超长或超短） → 可能是乱码或机器生成</li>
-        </ul>
-        <p>这些规则看起来很粗暴，但在 2500 亿页面的规模上，粗暴的规则反而最高效。</p>
-
-        <h3>2.6 步骤 6：基于模型的质量过滤</h3>
-        <p>这个方法很巧妙：用维基百科做正面样本。逻辑是这样的——维基百科上引用的外部链接，通常指向高质量的网站。所以你可以训练一个分类器，判断一个文档"看起来像不像被维基百科引用的那种质量"。用这个分类器给所有文档打分，保留高分的。</p>
-
-        <h3>2.7 步骤 7：领域分类和权重调整</h3>
-        <p>把数据分成不同的领域：代码、书籍、新闻、娱乐、学术论文、社交媒体...然后根据经验调整各领域的权重。业界有几个广泛认可的经验：</p>
-        <ul>
-          <li><strong>代码要多加</strong>：训练更多的代码数据居然能提升模型的推理能力，不只是代码能力。这个发现很反直觉，但已经被多个团队验证</li>
-          <li><strong>书籍要多加</strong>：书籍的文本质量通常比网页高，语言更规范、逻辑更连贯</li>
-          <li><strong>娱乐内容要降权</strong>：八卦、短视频文案这类内容对模型的通用能力帮助不大</li>
-        </ul>
-        <p>过去这些权重调整主要靠人工经验（"拍脑袋"），现在已经有了更系统化的自动搜索方法。</p>
-
-        <h3>2.8 步骤 8：训练末期用高质量数据精调</h3>
-        <p>在预训练的最后阶段，通常会把学习率降得很低，然后在非常高质量的数据上再过几遍——比如维基百科、精选书籍、人工标注的数据。相当于最后阶段"精修"一下。</p>
-
-        <h2>3. 预训练（Pre-training）与后训练（Post-training）</h2>
-
-        <p>预训练出来的模型是个什么东西？它是一个<strong>互联网文档生成器</strong>。你给它一个问题，它不会回答你，而是继续生成更多问题——因为在互联网上，一个问题后面跟的往往不是答案，而是另一个问题。</p>
-
-        <p>这就是为什么需要后训练——把"文档续写器"变成"问答助手"。</p>
-
-        <h3>3.1 SFT（Supervised Fine-Tuning，监督微调）</h3>
-
-        <p>后训练的第一步叫 <strong>SFT（Supervised Fine-Tuning，监督微调）</strong>。</p>
-
-        <p>怎么理解？预训练阶段，模型学到了"互联网上所有人的说话方式"——有些人写答案，有些人写问题，有些人写代码，有些人写段子。SFT 做的事情是告诉模型："你不需要模仿所有人，你只需要模仿那种'有用的助手'的说话方式就行了。"</p>
-
-        <h3>3.2 RLHF（Reinforcement Learning from Human Feedback）</h3>
-
-        <p>SFT 的问题在于它是"行为克隆（Behavioral Cloning）"——直接模仿人类标注员写的答案。这有几个局限：</p>
-
-        <ul>
-          <li><strong>问题 1：受限于人类的生成能力。</strong>你让一个标注员写一篇关于量子物理的通俗解释，他可能写得一般。但如果你给他两篇不同的解释让他选哪篇更好，他大概率能选对。<strong>判断能力 &gt; 生成能力</strong>——这是人类的普遍特征。RLHF 就利用了这一点：不让人类写完美答案，而是让人类在两个 AI 生成的答案里选更好的那个。</li>
-          <li><strong>问题 2：SFT 可能加剧幻觉。</strong></li>
-          <li><strong>问题 3：收集人工撰写的完美答案非常贵。</strong></li>
-        </ul>
-
-        <p><strong>RLHF 的具体流程</strong>：</p>
-        <ol>
-          <li><strong>生成候选答案</strong>：给定一个问题，让当前模型生成两个（或多个）不同的回答</li>
-          <li><strong>人类标注偏好</strong>：让标注员看这两个回答，选出更好的那个</li>
-          <li><strong>训练奖励模型（Reward Model）</strong>：用这些偏好数据训练一个分类器，让它能自动给任意回答打分——分数越高表示越接近人类偏好</li>
-          <li><strong>用强化学习优化模型</strong>：以奖励模型的打分作为奖励信号，用 PPO（近端策略优化）算法来调整语言模型的参数</li>
-        </ol>
-
-        <h3>3.3 DPO（Direct Preference Optimization）</h3>
-
-        <p><strong>DPO（Direct Preference Optimization，直接偏好优化）</strong> 是 2023 年 Stanford 提出的方法，核心思想极其简洁：<strong>不需要训练奖励模型，不需要强化学习。直接在偏好数据上做监督学习就行。</strong></p>
-
-        <p>具体来说：</p>
-        <ul>
-          <li>你有一对回答：一个人类更喜欢的（好答案）、一个人类不太喜欢的（差答案）</li>
-          <li>DPO 的损失函数就是：<strong>增大好答案的生成概率，减小差答案的生成概率</strong></li>
-        </ul>
-
-        <h2>4. 一个大模型的完整出生过程</h2>
-
-        <h3>4.1 第一阶段：准备数据（几个月）</h3>
-        <ol>
-          <li>用爬虫下载互联网网页</li>
-          <li>提取正文文本</li>
-          <li>过滤有害内容</li>
-          <li>去重</li>
-          <li>质量过滤（规则 + 模型）</li>
-          <li>领域分类和权重调整</li>
-          <li>最终清洗</li>
-        </ol>
-
-        <h3>4.2 第二阶段：预训练（几个月，花费几千万美金）</h3>
-        <ol>
-          <li>设计 tokenizer，在语料上训练 BPE</li>
-          <li>确定模型架构（基本就是 Transformer，调一些超参数）</li>
-          <li>用 Scaling Laws 确定最优的模型大小和数据量</li>
-          <li>在 GPU 集群上训练，监控 loss 曲线</li>
-          <li>训练末期用高质量数据精修</li>
-        </ol>
-        <p>产出：<strong>基座模型（Base Model）</strong>——能续写文档，但不会回答问题。</p>
-
-        <h3>4.3 第三阶段：监督微调 / SFT（几天）</h3>
-        <ol>
-          <li>收集几千到几万条高质量问答对（人工 + AI 辅助）</li>
-          <li>在基座模型上继续训练</li>
-          <li>模型学会以"助手"的口吻回答问题</li>
-        </ol>
-        <p>产出：<strong>SFT 模型</strong>——能回答问题，但回答质量参差不齐。</p>
-
-        <h3>4.4 第四阶段：偏好对齐 / RLHF 或 DPO（几天到几周）</h3>
-        <ol>
-          <li>收集偏好数据（人类标注 + AI 辅助）</li>
-          <li>用 PPO 或 DPO 进一步优化模型</li>
-          <li>迭代多轮</li>
-        </ol>
-        <p>产出：<strong>对齐模型（Aligned Model）</strong>——回答质量稳定，懂得拒绝有害请求。</p>
-
-        <h3>4.5 第五阶段：评估和部署</h3>
-        <ol>
-          <li>在多个基准测试上评估</li>
-          <li>内部红队测试（找安全漏洞）</li>
-          <li>A/B 测试</li>
-          <li>上线，收集用户反馈</li>
-          <li>用反馈数据开始下一轮迭代</li>
-        </ol>
-
-        <p>整个过程下来，从开始准备数据到模型上线，通常需要<strong>半年到一年</strong>。这就是为什么模型更新不是连续的——它是一个长周期的工程项目。你用的每一个 API 背后，都是一个团队几个月的高强度工作。</p>
-
-        <h2>5. 神经网络的训练过程</h2>
-
-        <p>神经网络通过<strong>正向传播</strong>产生预测，通过<strong>损失函数</strong>评估错误，再通过<strong>反向传播</strong>计算每个参数的贡献，最后用<strong>优化算法</strong>（如梯度下降）来<strong>调整权重和偏移量</strong>，如此循环，直到预测足够准确。</p>
-
-        <h3>5.1 一个贯穿的例子：教会AI识别数字"3"</h3>
-
-        <p>假设我们有一个非常简单的网络，要识别一张图片是不是数字"3"。训练数据是一张标答为"是"的图片。</p>
-
-        <h3>5.2 步骤1：初始化参数</h3>
-
-        <p>在训练开始前，网络就像一个刚出生的婴儿，什么都不知道。</p>
-        <ul>
-          <li><strong>操作</strong>：给所有的<strong>权重</strong>和<strong>偏移量</strong>随机赋予很小的数值。</li>
-          <li><strong>目的</strong>：打破对称性，让每个神经元从不同的起点开始学习。</li>
-          <li><strong>例子</strong>：网络里的连接权重 <code>w</code> 可能是 <code>0.01</code>, <code>0.02</code>, <code>0.005</code> 等随机值。</li>
-        </ul>
-
-        <h3>5.3 步骤2：正向传播</h3>
-
-        <p>我们把一张图片（输入）喂给网络，让它产生一个预测结果。</p>
-        <ul>
-          <li><strong>操作</strong>：数据从输入层进入，经过每一层隐藏层，每层都执行 <code>z = (权重×输入) + 偏移量</code>，然后通过<strong>激活函数</strong>（如ReLU）进行非线性变换，最终在输出层得到预测值。</li>
-          <li><strong>目的</strong>：计算网络"猜"的结果是什么。</li>
-          <li><strong>例子</strong>：输入图片"3"后，网络经过一通计算，在输出层给出了一个数字：<code>0.2</code>。在我们的设定中，输出值越接近1，代表网络越确信它是"3"。输出 <code>0.2</code> 意味着网络认为这张图有20%的可能是"3" —— <strong>显然是错的</strong>，因为正确答案是"是"（100%）。</li>
-        </ul>
-
-        <h3>5.4 步骤3：计算损失</h3>
-
-        <p>现在我们需要知道网络猜得有多离谱。</p>
-        <ul>
-          <li><strong>操作</strong>：用一个<strong>损失函数</strong>来比较"网络的预测值"和"真实标签"。损失函数会输出一个<strong>损失值</strong>，它代表错误的程度。预测越离谱，损失值越大。</li>
-          <li><strong>目的</strong>：量化这次预测的"错误总量"，作为后续调整的指南针。</li>
-          <li><strong>例子</strong>：使用经典的"均方误差"损失函数。
+          <div class="article-content">
+            
+<p>造一个大模型，不管是 GPT-4、Claude 还是 Llama，本质上都要搞定五件事：</p>
+<ol>
+<li><strong>架构（Architecture）</strong>：用什么样的神经网络？目前答案几乎统一——Transformer。</li>
+<li><strong>训练算法和损失函数（Training Algorithm &amp; Loss）</strong>：怎么训？优化什么目标？</li>
+<li><strong>数据（Data）</strong>：喂什么样的数据进去？</li>
+<li><strong>评估（Evaluation）</strong>：怎么判断模型好不好？</li>
+<li><strong>系统工程（Systems）</strong>：怎么让训练跑得动、跑得快？</li>
+</ol>
+<h2>1. Tokenizer</h2>
+<p>你可能知道大模型的输入输出都是 token，但你想过一个问题没有：<strong>文本是怎么变成 token 的？</strong></p>
+<p>最简单的想法是按词切分——"我 喜欢 吃 苹果"，每个词一个 token。但这有个问题：如果遇到一个拼写错误的词，比如"苹菓"，你的词表里没有，就没法处理了。</p>
+<p>另一个极端是按字符切分——每个字符一个 token。这倒是能处理所有情况，但序列会变得超长。你知道 Transformer 的计算复杂度是跟序列长度的平方成正比的，序列太长计算量会爆炸。</p>
+<p>所以实际用的是一种折中方案——<strong>BPE（Byte Pair Encoding，字节对编码）</strong>。</p>
+<p>BPE 的原理很直观：</p>
+<ol>
+<li>先把所有文本拆成最小单元（字符级别）</li>
+<li>统计哪些相邻字符组合出现得最频繁</li>
+<li>把最频繁的组合合并成一个新 token</li>
+<li>重复步骤 2-3，直到达到目标词表大小</li>
+</ol>
+<p>举个例子。假设语料库里有这些词：token、tokenizer、to、today。</p>
+<ul>
+<li>第一步：全拆成字符 → t, o, k, e, n, i, z, e, r, t, o, t, o, d, a, y</li>
+<li>第二步：统计发现 "t" 和 "o" 出现在一起最多 → 合并成 "to" 这个新 token</li>
+<li>第三步：统计发现 "to" 和 "k" 出现在一起比较多 → 合并成 "tok"</li>
+</ul>
+<p>就这样一直合并下去。最终，常见的词（比如 "token"）会变成一个完整的 token，而罕见的词会被拆成几个子 token。</p>
+<p>平均下来，<strong>一个 token 大约对应 3-4 个英文字母</strong>。中文的话，一个汉字通常对应 1-2 个 token。</p>
+<h2>2. 数据</h2>
+<h3>2.1 步骤 1：下载"整个互联网"</h3>
+<p>用网络爬虫爬取网页。比较常用的公开数据集是 Common Crawl，它每个月都会更新，把互联网上的新网页加进来。目前 Common Crawl 包含大约 2500 亿个页面。</p>
+<h3>2.2 步骤 2：提取正文文本</h3>
+<p>把 HTML 里的实际文本内容提取出来，去掉标签、广告、导航栏、页脚等。这一步看似简单，但实际很麻烦：</p>
+<ul>
+<li>数学公式的提取特别难（LaTeX 格式、MathML 格式、图片格式...）</li>
+<li>很多论坛和网站有固定的头部和尾部模板（boilerplate），每个页面都重复，要去掉</li>
+<li>有些网站的正文是通过 JavaScript 动态加载的，爬虫可能抓不到</li>
+</ul>
+<h3>2.3 步骤 3：过滤有害内容</h3>
+<p>NSFW 内容、仇恨言论、个人隐私信息（PII）... 这些都要过滤掉。通常的做法是维护一个巨大的黑名单（特定网站直接排除），同时训练一个小型分类器来自动检测有害内容。</p>
+<h3>2.4 步骤 4：去重</h3>
+<p>这一步非常重要，也非常消耗计算资源。去重的对象包括：</p>
+<ul>
+<li><strong>URL 去重</strong>：不同的 URL 可能指向同一个页面</li>
+<li><strong>内容去重</strong>：论坛的头部、尾部模板在所有帖子里都一样</li>
+<li><strong>段落去重</strong>：某些经典段落（比如常见书籍的片段）可能在互联网上被复制了成千上万次</li>
+</ul>
+<div class="highlight-box">
+<p><strong>💡 提示：</strong>如果不做去重，模型会在这些重复内容上过拟合，导致后面使用时经常背出原文。</p>
+</div>
+<h3>2.5 步骤 5：启发式质量过滤</h3>
+<p>用规则来过滤低质量文档：</p>
+<ul>
+<li>如果一个网页只有 3 个词 → 大概率没啥用</li>
+<li>如果一个网页有 1000 万个词 → 可能是某种数据 dump，不是正常文章</li>
+<li>如果文档中的词长分布异常（平均词长超长或超短） → 可能是乱码或机器生成</li>
+</ul>
+<p>这些规则看起来很粗暴，但在 2500 亿页面的规模上，粗暴的规则反而最高效。</p>
+<h3>2.6 步骤 6：基于模型的质量过滤</h3>
+<p>这个方法很巧妙：用维基百科做正面样本。逻辑是这样的——维基百科上引用的外部链接，通常指向高质量的网站。所以你可以训练一个分类器，判断一个文档"看起来像不像被维基百科引用的那种质量"。用这个分类器给所有文档打分，保留高分的。</p>
+<h3>2.7 步骤 7：领域分类和权重调整</h3>
+<p>把数据分成不同的领域：代码、书籍、新闻、娱乐、学术论文、社交媒体...然后根据经验调整各领域的权重。业界有几个广泛认可的经验：</p>
+<ul>
+<li><strong>代码要多加</strong>：训练更多的代码数据居然能提升模型的推理能力，不只是代码能力。这个发现很反直觉，但已经被多个团队验证</li>
+<li><strong>书籍要多加</strong>：书籍的文本质量通常比网页高，语言更规范、逻辑更连贯</li>
+<li><strong>娱乐内容要降权</strong>：八卦、短视频文案这类内容对模型的通用能力帮助不大</li>
+</ul>
+<p>过去这些权重调整主要靠人工经验（"拍脑袋"），现在已经有了更系统化的自动搜索方法。</p>
+<h3>2.8 步骤 8：训练末期用高质量数据精调</h3>
+<p>在预训练的最后阶段，通常会把学习率降得很低，然后在非常高质量的数据上再过几遍——比如维基百科、精选书籍、人工标注的数据。相当于最后阶段"精修"一下。</p>
+<h2>3. 预训练（Pre-training）与后训练（Post-training）</h2>
+<p>预训练出来的模型是个什么东西？它是一个<strong>互联网文档生成器</strong>。你给它一个问题，它不会回答你，而是继续生成更多问题——因为在互联网上，一个问题后面跟的往往不是答案，而是另一个问题。</p>
+<p>这就是为什么需要后训练——把"文档续写器"变成"问答助手"。</p>
+<h3>3.1 SFT（Supervised Fine-Tuning，监督微调）</h3>
+<p>后训练的第一步叫 <strong>SFT（Supervised Fine-Tuning，监督微调）</strong>。</p>
+<p>怎么理解？预训练阶段，模型学到了"互联网上所有人的说话方式"——有些人写答案，有些人写问题，有些人写代码，有些人写段子。SFT 做的事情是告诉模型："你不需要模仿所有人，你只需要模仿那种'有用的助手'的说话方式就行了。"</p>
+<h3>3.2 RLHF（Reinforcement Learning from Human Feedback）</h3>
+<p>SFT 的问题在于它是"行为克隆（Behavioral Cloning）"——直接模仿人类标注员写的答案。这有几个局限：</p>
+<ul>
+<li><strong>问题 1：受限于人类的生成能力。</strong>你让一个标注员写一篇关于量子物理的通俗解释，他可能写得一般。但如果你给他两篇不同的解释让他选哪篇更好，他大概率能选对。<strong>判断能力 &gt; 生成能力</strong>——这是人类的普遍特征。RLHF 就利用了这一点：不让人类写完美答案，而是让人类在两个 AI 生成的答案里选更好的那个。</li>
+<li><strong>问题 2：SFT 可能加剧幻觉。</strong></li>
+<li><strong>问题 3：收集人工撰写的完美答案非常贵。</strong></li>
+</ul>
+<p><strong>RLHF 的具体流程</strong>：</p>
+<ol>
+<li><strong>生成候选答案</strong>：给定一个问题，让当前模型生成两个（或多个）不同的回答</li>
+<li><strong>人类标注偏好</strong>：让标注员看这两个回答，选出更好的那个</li>
+<li><strong>训练奖励模型（Reward Model）</strong>：用这些偏好数据训练一个分类器，让它能自动给任意回答打分——分数越高表示越接近人类偏好</li>
+<li><strong>用强化学习优化模型</strong>：以奖励模型的打分作为奖励信号，用 PPO（近端策略优化）算法来调整语言模型的参数</li>
+</ol>
+<h3>3.3 DPO（Direct Preference Optimization）</h3>
+<p><strong>DPO（Direct Preference Optimization，直接偏好优化）</strong> 是 2023 年 Stanford 提出的方法，核心思想极其简洁：<strong>不需要训练奖励模型，不需要强化学习。直接在偏好数据上做监督学习就行。</strong></p>
+<p>具体来说：</p>
+<ul>
+<li>你有一对回答：一个人类更喜欢的（好答案）、一个人类不太喜欢的（差答案）</li>
+<li>DPO 的损失函数就是：<strong>增大好答案的生成概率，减小差答案的生成概率</strong></li>
+</ul>
+<h2>4. 一个大模型的完整出生过程</h2>
+<h3>4.1 第一阶段：准备数据（几个月）</h3>
+<ol>
+<li>用爬虫下载互联网网页</li>
+<li>提取正文文本</li>
+<li>过滤有害内容</li>
+<li>去重</li>
+<li>质量过滤（规则 + 模型）</li>
+<li>领域分类和权重调整</li>
+<li>最终清洗</li>
+</ol>
+<h3>4.2 第二阶段：预训练（几个月，花费几千万美金）</h3>
+<ol>
+<li>设计 tokenizer，在语料上训练 BPE</li>
+<li>确定模型架构（基本就是 Transformer，调一些超参数）</li>
+<li>用 Scaling Laws 确定最优的模型大小和数据量</li>
+<li>在 GPU 集群上训练，监控 loss 曲线</li>
+<li>训练末期用高质量数据精修</li>
+</ol>
+<p>产出：<strong>基座模型（Base Model）</strong>——能续写文档，但不会回答问题。</p>
+<h3>4.3 第三阶段：监督微调 / SFT（几天）</h3>
+<ol>
+<li>收集几千到几万条高质量问答对（人工 + AI 辅助）</li>
+<li>在基座模型上继续训练</li>
+<li>模型学会以"助手"的口吻回答问题</li>
+</ol>
+<p>产出：<strong>SFT 模型</strong>——能回答问题，但回答质量参差不齐。</p>
+<h3>4.4 第四阶段：偏好对齐 / RLHF 或 DPO（几天到几周）</h3>
+<ol>
+<li>收集偏好数据（人类标注 + AI 辅助）</li>
+<li>用 PPO 或 DPO 进一步优化模型</li>
+<li>迭代多轮</li>
+</ol>
+<p>产出：<strong>对齐模型（Aligned Model）</strong>——回答质量稳定，懂得拒绝有害请求。</p>
+<h3>4.5 第五阶段：评估和部署</h3>
+<ol>
+<li>在多个基准测试上评估</li>
+<li>内部红队测试（找安全漏洞）</li>
+<li>A/B 测试</li>
+<li>上线，收集用户反馈</li>
+<li>用反馈数据开始下一轮迭代</li>
+</ol>
+<p>整个过程下来，从开始准备数据到模型上线，通常需要<strong>半年到一年</strong>。这就是为什么模型更新不是连续的——它是一个长周期的工程项目。你用的每一个 API 背后，都是一个团队几个月的高强度工作。</p>
+<h2>5. 神经网络的训练过程</h2>
+<p>神经网络通过<strong>正向传播</strong>产生预测，通过<strong>损失函数</strong>评估错误，再通过<strong>反向传播</strong>计算每个参数的贡献，最后用<strong>优化算法</strong>（如梯度下降）来<strong>调整权重和偏移量</strong>，如此循环，直到预测足够准确。</p>
+<h3>5.1 一个贯穿的例子：教会AI识别数字"3"</h3>
+<p>假设我们有一个非常简单的网络，要识别一张图片是不是数字"3"。训练数据是一张标答为"是"的图片。</p>
+<h3>5.2 步骤1：初始化参数</h3>
+<p>在训练开始前，网络就像一个刚出生的婴儿，什么都不知道。</p>
+<ul>
+<li><strong>操作</strong>：给所有的<strong>权重</strong>和<strong>偏移量</strong>随机赋予很小的数值。</li>
+<li><strong>目的</strong>：打破对称性，让每个神经元从不同的起点开始学习。</li>
+<li><strong>例子</strong>：网络里的连接权重 <code>w</code> 可能是 <code>0.01</code>, <code>0.02</code>, <code>0.005</code> 等随机值。</li>
+</ul>
+<h3>5.3 步骤2：正向传播</h3>
+<p>我们把一张图片（输入）喂给网络，让它产生一个预测结果。</p>
+<ul>
+<li><strong>操作</strong>：数据从输入层进入，经过每一层隐藏层，每层都执行 <code>z = (权重×输入) + 偏移量</code>，然后通过<strong>激活函数</strong>（如ReLU）进行非线性变换，最终在输出层得到预测值。</li>
+<li><strong>目的</strong>：计算网络"猜"的结果是什么。</li>
+<li><strong>例子</strong>：输入图片"3"后，网络经过一通计算，在输出层给出了一个数字：<code>0.2</code>。在我们的设定中，输出值越接近1，代表网络越确信它是"3"。输出 <code>0.2</code> 意味着网络认为这张图有20%的可能是"3" —— <strong>显然是错的</strong>，因为正确答案是"是"（100%）。</li>
+</ul>
+<h3>5.4 步骤3：计算损失</h3>
+<p>现在我们需要知道网络猜得有多离谱。</p>
+<ul>
+<li><strong>操作</strong>：用一个<strong>损失函数</strong>来比较"网络的预测值"和"真实标签"。损失函数会输出一个<strong>损失值</strong>，它代表错误的程度。预测越离谱，损失值越大。</li>
+<li><strong>目的</strong>：量化这次预测的"错误总量"，作为后续调整的指南针。</li>
+<li><strong>例子</strong>：使用经典的"均方误差"损失函数。
             <ul>
-              <li>预测值：<code>0.2</code></li>
-              <li>真实值（标签）：<code>1.0</code></li>
-              <li>损失值 = (1.0 - 0.2)² = <code>0.64</code></li>
-            </ul>
-          </li>
-        </ul>
-
-        <h3>5.5 步骤4：反向传播与参数更新</h3>
-
-        <p>这是训练过程中最核心、最精妙的一步。网络要根据这个 <code>0.64</code> 的损失值，去调整前面所有层里成千上万个权重和偏移量，使得下次预测能更准一点。</p>
-
-        <ul>
-          <li><strong>操作</strong>：
+<li>预测值：<code>0.2</code></li>
+<li>真实值（标签）：<code>1.0</code></li>
+<li>损失值 = (1.0 - 0.2)² = <code>0.64</code></li>
+</ul>
+</li>
+</ul>
+<h3>5.5 步骤4：反向传播与参数更新</h3>
+<p>这是训练过程中最核心、最精妙的一步。网络要根据这个 <code>0.64</code> 的损失值，去调整前面所有层里成千上万个权重和偏移量，使得下次预测能更准一点。</p>
+<ul>
+<li><strong>操作</strong>：
             <ol>
-              <li><strong>反向传播</strong>：从输出层开始，反向计算<strong>损失值对每一个参数（权重、偏移量）的梯度</strong>。梯度是一个方向和一个大小，它告诉每个参数："你应该往哪个方向调整（增大还是减小），以及调多少，才能最快地降低损失"。</li>
-              <li><strong>梯度下降</strong>：拿着算出来的梯度，用一个叫<strong>优化器</strong>的东西（最基础的是<strong>随机梯度下降SGD</strong>）去更新每个参数。更新公式为：<code>新参数 = 旧参数 - 学习率 × 梯度</code></li>
-            </ol>
-          </li>
-          <li><strong>目的</strong>：找到让损失值变小的参数调整方向。</li>
-          <li><strong>两个关键概念</strong>：
+<li><strong>反向传播</strong>：从输出层开始，反向计算<strong>损失值对每一个参数（权重、偏移量）的梯度</strong>。梯度是一个方向和一个大小，它告诉每个参数："你应该往哪个方向调整（增大还是减小），以及调多少，才能最快地降低损失"。</li>
+<li><strong>梯度下降</strong>：拿着算出来的梯度，用一个叫<strong>优化器</strong>的东西（最基础的是<strong>随机梯度下降SGD</strong>）去更新每个参数。更新公式为：<code>新参数 = 旧参数 - 学习率 × 梯度</code></li>
+</ol>
+</li>
+<li><strong>目的</strong>：找到让损失值变小的参数调整方向。</li>
+<li><strong>两个关键概念</strong>：
             <ul>
-              <li><strong>梯度</strong>：函数在某一点上升最快的方向。我们取它的反方向（所以是"梯度下降"），就是下降最快的方向。</li>
-              <li><strong>学习率</strong>：一个超参数，控制每一步调整的步长。步子太大容易跨过最优解，步子太小训练太慢。</li>
-            </ul>
-          </li>
-          <li><strong>例子</strong>：反向传播计算后发现，某个权重 <code>w1</code> 的梯度是正数 <code>+0.5</code>。
+<li><strong>梯度</strong>：函数在某一点上升最快的方向。我们取它的反方向（所以是"梯度下降"），就是下降最快的方向。</li>
+<li><strong>学习率</strong>：一个超参数，控制每一步调整的步长。步子太大容易跨过最优解，步子太小训练太慢。</li>
+</ul>
+</li>
+<li><strong>例子</strong>：反向传播计算后发现，某个权重 <code>w1</code> 的梯度是正数 <code>+0.5</code>。
             <ul>
-              <li>这意味着：<code>w1</code> 增大，损失值就会增大。我们需要降低损失，所以<strong>应该减小 w1</strong>。</li>
-              <li>假设学习率是 <code>0.1</code>。</li>
-              <li>更新公式：<code>新w1 = 旧w1 - 0.1 × 0.5 = 旧w1 - 0.05</code>。</li>
-              <li>所有参数都按照这个逻辑进行微小的调整。</li>
-            </ul>
-          </li>
-        </ul>
+<li>这意味着：<code>w1</code> 增大，损失值就会增大。我们需要降低损失，所以<strong>应该减小 w1</strong>。</li>
+<li>假设学习率是 <code>0.1</code>。</li>
+<li>更新公式：<code>新w1 = 旧w1 - 0.1 × 0.5 = 旧w1 - 0.05</code>。</li>
+<li>所有参数都按照这个逻辑进行微小的调整。</li>
+</ul>
+</li>
+</ul>
+<h3>5.6 训练循环：迭代 Epoch 和 Batch</h3>
+<p>以上四个步骤，只是<strong>一次</strong>参数更新的过程。整个训练过程需要重复这个循环成千上万次。</p>
+<ul>
+<li><strong>Epoch（轮次）</strong>：<strong>完整地</strong>将所有训练数据都过一次正向传播和反向传播，叫做一个Epoch。通常需要几十、几百甚至上千个Epoch。</li>
+<li><strong>Batch（批次）</strong>：因为数据量可能巨大，我们不会一次把所有数据都送进去。而是把数据分成一个个小<strong>批次</strong>（例如一次32张或64张图片）。每送一个Batch，就做一次正向传播、计算损失、反向传播和参数更新。这种方式叫<strong>小批量梯度下降</strong>，是实践中的标准做法。</li>
+</ul>
 
-        <h3>5.6 训练循环：迭代 Epoch 和 Batch</h3>
+          </div>
 
-        <p>以上四个步骤，只是<strong>一次</strong>参数更新的过程。整个训练过程需要重复这个循环成千上万次。</p>
+          <footer class="article-footer">
+            <nav class="article-nav">
+              <a class="article-nav-link prev" href="../posts/训练微调与强化学习.html">
+                <span class="label">← 上一篇文章</span>
+                <span class="title">训练微调与强化学习</span>
+              </a>
+              <a class="article-nav-link next" href="../posts/模型推理.html">
+                <span class="label">下一篇文章 →</span>
+                <span class="title">模型推理</span>
+              </a>
+            </nav>
 
-        <ul>
-          <li><strong>Epoch（轮次）</strong>：<strong>完整地</strong>将所有训练数据都过一次正向传播和反向传播，叫做一个Epoch。通常需要几十、几百甚至上千个Epoch。</li>
-          <li><strong>Batch（批次）</strong>：因为数据量可能巨大，我们不会一次把所有数据都送进去。而是把数据分成一个个小<strong>批次</strong>（例如一次32张或64张图片）。每送一个Batch，就做一次正向传播、计算损失、反向传播和参数更新。这种方式叫<strong>小批量梯度下降</strong>，是实践中的标准做法。</li>
-        </ul>
-
+            <div class="related-section">
+              <h3>相关文章</h3>
+              <div class="related-grid"><a class="post-card" href="../posts/harness-engineering是什么.html"><div class="post-card-title">Harness Engineering 是什么</div><div class="post-card-desc">当 AI 智能体取代人类成为代码主要生产者时，工程师从&quot;写代码&quot;转向&quot;设计环境、明确意图、构建反馈回路&quot;，让智能体可靠执行——人类掌舵，智能体执行。</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a><a class="post-card" href="../posts/ai常见术语.html"><div class="post-card-title">AI常见术语</div><div class="post-card-desc">AI 基础术语详解：拟合与过拟合的区别、符号主义与联结主义的核心思想、权重和偏移量的作用、激活函数引入非线性的必要性。</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a><a class="post-card" href="../posts/nlp基础概念.html"><div class="post-card-title">NLP基础概念</div><div class="post-card-desc">NLP 文本表示进化史：从 VSM 稀疏向量到 N-gram 接龙猜词，再到 Word2Vec 稠密语义向量和 ELMo 语境动态表示，一步步走向现代大模型。</div><div class="post-card-meta"><span class="tag tag-ai">AI</span><span>2026-05-15</span></div></a></div>
+            </div>
+          </footer>
+        </div>
       </div>
+    </main>
 
-        <aside class="toc-container" id="toc-container">
-          <div class="toc-title">目录</div>
-          <ul class="toc-list" id="toc-list"></ul>
-        </aside>
-      </div>
+    <aside class="toc">
+      <div class="toc-header">本页目录</div>
+      <div class="toc-body" data-toc></div>
+    </aside>
+  </div>
 
-    </div>
-  </main>
+  <button class="toc-mobile-fab" data-toc-mobile-fab aria-label="Toggle TOC">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+  </button>
+  <div class="toc-mobile-panel">
+    <div class="toc-header">本页目录</div>
+    <div class="toc-body" data-toc-mobile></div>
+  </div>
 
-</div>
-
-<button class="toc-mobile-btn" id="toc-mobile-btn" onclick="toggleMobileToc()">☰</button>
-<div class="toc-mobile-panel" id="toc-mobile-panel">
-  <div class="toc-title">目录</div>
-  <ul class="toc-list" id="toc-mobile-list"></ul>
-</div>
-
-<script>
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')}
-function toggleMobileToc(){document.getElementById('toc-mobile-panel').classList.toggle('show')}
-(function(){var c=document.querySelector('.article-content');if(!c)return;var h=c.querySelectorAll('h2,h3'),t=document.getElementById('toc-list'),m=document.getElementById('toc-mobile-list');if(!t||h.length===0)return;var n=0;h.forEach(function(e){n++;var s='section-'+n;e.id=s;var li=document.createElement('li');li.className='toc-item';var a=document.createElement('a');a.className='toc-link'+(e.tagName==='H3'?' level-h3':'');a.href='#'+s;a.textContent=e.textContent;a.setAttribute('data-target',s);a.addEventListener('click',function(ev){ev.preventDefault();var tgt=document.getElementById(s);if(tgt)tgt.scrollIntoView({behavior:'smooth',block:'start'});var mp=document.getElementById('toc-mobile-panel');if(mp)mp.classList.remove('show')});li.appendChild(a);t.appendChild(li);if(m){var l2=li.cloneNode(true);l2.querySelector('a').addEventListener('click',function(ev){ev.preventDefault();var tgt=document.getElementById(s);if(tgt)tgt.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('toc-mobile-panel').classList.remove('show')});m.appendChild(l2)}});var tl=document.querySelectorAll('.toc-link'),ah=c.querySelectorAll('h2,h3');function ua(){var st=window.scrollY||document.documentElement.scrollTop,ci='';ah.forEach(function(e){if(e.offsetTop-60<=st)ci=e.id});tl.forEach(function(l){l.classList.toggle('active',l.getAttribute('data-target')===ci)})}var tk=false;window.addEventListener('scroll',function(){if(!tk){window.requestAnimationFrame(function(){ua();tk=false});tk=true}});ua()})();
-// Full-width toggle
-(function() {
-  var wrapper = document.querySelector('.article-page') || document.querySelector('.content-wrapper');
-  var toggle = document.getElementById('full-width-toggle');
-  if (!wrapper || !toggle) return;
-  if (localStorage.getItem('article-full-width') === 'true') {
-    wrapper.classList.add('full-width');
-  }
-  toggle.addEventListener('click', function() {
-    wrapper.classList.toggle('full-width');
-    localStorage.setItem('article-full-width', wrapper.classList.contains('full-width'));
-  });
-})();
-</script>
-
-<script src="../js/particles.js"></script>
-<script src="../js/nav.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/palette.js"></script>
+  <script src="../js/toc.js"></script>
+  <script src="../js/reading.js"></script>
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-sidebar-toggle]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('open');
+      }
+      if (e.target.closest('[data-sidebar-backdrop]')) {
+        var sb = document.querySelector('.sidebar');
+        var bd = document.querySelector('[data-sidebar-backdrop]');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('open');
+      }
+    });
+  </script>
 </body>
 </html>
