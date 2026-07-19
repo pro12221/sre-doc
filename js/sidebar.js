@@ -66,7 +66,6 @@
     html +=   '<a href="index.html" class="sidebar-brand">';
     html +=     '<span class="logo">S</span>';
     html +=     '<span>SRE Notes</span>';
-    html +=     '<span class="logo-dot"></span>';
     html +=   '</a>';
     html += '</div>';
 
@@ -101,7 +100,7 @@
       html += '<div class="nav-section">';
       html +=   '<div class="nav-section-title" data-category-toggle="' + cat.id + '">';
       html +=     '<svg class="chev" data-chev="' + cat.id + '" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" style="transition: transform 0.15s; transform: rotate(' + (isCollapsed ? '-90deg' : '0deg') + ')"><path d="M2 4l3 3 3-3"/></svg>';
-      html +=     '<span class="dot" style="background: ' + cat.color + '"></span>';
+      html +=     '<span class="dot tag-dot tag-dot-' + cat.id + '"></span>';
       html +=     '<span>' + escapeHtml(cat.name) + '</span>';
       html +=     '<span class="count" style="margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted);">' + cat.count + '</span>';
       html +=   '</div>';

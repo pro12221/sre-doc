@@ -1,188 +1,205 @@
 /* ============================================
-   SRE Notes — Design Tokens v2
-   Dark (default) + Light, single source of truth
+   SRE Notes — Design Tokens v3
+   Minimal Docs · Deep Teal Accent · Light/Dark
    ============================================ */
 
 :root,
 [data-theme="dark"] {
-  /* === Backgrounds (OLED black, layered) === */
-  --bg-base:        #0A0A0C;
-  --bg-surface-1:   #14141A;
-  --bg-surface-2:   #1A1A22;
-  --bg-surface-3:   #1F1F28;
-  --bg-elevated:    #232330;
-  --bg-hover:       rgba(94, 106, 210, 0.08);
-  --bg-active:      rgba(94, 106, 210, 0.16);
-  --bg-glass:       rgba(255, 255, 255, 0.03);
-  --bg-glass-hover: rgba(255, 255, 255, 0.06);
-  --bg-overlay:     rgba(0, 0, 0, 0.6);
+  /* === Surfaces (OLED-tuned, slightly cool) === */
+  --bg-base:        #0F0F12;
+  --bg-surface-1:   #16161A;
+  --bg-surface-2:   #1C1C21;
+  --bg-surface-3:   #232328;
+  --bg-elevated:    #1F1F25;
+  --bg-hover:       rgba(15, 118, 110, 0.08);
+  --bg-active:      rgba(15, 118, 110, 0.16);
+  --bg-glass:       rgba(255, 255, 255, 0.025);
+  --bg-glass-hover: rgba(255, 255, 255, 0.05);
+  --bg-overlay:     rgba(0, 0, 0, 0.65);
 
-  /* === Text (high contrast on dark) === */
-  --text-primary:   #EDEDEF;
-  --text-secondary: #A1A1AA;
-  --text-tertiary:  #71717A;
-  --text-muted:     #52525B;
-  --text-inverse:   #0A0A0C;
+  /* === Text (WCAG AA contrast on dark) === */
+  --text-primary:   #ECECEE;
+  --text-secondary: #A8A8AE;
+  --text-tertiary:  #7A7A82;
+  --text-muted:     #54545B;
+  --text-inverse:   #0F0F12;
 
-  /* === Borders (hairline) === */
+  /* === Borders (hairline, semantic) === */
   --border:         rgba(255, 255, 255, 0.08);
-  --border-hover:   rgba(255, 255, 255, 0.16);
-  --border-strong:  rgba(255, 255, 255, 0.24);
-  --border-accent:  rgba(94, 106, 210, 0.4);
+  --border-hover:   rgba(255, 255, 255, 0.14);
+  --border-strong:  rgba(255, 255, 255, 0.20);
+  --border-accent:  rgba(15, 118, 110, 0.40);
 
-  /* === Accent (Linear/Notion blue-purple) === */
-  --accent:         #5E6AD2;
-  --accent-hover:   #7383E0;
-  --accent-active:  #4F5DC9;
-  --accent-muted:   rgba(94, 106, 210, 0.15);
-  --accent-glow:    rgba(94, 106, 210, 0.3);
-  --accent-text:    #8B96E8; /* text on accent in dark mode */
-  --accent-ring:    rgba(94, 106, 210, 0.5);
+  /* === Accent (deep teal, single source) === */
+  --accent:         #14B8A6;
+  --accent-hover:   #2DD4BF;
+  --accent-active:  #0D9488;
+  --accent-muted:   rgba(20, 184, 166, 0.14);
+  --accent-soft:    rgba(20, 184, 166, 0.08);
+  --accent-text:    #FFFFFF;
+  --accent-ring:    rgba(20, 184, 166, 0.45);
 
-  /* === Status === */
-  --success:        #4ADE80;
-  --warning:        #F59E0B;
-  --error:          #F87171;
-  --info:           #5DC9E2;
+  /* === Status (kept subtle) === */
+  --success:        #22C55E;
+  --warning:        #EAB308;
+  --error:          #EF4444;
+  --info:           #06B6D4;
 
-  /* === Per-category tags (dark mode) === */
-  --tag-k8s:            #7B91F0;  --tag-k8s-bg:            rgba(123, 145, 240, 0.14);
-  --tag-go:             #5DC9E2;  --tag-go-bg:             rgba(93, 201, 226, 0.14);
-  --tag-python:         #FFD24A;  --tag-python-bg:         rgba(255, 210, 74, 0.14);
-  --tag-devops:         #A78BFA;  --tag-devops-bg:         rgba(167, 139, 250, 0.14);
-  --tag-linux:          #F59E0B;  --tag-linux-bg:          rgba(245, 158, 11, 0.14);
-  --tag-network:        #2DD4BF;  --tag-network-bg:        rgba(45, 212, 191, 0.14);
-  --tag-ai:             #C084FC;  --tag-ai-bg:             rgba(192, 132, 252, 0.14);
-  --tag-iac:            #FB923C;  --tag-iac-bg:            rgba(251, 146, 60, 0.14);
-  --tag-observability:  #34D399;  --tag-observability-bg:  rgba(52, 211, 153, 0.14);
-  --tag-metrics:        #4ADE80;  --tag-metrics-bg:        rgba(74, 222, 128, 0.14);
-  --tag-logging:        #F59E0B;  --tag-logging-bg:        rgba(245, 158, 11, 0.14);
-  --tag-tracing:        #A78BFA;  --tag-tracing-bg:        rgba(167, 139, 250, 0.14);
+  --tag-default:        var(--accent);
+  /* === Per-category tags (dark, harmonized palette) === */
+  --tag-kubernetes:     #7DD3FC;  --tag-kubernetes-bg:     rgba(125, 211, 252, 0.12);
+  --tag-ai:             #C4B5FD;  --tag-ai-bg:             rgba(196, 181, 253, 0.12);
+  --tag-bigdata:        #FCA5A5;  --tag-bigdata-bg:        rgba(252, 165, 165, 0.12);
+  --tag-linux:          #FCD34D;  --tag-linux-bg:          rgba(252, 211, 77, 0.12);
+  --tag-network:        #5EEAD4;  --tag-network-bg:        rgba(94, 234, 212, 0.12);
+  --tag-observability:  #86EFAC;  --tag-observability-bg:  rgba(134, 239, 172, 0.12);
+  --tag-devops:         #DDD6FE;  --tag-devops-bg:         rgba(221, 214, 254, 0.12);
+  --tag-iac:            #FDBA74;  --tag-iac-bg:            rgba(253, 186, 116, 0.12);
 
-  /* === Surfaces for layered layout === */
-  --sidebar-bg:      var(--bg-surface-1);
-  --sidebar-active:  var(--bg-active);
-  --sidebar-hover:   var(--bg-hover);
-  --topbar-bg:       rgba(10, 10, 12, 0.72);
-  --topbar-blur:     saturate(140%) blur(14px);
-  --content-bg:      var(--bg-base);
+  /* === Layout surfaces === */
+  --sidebar-bg:    var(--bg-surface-1);
+  --sidebar-active: var(--bg-active);
+  --sidebar-hover: var(--bg-hover);
+  --topbar-bg:     var(--bg-base);
+  --content-bg:    var(--bg-base);
 
-  /* === Code surface === */
-  --code-bg:         #0E0E12;
-  --code-border:     rgba(255, 255, 255, 0.06);
+  /* === Code === */
+  --code-bg:         #0A0A0D;
+  --code-border:     rgba(255, 255, 255, 0.05);
   --code-text:       #E4E4E7;
-  --inline-code-bg:  rgba(94, 106, 210, 0.12);
+  --inline-code-bg:  var(--accent-muted);
+  --inline-code-fg:  var(--accent);
 
-  /* === Terminal accent (for command palette, breadcrumbs) === */
-  --terminal-green:  #4ADE80;
-  --terminal-prompt: var(--accent);
+  /* === Shadows (subtle, no glow) === */
+  --shadow-xs:   0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-sm:   0 2px 4px rgba(0, 0, 0, 0.35);
+  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.40);
+  --shadow-lg:   0 8px 24px rgba(0, 0, 0, 0.45);
 
-  /* === Shadows === */
-  --shadow-sm:       0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md:       0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg:       0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow:     0 0 0 1px var(--border-accent), 0 4px 24px rgba(94, 106, 210, 0.15);
+  /* === Layout dimensions === */
+  --sidebar-width:     240px;
+  --toc-width:         220px;
+  --content-max:       720px;
+  --topbar-height:     52px;
+  --container-padding: 32px;
 
-  /* === Background pattern (subtle dot grid) === */
-  --pattern-dot: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.025) 1px, transparent 0);
-  --pattern-dot-size: 24px 24px;
-
-  /* === Layout === */
-  --sidebar-width:        264px;
-  --toc-width:            220px;
-  --content-max:          760px;
-  --topbar-height:        52px;
-  --container-padding:    32px;
-
-  /* === Radius === */
-  --radius-xs:  4px;
-  --radius-sm:  6px;
-  --radius-md:  8px;
-  --radius-lg:  12px;
-  --radius-xl:  16px;
-  --radius-2xl: 20px;
+  /* === Radius (concise, sharper) === */
+  --radius-xs:  3px;
+  --radius-sm:  5px;
+  --radius-md:  6px;
+  --radius-lg:  8px;
+  --radius-xl:  10px;
+  --radius-pill: 999px;
 
   /* === Typography === */
-  --font-ui:       'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-display:  var(--font-ui);
-  --font-body:     var(--font-ui);
-  --font-mono:     'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  --font-mono-sm:  13px;
-  --font-mono-md:  14px;
+  --font-ui:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', system-ui, sans-serif;
+  --font-display: var(--font-ui);
+  --font-body:    var(--font-ui);
+  --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --font-size-xs:   12px;
+  --font-size-sm:   13px;
+  --font-size-base: 16px;
+  --font-size-lg:   18px;
+  --font-size-xl:   22px;
+  --font-size-2xl:  28px;
+  --font-size-3xl:  36px;
+  --font-size-4xl:  44px;
 
   /* === Z-index === */
-  --z-base:       1;
-  --z-sidebar:    10;
-  --z-topbar:     100;
-  --z-dropdown:   200;
-  --z-palette:    300;
-  --z-modal:      400;
-  --z-toast:      500;
+  --z-base:     1;
+  --z-sidebar:  10;
+  --z-topbar:   100;
+  --z-dropdown: 200;
+  --z-palette:  300;
+  --z-modal:    400;
+  --z-toast:    500;
+
+  /* === Motion (minimal, fast) === */
+  --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:     cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast:   120ms;
+  --duration-normal: 180ms;
+  --duration-slow:   240ms;
 
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  /* === Backgrounds (warm paper) === */
-  --bg-base:        #FAFAF7;
-  --bg-surface-1:   #F5F3ED;
-  --bg-surface-2:   #EFEBE0;
-  --bg-surface-3:   #E8E2D3;
+  /* === Surfaces (warm paper) === */
+  --bg-base:        #FAF9F6;
+  --bg-surface-1:   #FFFFFF;
+  --bg-surface-2:   #F4F2EC;
+  --bg-surface-3:   #EAE6DC;
   --bg-elevated:    #FFFFFF;
-  --bg-hover:       rgba(94, 106, 210, 0.06);
-  --bg-active:      rgba(94, 106, 210, 0.12);
+  --bg-hover:       rgba(15, 118, 110, 0.06);
+  --bg-active:      rgba(15, 118, 110, 0.12);
   --bg-glass:       rgba(0, 0, 0, 0.02);
-  --bg-glass-hover: rgba(0, 0, 0, 0.05);
-  --bg-overlay:     rgba(0, 0, 0, 0.3);
+  --bg-glass-hover: rgba(0, 0, 0, 0.04);
+  --bg-overlay:     rgba(0, 0, 0, 0.40);
 
   /* === Text === */
-  --text-primary:   #141413;
-  --text-secondary: #4A4A45;
-  --text-tertiary:  #7C7A72;
-  --text-muted:     #A8A59B;
-  --text-inverse:   #FAFAF7;
+  --text-primary:   #1A1A18;
+  --text-secondary: #4D4D48;
+  --text-tertiary:  #767470;
+  --text-muted:     #A8A59E;
+  --text-inverse:   #FFFFFF;
 
   /* === Borders === */
   --border:         rgba(0, 0, 0, 0.08);
-  --border-hover:   rgba(0, 0, 0, 0.16);
-  --border-strong:  rgba(0, 0, 0, 0.24);
-  --border-accent:  rgba(94, 106, 210, 0.3);
+  --border-hover:   rgba(0, 0, 0, 0.14);
+  --border-strong:  rgba(0, 0, 0, 0.22);
+  --border-accent:  rgba(15, 118, 110, 0.30);
 
-  /* === Accent (slightly darker for contrast) === */
-  --accent:         #4F5BC9;
-  --accent-hover:   #3F4AB8;
-  --accent-active:  #364098;
-  --accent-muted:   rgba(94, 106, 210, 0.10);
-  --accent-glow:    rgba(94, 106, 210, 0.2);
+  /* === Accent (deep teal, slightly darker for AA) === */
+  --accent:         #0F766E;
+  --accent-hover:   #0D6B63;
+  --accent-active:  #0A5A53;
+  --accent-muted:   rgba(15, 118, 110, 0.10);
+  --accent-soft:    rgba(15, 118, 110, 0.05);
   --accent-text:    #FFFFFF;
-  --accent-ring:    rgba(94, 106, 210, 0.4);
+  --accent-ring:    rgba(15, 118, 110, 0.35);
 
-  /* === Code (warmer in light mode) === */
-  --code-bg:         #F5F3ED;
-  --code-border:     rgba(0, 0, 0, 0.08);
+  /* === Code === */
+  --code-bg:         #F4F2EC;
+  --code-border:     rgba(0, 0, 0, 0.06);
   --code-text:       #1E1E1B;
-  --inline-code-bg:  rgba(94, 106, 210, 0.10);
+  --inline-code-bg:  rgba(15, 118, 110, 0.10);
+  --inline-code-fg:  var(--accent);
 
-  /* === Surfaces === */
-  --topbar-bg:       rgba(250, 250, 247, 0.85);
+  /* === Per-category tags (light theme — darker for contrast on paper) === */
+  --tag-kubernetes:     #0369A1;  --tag-kubernetes-bg:     rgba(3, 105, 161, 0.10);
+  --tag-ai:             #6D28D9;  --tag-ai-bg:             rgba(109, 40, 217, 0.10);
+  --tag-bigdata:        #B91C1C;  --tag-bigdata-bg:        rgba(185, 28, 28, 0.10);
+  --tag-linux:          #B45309;  --tag-linux-bg:          rgba(180, 83, 9, 0.10);
+  --tag-network:        #0F766E;  --tag-network-bg:        rgba(15, 118, 110, 0.10);
+  --tag-observability:  #15803D;  --tag-observability-bg:  rgba(21, 128, 61, 0.10);
+  --tag-devops:         #5B21B6;  --tag-devops-bg:         rgba(91, 33, 182, 0.10);
+  --tag-iac:            #C2410C;  --tag-iac-bg:            rgba(194, 65, 12, 0.10);
 
   /* === Shadows === */
-  --shadow-sm:       0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md:       0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-lg:       0 8px 32px rgba(0, 0, 0, 0.10);
-  --shadow-glow:     0 0 0 1px var(--border-accent), 0 4px 24px rgba(94, 106, 210, 0.10);
+  --shadow-xs:   0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm:   0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.07);
+  --shadow-lg:   0 8px 24px rgba(0, 0, 0, 0.10);
 
-  /* === Pattern === */
-  --pattern-dot: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.03) 1px, transparent 0);
+  /* === Layout (light surfaces) === */
+  --topbar-bg:     var(--bg-base);
 
   color-scheme: light;
 }
 
-/* Smooth theme transition */
-html {
-  transition: background-color 0.2s ease, color 0.2s ease;
+/* Theme transition */
+html { transition: background-color 0.18s ease, color 0.18s ease; }
+body, .topbar, .sidebar, .article-content, .post-card, .category-card, .recent-item {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
-body, .topbar, .sidebar, .article-content, .post-card, .cat-chip {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -67,8 +67,8 @@
     for (var i = 0; i < data.categories.length; i++) {
       var cat = data.categories[i];
       if (cat.count === 0) continue;
-      html += '<a class="category-card" href="#' + cat.id + '" style="--cat-color: ' + cat.color + ';">';
-      html +=   '<div class="name"><span class="dot" style="background: ' + cat.color + '"></span>' + escapeHtml(cat.name) + '<span class="count">' + cat.count + '</span></div>';
+      html += '<a class="category-card" href="#' + cat.id + '">';
+      html +=   '<div class="name"><span class="dot tag-dot tag-dot-' + cat.id + '"></span>' + escapeHtml(cat.name) + '<span class="count">' + cat.count + '</span></div>';
       html +=   '<div class="desc">' + escapeHtml(cat.desc) + '</div>';
       html += '</a>';
     }

@@ -1,18 +1,25 @@
 # AGENTS.md — sre-doc 项目指南
 
-> 本文件在每次会话启动时自动加载，为 AI Agent 提供项目上下文和操作规范。
+> 本文件在每次会话启动时自动加载,为 AI Agent 提供项目上下文和操作规范。
 
 ## 项目概述
 
-sre-doc 是一个纯静态个人技术知识库站点。核心流程：
+sre-doc 是一个**纯静态个人技术知识库**,部署在 Cloudflare Pages。**Markdown 是唯一源**:
+所有内容存放在 `MarkDown/` 目录,提交后由 `build.mjs` 自动渲染为静态 HTML。
 
-1. 在 `MarkDown/` 目录撰写 Markdown 笔记
-2. 将 Markdown 手工转换为 HTML，放入 `posts/` 目录
-3. 在 `index.html` 首页添加文章卡片入口
-4. 推送到 GitHub `main` 分支
-5. GitHub Workflow 自动触发 Cloudflare Pages 部署
+**核心流程**(对比 v2 之前):
 
-**站点地址**：通过 Cloudflare Pages 托管，项目名 `sre-note`。
+| 旧流程(v2) | 新流程(v3) |
+|---|---|
+| 1. 写 `MarkDown/*.md` | 1. 写 `MarkDown/**/*.md` |
+| 2. 手工转 `posts/*.html` | — |
+| 3. 手工改 `index.html` | — |
+| 4. 手工改 `js/data.js` | — |
+| 5. 手工改 `rss.xml` / `sitemap.xml` | — |
+| 6. git commit + push | 2. git commit + push |
+| 7. CI 部署 | 3. CI 跑 `npm run build` + 部署 |
+
+**站点地址**:Cloudflare Pages 托管,project `sre-note`,域 `sre-note.pages.dev`。
 
 ---
 
@@ -20,182 +27,182 @@ sre-doc 是一个纯静态个人技术知识库站点。核心流程：
 
 ```
 sre-doc/
-├── MarkDown/            # Markdown 源文件（笔记原文）
-│   ├── MTU.md           # 示例：网络类笔记
-│   └── secret.md        # 示例：Kubernetes 类笔记
-├── posts/               # 生成的 HTML 文章页面
-│   ├── template.html    # 文章 HTML 模板（必须基于此模板生成）
-│   ├── admission-webhook.html
-│   └── configmap-secret.html
+├── MarkDown/                  # Markdown 源文件(唯一源)
+│   ├── kubernetes/            # 每篇文章按主分类放子目录
+│   │   ├── admission-webhook.md
+│   │   └── ...
+│   ├── ai/
+│   ├── bigdata/               # 新分类(2026-07)
+│   ├── linux/
+│   ├── network/
+│   ├── Observability/         # 目录名首字母大写可,build 会归一化
+│   ├── devops/
+│   └── iac/
+├── posts/                     # 生成的 HTML(不提交,build 产物)
+├── templates/                 # HTML/JS/XML 模板(build.mjs 读这些)
+│   ├── post.html
+│   ├── home.html
+│   ├── about.html
+│   ├── 404.html
+│   ├── data.js
+│   ├── rss.xml
+│   └── sitemap.xml
+├── build/                     # 构建模块
+│   └── categories.mjs         # 分类元数据 + 关键词标签
+├── build.mjs                  # 主构建脚本(读 MD → 输出 HTML/JS/XML)
+├── package.json               # marked 依赖
 ├── css/
-│   └── style.css        # 全站样式
-├── index.html           # 首页（文章列表 + 分类导航）
-├── .github/
-│   └── workflows/
-│       └── static.yml   # GitHub Actions → Cloudflare Pages 部署
-└── AGENTS.md            # 本文件
+│   ├── tokens.css             # 设计 token(深青 #0F766E)
+│   ├── doc.css                # 布局(sidebar / topbar / TOC)
+│   ├── content.css            # 文章正文 + 卡片 + tag
+│   └── components.css         # palette / mobile
+├── js/                        # 客户端脚本(瘦,只负责数据驱动 UI)
+│   ├── data.js                # ← build.mjs 生成
+│   ├── theme.js
+│   ├── sidebar.js
+│   ├── palette.js             # ⌘K
+│   ├── home.js                # 首页 hero + recent + categories + featured
+│   ├── toc.js
+│   └── reading.js             # 代码块复制按钮
+├── index.html                 # ← templates/home.html
+├── 404.html                   # ← templates/404.html
+├── about.html                 # ← templates/about.html
+├── rss.xml                    # ← templates/rss.xml
+├── sitemap.xml                # ← templates/sitemap.xml
+├── .github/workflows/
+│   └── static.yml             # CI:checkout → npm ci → npm run build → deploy
+└── AGENTS.md                  # 本文件
 ```
 
 ---
 
 ## 分类体系
 
-站点使用固定分类，每篇文章必须归属到以下分类之一（或多个）：
+固定分类列表(在 `build/categories.mjs` 维护)。每篇文章归属**一个主分类**(由父目录决定)。
 
-| 分类 ID     | 显示名称      | CSS 变量         | 标签 CSS class  |
-|------------|-------------|-----------------|----------------|
-| kubernetes | Kubernetes  | --tag-k8s       | tag-k8s        |
-| go         | Go          | --tag-go        | tag-go         |
-| python     | Python      | --tag-python    | tag-python     |
-| devops     | DevOps      | --tag-devops    | tag-devops     |
-| linux      | Linux       | --tag-linux     | tag-linux      |
-| network    | Network     | --tag-network   | tag-network    |
+| 分类 ID        | 显示名称      | 目录名(大小写不敏感)  | 描述                       |
+|--------------|------------|---------------|--------------------------|
+| `kubernetes` | Kubernetes | `kubernetes/` | 容器编排 · 调度 · 存储          |
+| `ai`         | AI         | `ai/`         | LLM · Agent · NLP         |
+| `bigdata`    | BigData    | `bigdata/`    | HDFS · Spark · YARN(2026-07 新增) |
+| `linux`      | Linux      | `linux/`      | 内核 · 性能调优 · 包处理          |
+| `network`    | Network    | `network/`    | TCP/IP · Overlay · 架构    |
+| `observability` | Observability | `Observability/` 或 `observability/` | 监控 · 指标 · 告警 |
+| `devops`     | DevOps     | `devops/`     | CI/CD · 部署 · 自动化          |
+| `iac`        | IaC        | `iac/`        | Terraform · 基础设施即代码      |
 
-### 自动分类规则
-
-根据 Markdown 内容自动判断主分类和标签：
-
-| 关键词 / 主题                                              | 分类       |
-|--------------------------------------------------------|-----------|
-| kubernetes, k8s, pod, deployment, service, ingress, configmap, secret, helm, admission, webhook, etcd, coredns, crd, operator | kubernetes |
-| golang, go, goroutine, channel, slice, map, interface, go mod, go test, reflect, embed | go         |
-| python, flask, django, pip, venv, pytest, asyncio, decorator, type hint | python     |
-| devops, ci/cd, jenkins, gitlab, argocd, terraform, ansible, docker, containerd, prometheus, grafana | devops     |
-| linux, shell, bash, systemd, kernel, iptables, selinux, strace, ebpf, namespace, cgroup | linux      |
-| tcp, udp, mtu, mss, bgp, ospf, dns, http, tls, vlan, vxlan, 链路层, ip包, 路由 | network    |
-
-**判断逻辑**：
-1. 扫描 Markdown 全文，统计各分类关键词命中次数
-2. 命中最多的分类为主分类
-3. 命中次数 ≥ 主分类 50% 的其他分类作为附加标签
-4. 如果无任何命中，根据文章标题和一级标题人工判断
+**新增分类步骤**:
+1. 编辑 `build/categories.mjs`,在 `CATEGORIES` 数组中加一项
+2. 创建 `MarkDown/{id}/` 目录
+3. 写 `.md` 文件 → 提交 → CI 自动处理
 
 ---
 
 ## 文章命名规则
 
-从 Markdown 内容自动生成 HTML 文件名和显示标题：
-
-| 来源           | 规则                                                        |
-|--------------|-----------------------------------------------------------|
-| 文件名          | 取 Markdown 一级标题（`# 标题`），转小写，空格替换为 `-`，中文保留       |
-| HTML 文件名     | `{slug}.html`，slug 同上                                    |
-| HTML `<title>` | `{显示标题} - Tech Notes`                                   |
-| 显示标题         | 直接使用 Markdown 一级标题原文                                    |
-
-示例：
-- `# Admission Webhook 开发` → 文件名 `admission-webhook-开发.html`，标题 `Admission Webhook 开发 - Tech Notes`
-- `# ConfigMap 与 Secret` → 文件名 `configmap-与-secret.html`，标题 `ConfigMap 与 Secret - Tech Notes`
-- `# IP包结构与MTU位置` → 文件名 `ip包结构与mtu位置.html`，标题 `IP包结构与MTU位置 - Tech Notes`
+| 来源         | 规则                                               |
+|------------|--------------------------------------------------|
+| 文件名        | 用户自定(只用 ASCII + 中文,避免特殊字符)                  |
+| 标题         | 从第一个 `# 一级标题` 解析(若没有则用 `## 二级标题` 或文件名)        |
+| URL slug   | 标题 → kebab-case(空格 → `-`,中文保留)                 |
+| HTML 文件名   | `posts/{slug}.html`(由 build.mjs 生成)             |
+| HTML `<title>` | `{标题} - SRE Notes`(由模板)                       |
+| 日期         | `git log` 首次提交日期(ISO);fallback:文件 mtime         |
+| 摘要         | 标题后第一段,≤90 中文字符 + `…`                        |
+| 标签         | 主分类 + 关键词扫描匹配(`build/categories.mjs` 的 `TAG_KEYWORDS`) |
 
 ---
 
 ## 新增文章完整流程
 
-当用户提供一篇新的 Markdown 笔记时，按以下步骤执行：
+### 写一篇新文章
 
-### Step 1: 接收与分类
+1. **写 Markdown**:在 `MarkDown/{主分类}/` 下创建 `{slug}.md`
+   - 第一行 `# 文章标题`
+   - 内容用标准 Markdown(支持 GFM 表格、代码块、引用、列表)
+   - 图片放在 `MarkDown/{主分类}/images/`,用相对路径 `![](./images/foo.png)`
+   - 可用以下自定义组件(HTML 直写):
+     - `<div class="highlight-box">` — 提示/注意框
+     - `<div class="card">` — 信息卡片
+     - `<div class="flow-diagram">` — ASCII 流程图
+     - `<div class="flow-steps">` + `<div class="flow-step">` — 步骤流
 
-1. 读取 Markdown 全文内容
-2. 提取一级标题作为文章标题
-3. 按自动分类规则确定主分类和附加标签
-4. 生成 HTML 文件名（slug）
+2. **提交 + 推送**:
+   ```bash
+   git add MarkDown/{主分类}/{slug}.md
+   git commit -m "docs: add {文章标题} article"
+   git push origin main
+   ```
 
-### Step 2: Markdown → HTML 转换
+3. **CI 自动完成**:
+   - GitHub Actions: `npm ci` → `npm run build` → Cloudflare Pages deploy
+   - `build.mjs` 自动:
+     - 解析标题/分类/日期/标签/摘要
+     - 渲染 `posts/{slug}.html`
+     - 重新生成 `js/data.js`、`index.html`、`rss.xml`、`sitemap.xml`
 
-1. 以 `posts/template.html` 为基础模板
-2. 修改模板中的以下占位内容：
+### 改一篇现有文章
 
-| 模板占位             | 替换为                                        |
-|------------------|---------------------------------------------|
-| `文章标题`           | Markdown 一级标题                              |
-| `分类名` (breadcrumb) | 主分类显示名称（如 Kubernetes）                    |
-| `../index.html#kubernetes` (breadcrumb 链接) | `../index.html#{分类ID}`           |
-| `../index.html#kubernetes` (sidebar active) | 当前分类设为 `class="nav-item active"`，其余为 `class="nav-item"` |
-| `<span class="tag tag-k8s">Kubernetes</span>` | 按分类添加所有标签                                |
-| `2026-05-12`     | 当前日期（格式 YYYY-MM-DD）                       |
-| 文章正文区域           | Markdown 内容转 HTML                          |
+直接编辑对应的 `.md` 文件,提交即可。下次 CI 触发会重建。
 
-3. **Markdown → HTML 转换规则**：
+### 删除一篇文章
 
-| Markdown 元素                    | HTML 对应                                                    |
-|--------------------------------|-------------------------------------------------------------|
-| `## 标题`                       | `<h2>标题</h2>`（自动编号：在 h2 前加序号，如 `1. 标题`）            |
-| `### 标题`                      | `<h3>标题</h3>`                                              |
-| `**粗体**`                      | `<strong>粗体</strong>`                                      |
-| `` `行内代码` ``                 | `<code>行内代码</code>`                                       |
-| 代码块 ` ```lang `               | `<pre><code><span class="code-label">语言</span>代码</code></pre>` |
-| 表格                             | `<table><thead>...<tbody>...`                               |
-| 提示/注意框                       | `<div class="highlight-box"><p>...</p></div>`               |
-| 信息卡片                         | `<div class="card">...</div>`                                |
-| 流程图/ASCII 图                  | `<div class="flow-diagram">...</div>`                        |
-| 步骤流                           | `<div class="flow-steps"><div class="flow-step">...</div></div>` |
-| 普通段落                         | `<p>...</p>`                                                |
-| 无序列表                          | `<ul><li>...</li></ul>`                                     |
-| 有序列表                          | `<ol><li>...</li></ol>`                                     |
-| `---` 分隔线                    | 忽略或转为 `<hr>`                                              |
-
-4. sidebar 导航中当前分类的文章计数 +1
-5. TOC（目录）由模板内 JS 自动生成，无需手动编写
-
-### Step 3: 更新首页
-
-编辑 `index.html`，在对应分类的 `<div class="post-cards" data-category="{分类ID}">` 内添加文章卡片：
-
-```html
-<a href="posts/{slug}.html" class="post-card" data-title="{文章标题}" data-date="{YYYY-MM-DD}" data-tags="{主分类id},{附加标签id}">
-  <div class="post-card-title">{文章标题}</div>
-  <div class="post-card-desc">{从文章内容提取的简短描述，≤80字}</div>
-  <div class="post-card-meta">
-    <span>{标签 HTML}</span>
-    <span>{日期}</span>
-  </div>
-</a>
-```
-
-同时更新 sidebar 中对应分类的 `<span class="count">` 计数 +1。
-
-如果分类下原来是"暂无笔记"的空状态（`<div class="empty-state">`），则替换为文章卡片。
-
-### Step 4: 更新搜索索引
-
-编辑 `search-index.js`，在 `window.SEARCH_INDEX` 数组末尾追加一条记录：
-
-```js
-{
-  title: "{文章标题}",
-  desc: "{≤80字的描述，与首页卡片 desc 一致}",
-  tags: ["{主分类id}", "{附加标签id}"],
-  category: "{主分类id}",
-  date: "{YYYY-MM-DD}",
-  url: "posts/{slug}.html"
-}
-```
-
-### Step 5: 保存 Markdown 源文件
-
-将原始 Markdown 文件保存到 `MarkDown/` 目录，文件名与标题对应。
-
-### Step 6: Git 推送
-
-```bash
-git add MarkDown/{slug}.md posts/{slug}.html index.html search-index.js
-git commit -m "docs: add {文章标题} article"
-git push origin main
-```
-
-推送后 GitHub Actions 自动触发 Cloudflare Pages 部署，无需手动操作。
+删除对应的 `.md` 文件,提交即可。下次 CI 触发会从 `posts/` 移除。
 
 ---
 
-## HTML 模板关键约束
+## 本地开发
 
-1. **必须基于 `posts/template.html`** 生成新文章，不要从头编写 HTML 结构
-2. sidebar 和 TOC 的 JS 脚本必须完整保留，不要修改
-3. 所有 CSS class 名称必须与 `css/style.css` 中定义的一致
-4. 文章内的代码块必须使用 `<span class="code-label">语言</span>` 标注语言
-5. 链接路径：文章页引用首页用 `../index.html`，引用 CSS 用 `../css/style.css`
-6. sidebar 中当前分类必须设为 `active`，其他分类不设
+```bash
+# 1. 安装依赖
+npm install
+
+# 2. 构建一次
+npm run build
+
+# 3. 启动本地预览(http://localhost:8080)
+npm run serve
+# 或一键
+npm run preview   # = build + serve
+
+# 4. 监听 MD 变化自动重建(可选)
+npm run build:watch
+```
+
+**目录说明**:
+- `MarkDown/` → 写作
+- `templates/` → 调整 HTML/JS 模板
+- `build/categories.mjs` → 改分类元数据、关键词标签
+- `css/*.css` → 改样式
+- `js/*.js`(除 `data.js`)→ 改客户端行为
+
+**不要手动编辑**:
+- `posts/*.html` — 会被 build 覆盖
+- `js/data.js` — 会被 build 覆盖
+- `rss.xml` / `sitemap.xml` — 会被 build 覆盖
+- `index.html` / `about.html` / `404.html` — 会被 build 覆盖
+
+---
+
+## HTML 模板占位符
+
+`templates/post.html` 使用的占位符(由 `build.mjs` 替换):
+
+| 占位符 | 替换为 |
+|---|---|
+| `{{TITLE}}` | 文章标题 |
+| `{{TITLE_SHORT}}` | 短标题(用于面包屑末尾) |
+| `{{EXCERPT}}` | 摘要(≤90 字) |
+| `{{CATEGORY}}` | 主分类 ID(如 `kubernetes`) |
+| `{{CATEGORY_LABEL}}` | 主分类显示名(如 `Kubernetes`) |
+| `{{EXTRA_TAGS}}` | 附加标签 HTML 片段 |
+| `{{DATE}}` | YYYY-MM-DD |
+| `{{READING_TIME}}` | 阅读分钟数 |
+| `{{BODY}}` | 渲染后的 HTML 正文 |
+| `{{PREV_TITLE}}` / `{{NEXT_TITLE}}` | 上下篇标题 |
+| `{{PREV_HREF}}` / `{{NEXT_HREF}}` | `href="..."` 或 `aria-disabled="true"` |
+| `{{PREV_DISABLED}}` / `{{NEXT_DISABLED}}` | ` disabled` 或空 |
+| `{{RELATED_CARDS}}` | 同分类最新 3 篇的卡片 HTML |
 
 ---
 
@@ -206,17 +213,22 @@ git push → main 分支
     ↓
 GitHub Actions (.github/workflows/static.yml)
     ↓
-cloudflare/wrangler-action@v3
+  checkout (fetch-depth: 0)
     ↓
-Cloudflare Pages (project: sre-note, branch: main)
+  npm ci  (Node 20)
     ↓
-线上站点更新
+  npm run build  (build.mjs)
+    ↓
+  cloudflare/wrangler-action@v3 → Cloudflare Pages
+    ↓
+  线上站点更新
 ```
 
-**关键配置**：
-- 部署触发：push 到 `main` 或手动 `workflow_dispatch`
-- Cloudflare secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
-- 部署目录：项目根目录（`--project-name sre-note`）
+**关键配置**:
+- 部署触发:push 到 `main` 或手动 `workflow_dispatch`
+- Cloudflare secrets:`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
+- 部署目录:项目根目录(`--project-name sre-note`)
+- Node 版本:20.x
 
 ---
 
@@ -228,35 +240,75 @@ Cloudflare Pages (project: sre-note, branch: main)
 | `feat:`    | 新功能            | `feat: add search functionality`            |
 | `fix:`     | 修复             | `fix: correct sidebar count on Go category` |
 | `ci:`      | CI/CD 变更       | `ci: update Cloudflare deployment config`   |
-| `refactor:`| 重构（非功能变更）    | `refactor: redesign blog card layout`       |
+| `refactor:`| 重构（非功能变更）    | `refactor: redesign blog card layout`        |
 | `style:`   | 样式调整           | `style: adjust card hover effect`           |
+| `chore:`   | 杂项(模板/配置)     | `chore: update article template`            |
 
 ---
 
 ## 禁止事项
 
+- 不要手动编辑 `posts/*.html` / `js/data.js` / `rss.xml` / `sitemap.xml` —— 它们是 build 产物
+- 不要删除 `MarkDown/` 中的源文件(除非要下架文章)
 - 不要修改 `.github/workflows/static.yml` 除非明确要求
-- 不要删除 `MarkDown/` 中的源文件
-- 不要修改 `css/style.css` 除非明确要求
-- 不要在 HTML 中使用内联样式（除 template 中已有的布局辅助样式外）
-- 不要跳过首页文章卡片的添加——每篇文章必须在首页有入口
-- 不要修改 template.html 的 JS 脚本部分
-- 提交时不要 force push，不要使用 `--no-verify`
+- 不要在 HTML 中用内联样式(除 template 中已有的特殊布局)
+- 提交时不要 force push,不要使用 `--no-verify`
+
+---
+
+## 添加新分类示例
+
+假设要加一个 `database` 分类:
+
+1. **编辑 `build/categories.mjs`**:
+   ```js
+   export const CATEGORIES = [
+     // ... 已有分类
+     { id: 'database', name: 'Database', desc: '关系型 · NoSQL · 存储引擎' },
+   ];
+   ```
+
+2. **创建目录并写文章**:
+   ```bash
+   mkdir MarkDown/database
+   echo "# MySQL 索引原理" > MarkDown/database/mysql-index.md
+   ```
+
+3. **提交**:
+   ```bash
+   git add build/categories.mjs MarkDown/database/mysql-index.md
+   git commit -m "feat: add database category; docs: add MySQL 索引原理 article"
+   git push
+   ```
+
+4. **CI 自动处理**:`posts/mysql-索引原理.html` + 首页卡片 + RSS + sitemap 全部自动生成。
 
 ---
 
 ## 快速参考
 
-### 描述卡片（post-card-desc）提取规则
+### 构建选项
 
-取文章第一段正文内容，截断至 ≤80 个中文字符，末尾加 `…`。不要使用标题作为描述。
+| 命令 | 作用 |
+|---|---|
+| `npm install` | 安装依赖 |
+| `npm run build` | 完整构建一次 |
+| `npm run build:watch` | 监听 MarkDown 变化,自动重建 |
+| `npm run clean` | 清理所有生成产物 |
+| `npm run serve` | 启动本地静态服务器(端口 8080) |
+| `npm run preview` | build + serve 一键 |
 
-### 多分类标签
+### 自定义组件速查
 
-一篇文章可以有多个分类标签，例如 Admission Webhook 同时涉及 Kubernetes + Python + DevOps，在标签区全部显示：
+| 组件 | 用法 |
+|---|---|
+| 提示框 | `<div class="highlight-box">...</div>` |
+| 卡片 | `<div class="card">...</div>` |
+| ASCII 图 | `<div class="flow-diagram">...</div>` |
+| 步骤流 | `<div class="flow-steps"><div class="flow-step">**标题**:描述</div></div>` |
 
-```html
-<span class="tag tag-k8s">Kubernetes</span><span class="tag tag-python">Python</span>
-```
+### URL slug 规则
 
-主分类决定文章在首页的展示位置（category-group），附加标签只在文章卡片和文章页的 meta 区显示。
+- 标题 `Admission Webhook 开发` → slug `Admission-Webhook-开发`
+- 标题 `ConfigMap 与 Secret` → slug `ConfigMap-与-Secret`
+- 标题 `IP包结构与MTU位置` → slug `IP包结构与MTU位置`(中文保留)

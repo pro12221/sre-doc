@@ -1,0 +1,23 @@
+{
+  "name": "sre-notes",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SRE Notes — Cloud Native Tech Notes. Markdown-first static site.",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:watch": "node build.mjs --watch",
+    "clean": "node build.mjs --clean",
+    "serve": "npx http-server . -p 8080 -c-1",
+    "preview": "npm run build && npm run serve"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "marked": "^12.0.2"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
