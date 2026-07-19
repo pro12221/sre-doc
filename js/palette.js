@@ -56,7 +56,8 @@
       var cat = getCategory(a.category);
       var dotColor = cat ? cat.color : 'var(--accent)';
       var catName = cat ? cat.name : a.category;
-      var path = '../' + a.url;
+      // a.url is root-relative (`/posts/{slug}.html`) — use directly, no `../` needed.
+      var path = a.url;
       var item = document.createElement('a');
       item.href = path;
       item.className = 'palette-item' + (i === selectedIndex ? ' selected' : '');
@@ -122,7 +123,8 @@
     if (e.key === 'Enter') {
       e.preventDefault();
       if (results[selectedIndex]) {
-        window.location.href = '../' + results[selectedIndex].url;
+        // a.url is root-relative — navigate directly.
+        window.location.href = results[selectedIndex].url;
       }
     }
   }

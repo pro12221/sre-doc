@@ -7,28 +7,28 @@
   <language>zh-CN</language>
   <atom:link href="https://sre-note.pages.dev/rss.xml" rel="self" type="application/rss+xml"/>
     <item>
-      <title>===== Client 模式(调试用)=====</title>
-      <link>https://sre-note.pages.dev/posts/Client-模式(调试用).html</link>
-      <guid isPermaLink="true">https://sre-note.pages.dev/posts/Client-模式(调试用).html</guid>
+      <title>Spark 是什么</title>
+      <link>https://sre-note.pages.dev/posts/Spark-是什么.html</link>
+      <guid isPermaLink="true">https://sre-note.pages.dev/posts/Spark-是什么.html</guid>
       <pubDate>2026-07-19T00:00:00+08:00</pubDate>
       <category>bigdata</category>
-      <description>（无摘要）</description>
+      <description>Apache Spark 是一个基于内存的、快速的、通用的分布式计算引擎。它最初由加州大学伯克利分校 AMP 实验室开发,现已成为 Apache 顶级项目。</description>
     </item>
     <item>
-      <title>YARN</title>
-      <link>https://sre-note.pages.dev/posts/YARN.html</link>
-      <guid isPermaLink="true">https://sre-note.pages.dev/posts/YARN.html</guid>
-      <pubDate>2026-07-18T00:00:00+08:00</pubDate>
+      <title>YARN 是什么</title>
+      <link>https://sre-note.pages.dev/posts/YARN-是什么.html</link>
+      <guid isPermaLink="true">https://sre-note.pages.dev/posts/YARN-是什么.html</guid>
+      <pubDate>2026-07-19T00:00:00+08:00</pubDate>
       <category>bigdata</category>
-      <description>（无摘要）</description>
+      <description>Apache YARN(Yet Another Resource Negotiator 的缩写)是 hadoop 集群资源管理系统,它负责分配和管理集群中的资源。YARN 将集群资…</description>
     </item>
     <item>
-      <title>HDFS</title>
-      <link>https://sre-note.pages.dev/posts/HDFS.html</link>
-      <guid isPermaLink="true">https://sre-note.pages.dev/posts/HDFS.html</guid>
+      <title>Hadoop是什么</title>
+      <link>https://sre-note.pages.dev/posts/Hadoop是什么.html</link>
+      <guid isPermaLink="true">https://sre-note.pages.dev/posts/Hadoop是什么.html</guid>
       <pubDate>2026-07-16T00:00:00+08:00</pubDate>
       <category>bigdata</category>
-      <description>（无摘要）</description>
+      <description>hadoop是目前 大数据领域最主流的 分布式计算框架 HDFS ![alt text](./images/image.png) MapRuduce  spark 框架 Yarn</description>
     </item>
     <item>
       <title>Prometheus Operator 使用指南</title>
@@ -47,9 +47,9 @@
       <description>目标：在 K8s 集群中，于两个相同规格 Node 上分别部署 Prometheus 和 VictoriaMetrics 单机版，相同工作负载下系统性压测，量化两者在写入、查询、资…</description>
     </item>
     <item>
-      <title>vm-grafana.yaml</title>
-      <link>https://sre-note.pages.dev/posts/vm-grafana.yaml.html</link>
-      <guid isPermaLink="true">https://sre-note.pages.dev/posts/vm-grafana.yaml.html</guid>
+      <title>单机</title>
+      <link>https://sre-note.pages.dev/posts/单机.html</link>
+      <guid isPermaLink="true">https://sre-note.pages.dev/posts/单机.html</guid>
       <pubDate>2026-07-02T00:00:00+08:00</pubDate>
       <category>observability</category>
       <description>2.VictoriaMetrics</description>

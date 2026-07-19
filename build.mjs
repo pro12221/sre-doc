@@ -127,34 +127,55 @@ function getCategory(id) {
   return CATEGORIES.find(c => c.id === id);
 }
 
-/** Parse the first H1 from markdown source. Fallback: first H2 (unless it's a TOC heading), then filename. */
+/** Parse the first H1 from markdown source. Fallback: first H2 (unless it's a TOC heading), then filename.
+ *  IMPORTANT: skips lines inside fenced code blocks (``` or ~~~). Otherwise, any commented-out
+ *  `# Title` inside a shell/bash snippet gets mis-detected as the article title. */
 function parseTitle(md, fallback) {
-  const h1 = md.match(/^#\s+(.+?)\s*$/m);
-  if (h1) return h1[1].trim();
-  // Try the first H2 unless it's a TOC marker.
-  const h2 = md.match(/^##\s+(.+?)\s*$/m);
-  if (h2) {
-    const t = h2[1].trim();
-    if (!/^(目录|Table of Contents|TOC|Contents)$/i.test(t)) return t;
+  const lines = md.split('\n');
+  let inFence = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (/^(`{3,}|~{3,})/.test(t)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const h1 = t.match(/^#\s+(.+?)\s*$/);
+    if (h1) return h1[1].trim();
+  }
+  // No H1 (or only H1s inside code blocks) — try the first H2 unless it's a TOC marker.
+  inFence = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (/^(`{3,}|~{3,})/.test(t)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const h2 = t.match(/^##\s+(.+?)\s*$/);
+    if (h2) {
+      const s = h2[1].trim();
+      if (!/^(目录|Table of Contents|TOC|Contents)$/i.test(s)) return s;
+    }
   }
   return fallback;
 }
 
-/** Generate excerpt from first non-heading paragraph. */
+/** Generate excerpt from first non-heading paragraph.
+ *  Skips lines inside fenced code blocks and pure-decoration lines (---, ===, etc.),
+ *  so a stray horizontal rule between TOC and the first paragraph doesn't reset buf. */
 function parseExcerpt(md, maxLen = 90) {
   const lines = md.split('\n');
   let collecting = false;
   let buf = '';
+  let inFence = false;
+  const isDecoration = (s) => /^[-=*_~#.\s]+$/.test(s);
   for (const raw of lines) {
     const line = raw.trim();
+    if (/^(`{3,}|~{3,})/.test(line)) { inFence = !inFence; continue; }
+    if (inFence) continue;
     if (collecting) {
       if (!line) { if (buf) break; continue; }
       if (line.startsWith('#')) break;
       if (line.startsWith('!')) continue;
       if (line.startsWith('```')) continue;
-      buf += (buf ? '' : '') + line.replace(/[*_`>#-]/g, '').trim();
+      buf += (buf ? ' ' : '') + line.replace(/[*_`>#-]/g, '').trim();
       if (buf.length > maxLen) break;
-    } else if (line && !line.startsWith('#') && !line.startsWith('!') && !line.startsWith('```') && !line.startsWith('|')) {
+    } else if (line && !line.startsWith('#') && !line.startsWith('!') && !line.startsWith('```') && !line.startsWith('|') && !isDecoration(line)) {
       collecting = true;
       buf = line.replace(/[*_`>#-]/g, '').trim();
       if (buf.length > maxLen) break;
@@ -290,7 +311,9 @@ async function processArticle(mdFile) {
     htmlBody: html,
     slug,
     sourceFile: relFile,
-    url: `posts/${slug}.html`,
+    // Root-relative URL (leading slash). Templates and client JS can use this directly
+    // as an href without `../` gymnastics — resolves correctly from any page depth.
+    url: `/posts/${slug}.html`,
   };
 }
 
@@ -403,29 +426,31 @@ function renderDataJs(articles, sortedArticles, tpl) {
 }
 
 function renderRss(articles, tpl) {
+  const base = SITE.baseUrl.replace(/\/+$/, '');
   const recent = articles.slice(0, 20);
   const items = recent.map(a => `    <item>
       <title>${escapeXml(a.title)}</title>
-      <link>${SITE.baseUrl}/${a.url}</link>
-      <guid isPermaLink="true">${SITE.baseUrl}/${a.url}</guid>
+      <link>${base}${a.url}</link>
+      <guid isPermaLink="true">${base}${a.url}</guid>
       <pubDate>${a.date}T00:00:00+08:00</pubDate>
       <category>${escapeXml(a.category)}</category>
       <description>${escapeXml(a.excerpt)}</description>
     </item>`).join('\n');
   return tpl
     .replaceAll('{{TITLE}}', escapeXml(SITE.title + ' — ' + SITE.tagline))
-    .replaceAll('{{LINK}}', SITE.baseUrl)
+    .replaceAll('{{LINK}}', base)
     .replaceAll('{{DESCRIPTION}}', escapeXml(SITE.description))
     .replaceAll('{{LANGUAGE}}', SITE.language)
     .replaceAll('{{ITEMS}}', items);
 }
 
 function renderSitemap(articles, tpl) {
+  const base = SITE.baseUrl.replace(/\/+$/, '');
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
-    `  <url><loc>${SITE.baseUrl}/</loc><lastmod>${today}</lastmod><priority>1.0</priority></url>`,
-    `  <url><loc>${SITE.baseUrl}/about.html</loc><lastmod>${today}</lastmod><priority>0.6</priority></url>`,
-    ...articles.map(a => `  <url><loc>${SITE.baseUrl}/${a.url}</loc><lastmod>${a.date}</lastmod><priority>0.8</priority></url>`),
+    `  <url><loc>${base}/</loc><lastmod>${today}</lastmod><priority>1.0</priority></url>`,
+    `  <url><loc>${base}/about.html</loc><lastmod>${today}</lastmod><priority>0.6</priority></url>`,
+    ...articles.map(a => `  <url><loc>${base}${a.url}</loc><lastmod>${a.date}</lastmod><priority>0.8</priority></url>`),
   ].join('\n');
   return tpl.replaceAll('{{URLS}}', urls);
 }

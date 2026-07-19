@@ -2,12 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://sre-note.pages.dev/</loc><lastmod>2026-07-19</lastmod><priority>1.0</priority></url>
   <url><loc>https://sre-note.pages.dev/about.html</loc><lastmod>2026-07-19</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sre-note.pages.dev/posts/Client-模式(调试用).html</loc><lastmod>2026-07-19</lastmod><priority>0.8</priority></url>
-  <url><loc>https://sre-note.pages.dev/posts/YARN.html</loc><lastmod>2026-07-18</lastmod><priority>0.8</priority></url>
-  <url><loc>https://sre-note.pages.dev/posts/HDFS.html</loc><lastmod>2026-07-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sre-note.pages.dev/posts/Spark-是什么.html</loc><lastmod>2026-07-19</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sre-note.pages.dev/posts/YARN-是什么.html</loc><lastmod>2026-07-19</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sre-note.pages.dev/posts/Hadoop是什么.html</loc><lastmod>2026-07-16</lastmod><priority>0.8</priority></url>
   <url><loc>https://sre-note.pages.dev/posts/Prometheus-Operator-使用指南.html</loc><lastmod>2026-07-02</lastmod><priority>0.8</priority></url>
   <url><loc>https://sre-note.pages.dev/posts/Prometheus-vs-VictoriaMetrics-单机版-全方位压测实验设计.html</loc><lastmod>2026-07-02</lastmod><priority>0.8</priority></url>
-  <url><loc>https://sre-note.pages.dev/posts/vm-grafana.yaml.html</loc><lastmod>2026-07-02</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sre-note.pages.dev/posts/单机.html</loc><lastmod>2026-07-02</lastmod><priority>0.8</priority></url>
   <url><loc>https://sre-note.pages.dev/posts/Kubernetes-Gateway-API-与-Ingress-对比及主流实现.html</loc><lastmod>2026-06-21</lastmod><priority>0.8</priority></url>
   <url><loc>https://sre-note.pages.dev/posts/引入问题.html</loc><lastmod>2026-06-21</lastmod><priority>0.8</priority></url>
   <url><loc>https://sre-note.pages.dev/posts/iptables、IPVS-与-nftables-详解：从安装使用到内核收发包全流程.html</loc><lastmod>2026-06-21</lastmod><priority>0.8</priority></url>
